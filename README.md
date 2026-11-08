@@ -4,13 +4,14 @@ Frontend web/PWA en Next.js para planificación de rutas de reparto y transporte
 
 ## Variables de entorno
 
-- `NEXT_PUBLIC_API_URL`: URL de Route Planner API.
+- `API_URL`: URL del backend para el proxy del servidor (opcional).
+- `NEXT_PUBLIC_API_URL`: URL de Route Planner API, compatible con la configuración existente.
 - `NEXT_PUBLIC_SUPABASE_URL`: URL del proyecto Supabase independiente de Route Planner.
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: clave pública/publishable de Supabase. Nunca colocar una service-role o secret key en el cliente.
 
 ## Desarrollo
 
-`npm install && npm run dev`
+`npm ci` y `npm run dev`. Verifica con `npm run typecheck` y `npm run build`.
 
 La interfaz solicita los cálculos a Route Planner API. La API utiliza OpenRouteService (HeiGIT); la clave `ORS_API_KEY` debe existir únicamente como secreto del proyecto API de Vercel. No se necesita ni debe configurarse una clave ORS en el frontend.
 
@@ -41,3 +42,8 @@ Las restricciones para vehículos pesados dependen de los atributos presentes en
 Los campos de origen, paradas y destino utilizan `components/LocationInput.tsx` para sugerir lugares mientras se escribe. El usuario elige un resultado y confirma el punto; la web conserva sus coordenadas exactas y Plus Code para enviar el punto al motor de rutas.
 
 La web utiliza el proxy same-origin `/api/route-planner/[...path]` para comunicarse con la API. Esto evita que el navegador dependa de CORS entre dominios y convierte los fallos de conexión con el backend en un mensaje controlado.
+
+El proxy admite hasta 75 segundos para el cálculo (geocodificación, optimización y
+ruteo), y 25 segundos para otras solicitudes. Los fallos de conexión, las
+respuestas de infraestructura sin JSON y los tiempos de espera se devuelven como
+errores JSON legibles; los límites del proveedor conservan `Retry-After`.
