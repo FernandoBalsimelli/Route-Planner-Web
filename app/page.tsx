@@ -131,22 +131,35 @@ export default function Home() {
     setVehicleProfileSaving(true);
     setVehicleProfileMessage('');
     try {
-      const { data, error } = await supabase.from('vehicles').insert({
-        owner_id: user.id,
+      const existing = vehicleProfiles.find(profile => profile.id === selectedVehicleProfileId);
+      const values = {
         fleet_id: selectedFleetId || null,
-        name: vehicleProfileName.trim() || 'Camión ' + (vehicleProfiles.length + 1),
-        vehicle_type: 'truck',
+        name: vehicleProfileName.trim() || existing?.name || 'Camión ' + (vehicleProfiles.length + 1),
+        vehicle_type: 'truck' as const,
         height_m: Number(vehicle.height),
         width_m: Number(vehicle.width),
         length_m: Number(vehicle.length),
         gross_weight_t: Number(vehicle.grossWeight),
         axle_weight_t: Number(vehicle.axleWeight),
-      }).select('id,name,fleet_id,vehicle_type,height_m,width_m,length_m,gross_weight_t,axle_weight_t').single();
+      };
+      let data;
+      let error;
+      if (selectedVehicleProfileId) {
+        const response = await supabase.from('vehicles').update(values).eq('id', selectedVehicleProfileId)
+          .select('id,name,fleet_id,vehicle_type,height_m,width_m,length_m,gross_weight_t,axle_weight_t').single();
+        data = response.data;
+        error = response.error;
+      } else {
+        const response = await supabase.from('vehicles').insert({ ...values, owner_id: user.id })
+          .select('id,name,fleet_id,vehicle_type,height_m,width_m,length_m,gross_weight_t,axle_weight_t').single();
+        data = response.data;
+        error = response.error;
+      }
       if (error) throw error;
-      setVehicleProfiles(items => [data as VehicleProfile, ...items]);
+      setVehicleProfiles(items => [data as VehicleProfile, ...items.filter(item => item.id !== data.id)]);
       setSelectedVehicleProfileId(data.id);
       setVehicleProfileName('');
-      setVehicleProfileMessage('Perfil de camión guardado.');
+      setVehicleProfileMessage(selectedVehicleProfileId ? 'Perfil actualizado.' : 'Perfil de camión guardado.');
     } catch (error) {
       setVehicleProfileMessage(error instanceof Error ? error.message : 'No se pudo guardar el perfil.');
     } finally {
@@ -250,7 +263,7 @@ export default function Home() {
         <div className="fleet-create-row"><input aria-label="Nombre de nueva flota" value={newFleetName} onChange={e => setNewFleetName(e.target.value)} placeholder="Nombre de nueva flota" /><button type="button" onClick={() => void createFleet()} disabled={fleetSaving}>{fleetSaving ? 'Creando…' : 'Crear flota'}</button></div>
         {fleetMessage && <p className="vehicle-profile-message" role="status">{fleetMessage}</p>}
         <label>Perfiles guardados<select value={selectedVehicleProfileId} onChange={e => loadVehicleProfile(e.target.value)}><option value="">Usar medidas actuales</option>{vehicleProfiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>
-        <div className="vehicle-profile-save-row"><input aria-label="Nombre del perfil" value={vehicleProfileName} onChange={e => setVehicleProfileName(e.target.value)} placeholder="Nombre del perfil (opcional)" /><button type="button" onClick={() => void saveVehicleProfile()} disabled={vehicleProfileSaving}>{vehicleProfileSaving ? 'Guardando…' : 'Guardar perfil'}</button></div>
+        <div className="vehicle-profile-save-row"><input aria-label="Nombre del perfil" value={vehicleProfileName} onChange={e => setVehicleProfileName(e.target.value)} placeholder="Nombre del perfil (opcional)" /><button type="button" onClick={() => void saveVehicleProfile()} disabled={vehicleProfileSaving}>{vehicleProfileSaving ? 'Guardando…' : selectedVehicleProfileId ? 'Actualizar perfil' : 'Guardar perfil'}</button></div>
         {vehicleProfileMessage && <p className="vehicle-profile-message" role="status">{vehicleProfileMessage}</p>}
       </div><p className="hint">OpenRouteService considerará las restricciones disponibles en OpenStreetMap; la cobertura puede ser incompleta.</p></div>}
       <button className="primary-button" disabled={!canPlan} onClick={planRoute}>{loading ? 'Calculando ruta…' : 'Calcular ruta  →'}</button>{mapsUrl && <a className="secondary-button" href={mapsUrl} target="_blank" rel="noreferrer">Abrir puntos en Google Maps ↗</a>}
