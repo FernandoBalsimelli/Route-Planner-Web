@@ -162,7 +162,7 @@ export default function Home() {
         {!user && <span className="saved-routes-note">Inicia sesión para ver tus rutas.</span>}
       </div>
       {user && (savedRoutesLoading ? <p className="saved-routes-note">Cargando tus rutas…</p> : savedRoutesError ? <p className="saved-routes-error">{savedRoutesError}</p> : savedRoutes.length ? <div className="saved-routes-list">{savedRoutes.map(route => <article className="saved-route-card" key={route.id}>
-        <div><strong>{route.name}</strong><small>{new Date(route.created_at).toLocaleDateString('es-MX')} · {route.origin?.label || 'Origen guardado'} → {route.destination?.label || 'Destino guardado'}</small></div>
+        <div><strong>{route.name}</strong><small>{new Date(route.created_at).toLocaleDateString('es-MX')} · {route.route_metadata?.mode === 'truck' ? 'Camión' : 'Reparto'}{route.route_metadata?.result ? ` · ${formatDistance(route.route_metadata.result.distanceMeters)} · ${formatDuration(route.route_metadata.result.durationSeconds)}` : ''}<br />{route.origin?.label || 'Origen guardado'} → {route.destination?.label || 'Destino guardado'}</small></div>
         <button type="button" onClick={() => void restoreSavedRoute(route)}>Cargar ruta</button>
       </article>)}</div> : <p className="saved-routes-note">Todavía no has guardado recorridos.</p>)}
     </section>
