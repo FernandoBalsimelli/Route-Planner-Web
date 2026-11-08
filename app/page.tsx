@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import AccountPanel from '@/components/AccountPanel';
 import { supabase } from '@/lib/supabase';
 
 type Stop = { id: string; value: string };
+type SavedRoute = { id: string; name: string; created_at: string; origin: { label?: string; lat?: number; lng?: number } | null; destination: { label?: string; lat?: number; lng?: number } | null };
 type RouteResult = { distanceMeters: number; durationSeconds: number; polyline?: string; sections: Array<{ summary?: { length?: number; duration?: number }; actions?: Array<{ instruction?: string; action?: string }> }>; notices?: Array<{ title?: string; code?: string; severity?: string; details?: string }>; waypoints?: Array<{ lat: number; lng: number; label?: string; type: string }> };
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://route-planner-api-fernandobalsimellis-projects.vercel.app';
 
@@ -25,6 +26,9 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [savedRoutes, setSavedRoutes] = useState<SavedRoute[]>([]);
+  const [savedRoutesLoading, setSavedRoutesLoading] = useState(false);
+  const [savedRoutesError, setSavedRoutesError] = useState('');
   const canPlan = origin.trim().length > 2 && destination.trim().length > 2 && !loading;
   const mapsUrl = useMemo(() => {
     const points = [origin, ...stops.map(s => s.value), destination].filter(Boolean);
@@ -32,9 +36,49 @@ export default function Home() {
     return 'https://www.google.com/maps/dir/' + points.map(encodeURIComponent).join('/');
   }, [origin, destination, stops]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!user || !supabase) { setSavedRoutes([]); setSavedRoutesError(''); return; }
+      setSavedRoutesLoading(true);
+      setSavedRoutesError('');
+      const { data, error } = await supabase.from('saved_routes')
+        .select('id,name,created_at,origin,destination')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (!cancelled) {
+        if (error) setSavedRoutesError('No se pudieron cargar tus rutas: ' + error.message);
+        else setSavedRoutes((data || []) as SavedRoute[]);
+        setSavedRoutesLoading(false);
+      }
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, [user]);
+
   function addStop() { setStops(items => [...items, { id: crypto.randomUUID(), value: '' }]); }
   function updateStop(id: string, value: string) { setStops(items => items.map(s => s.id === id ? { ...s, value } : s)); }
   function removeStop(id: string) { setStops(items => items.filter(s => s.id !== id)); }
+
+  async function restoreSavedRoute(route: SavedRoute) {
+    if (!supabase) return;
+    const { data, error } = await supabase.from('route_stops')
+      .select('sequence,location')
+      .eq('route_id', route.id)
+      .order('sequence', { ascending: true });
+    if (error) { setSavedRoutesError('No se pudieron cargar las paradas: ' + error.message); return; }
+    const label = (point: SavedRoute['origin']) => point?.label || (point?.lat != null && point?.lng != null ? `${point.lat}, ${point.lng}` : '');
+    setOrigin(label(route.origin));
+    setDestination(label(route.destination));
+    setStops((data || []).map((row: { sequence: number; location: { label?: string; lat?: number; lng?: number } }) => ({
+      id: crypto.randomUUID(),
+      value: row.location?.label || (row.location?.lat != null && row.location?.lng != null ? `${row.location.lat}, ${row.location.lng}` : ''),
+    })));
+    setResult(null);
+    setError('');
+    setSaveMessage(`Se cargó "${route.name}". Vuelve a calcular para obtener una ruta actualizada.`);
+    document.getElementById('planificador')?.scrollIntoView({ behavior: 'smooth' });
+  }
 
   async function planRoute() {
     if (!canPlan) return;
@@ -70,14 +114,23 @@ export default function Home() {
         status: 'planned',
       }).select('id').single();
       if (error) throw error;
-      const stopRows = stops.map(s => s.value.trim()).filter(Boolean).map((label, index) => ({
-        route_id: saved.id, owner_id: user.id, sequence: index + 1, location: { label },
-      }));
+      const stopRows = stops.filter(s => s.value.trim()).map((stop, index) => {
+        const waypoint = result.waypoints?.[index + 1];
+        return {
+          route_id: saved.id, owner_id: user.id, sequence: index + 1,
+          location: { label: stop.value.trim(), ...(waypoint ? { lat: waypoint.lat, lng: waypoint.lng } : {}) },
+        };
+      });
       if (stopRows.length) {
         const { error: stopError } = await supabase.from('route_stops').insert(stopRows);
-        if (stopError) throw stopError;
+        if (stopError) {
+          await supabase.from('saved_routes').delete().eq('id', saved.id);
+          throw stopError;
+        }
       }
       setSaveMessage('Ruta guardada en tu cuenta.');
+      const { data: refreshed } = await supabase.from('saved_routes').select('id,name,created_at,origin,destination').order('created_at', { ascending: false }).limit(10);
+      if (refreshed) setSavedRoutes(refreshed as SavedRoute[]);
     } catch (error) {
       setSaveMessage(error instanceof Error ? error.message : 'No se pudo guardar la ruta.');
     } finally { setSaving(false); }
@@ -92,6 +145,16 @@ export default function Home() {
       <button className="primary-button" disabled={!canPlan} onClick={planRoute}>{loading ? 'Calculando ruta…' : 'Calcular ruta  →'}</button>{mapsUrl && <a className="secondary-button" href={mapsUrl} target="_blank" rel="noreferrer">Abrir puntos en Google Maps ↗</a>}
       {error && <div className="error-box"><strong>No se pudo calcular</strong><p>{error}</p>{providerStatus === 'missing' && <small>Falta configurar ORS_API_KEY como variable secreta en Vercel.</small>}</div>}
       </div><aside className="result-panel"><div className="result-top"><span>RESULTADO DEL RECORRIDO</span><span className="result-icon">⌁</span></div>{result ? <><div className="metrics"><div><small>DISTANCIA</small><strong>{formatDistance(result.distanceMeters)}</strong></div><div><small>TIEMPO ESTIMADO</small><strong>{formatDuration(result.durationSeconds)}</strong></div></div><div className="route-line"><div className="route-point"><i className="dot green"/><span><b>Origen</b><small>{origin}</small></span></div>{stops.filter(s => s.value).map((s,i)=><div className="route-point" key={s.id}><i className="stop-number">{i+1}</i><span><b>Parada {i+1}</b><small>{s.value}</small></span></div>)}<div className="route-point"><i className="dot orange"/><span><b>Destino</b><small>{destination}</small></span></div></div><div className="instructions"><strong>Indicaciones</strong>{result.sections.flatMap(section => section.actions || []).filter(action => action.instruction).slice(0, 12).map((action, index) => <p key={index}>{index + 1}. {action.instruction}</p>)}</div>{(result.notices || []).length > 0 && <div className="notice-box"><strong>Avisos de ruta</strong>{result.notices?.map((n,i)=><p key={i}>{n.title || n.details || n.code}</p>)}</div>}<button className="primary-button save-button" disabled={saving} onClick={saveRoute}>{saving ? 'Guardando…' : 'Guardar esta ruta'}</button>{saveMessage && <p className="save-message">{saveMessage}</p>}<a className="secondary-button" href={mapsUrl} target="_blank" rel="noreferrer">Abrir navegación ↗</a></> : <div className="empty-state"><div className="empty-route">⌁</div><strong>Tu ruta aparecerá aquí</strong><p>Completa origen y destino para obtener distancia, tiempo y avisos del recorrido.</p><div className="empty-stats"><span>— km <small>Distancia</small></span><span>— min <small>Duración</small></span></div></div>}</aside></div><p className="disclaimer">Las rutas para camiones dependen de los datos y restricciones disponibles en OpenStreetMap. Verifica señalización y normativa local antes de circular.</p>
+    </section>
+    <section className="saved-routes" aria-labelledby="saved-routes-title">
+      <div className="saved-routes-heading">
+        <div><p className="eyebrow">TU CUENTA</p><h2 id="saved-routes-title">Mis rutas guardadas</h2><p>Recupera un recorrido anterior y vuelve a calcularlo cuando lo necesites.</p></div>
+        {!user && <span className="saved-routes-note">Inicia sesión para ver tus rutas.</span>}
+      </div>
+      {user && (savedRoutesLoading ? <p className="saved-routes-note">Cargando tus rutas…</p> : savedRoutesError ? <p className="saved-routes-error">{savedRoutesError}</p> : savedRoutes.length ? <div className="saved-routes-list">{savedRoutes.map(route => <article className="saved-route-card" key={route.id}>
+        <div><strong>{route.name}</strong><small>{new Date(route.created_at).toLocaleDateString('es-MX')} · {route.origin?.label || 'Origen guardado'} → {route.destination?.label || 'Destino guardado'}</small></div>
+        <button type="button" onClick={() => void restoreSavedRoute(route)}>Cargar ruta</button>
+      </article>)}</div> : <p className="saved-routes-note">Todavía no has guardado recorridos.</p>)}
     </section>
     <section className="features" id="como-funciona"><div><p className="eyebrow">DISEÑADO PARA TRABAJAR</p><h2>Una herramienta para cada tipo de recorrido.</h2></div><article><span>01</span><h3>Reparto y mensajería</h3><p>Organiza origen, entregas y destino desde un solo lugar.</p></article><article><span>02</span><h3>Transporte pesado</h3><p>Considera dimensiones, peso bruto y peso por eje.</p></article><article><span>03</span><h3>Tu operación, después</h3><p>La base está preparada para perfiles, vehículos, rutas guardadas y flotas.</p></article></section>
     <footer><a className="brand" href="#inicio"><span className="brand-mark">R</span><span>ROUTE <b>PLANNER</b></span></a><span>Hecho para mover el trabajo.</span><span>Versión inicial · 2026</span></footer>
