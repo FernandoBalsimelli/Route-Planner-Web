@@ -132,6 +132,7 @@ export default function Home() {
     if (savedVehicle) setVehicle({ height: String(savedVehicle.heightM ?? 4), width: String(savedVehicle.widthM ?? 2.5), length: String(savedVehicle.lengthM ?? 18), grossWeight: String(savedVehicle.grossWeightT ?? 40), axleWeight: String(savedVehicle.axleWeightT ?? 10) });
     setSelectedVehicleProfileId('');
     setResult(route.route_metadata?.result || null);
+    setOptimizeStops(Boolean(route.route_metadata?.result?.optimized));
     setError('');
     setSaveMessage(`Se cargó "${route.name}". Puedes continuar o volver a calcular la ruta.`);
     document.getElementById('planificador')?.scrollIntoView({ behavior: 'smooth' });
