@@ -93,6 +93,12 @@ export default function Home() {
 
   async function saveVehicleProfile() {
     if (!user || !supabase) { setVehicleProfileMessage('Inicia sesión para guardar perfiles.'); return; }
+    const dimensions = [Number(vehicle.height), Number(vehicle.width), Number(vehicle.length), Number(vehicle.grossWeight), Number(vehicle.axleWeight)];
+    const limits = [10, 5, 30, 100, 30];
+    if (dimensions.some((value, index) => !Number.isFinite(value) || value <= 0 || value > limits[index])) {
+      setVehicleProfileMessage('Revisa las dimensiones y pesos: deben ser mayores que cero y estar dentro de los límites indicados.');
+      return;
+    }
     setVehicleProfileSaving(true);
     setVehicleProfileMessage('');
     try {
