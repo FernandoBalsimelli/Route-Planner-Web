@@ -57,7 +57,7 @@ export default function Home() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      if (!user || !supabase) { setSavedRoutes([]); setSavedRoutesError(''); return; }
+      if (!user || !supabase) { setSavedRoutes([]); setVehicleProfiles([]); setFleets([]); setSelectedVehicleProfileId(''); setSelectedFleetId(''); setSavedRoutesError(''); setVehicleProfileMessage(''); setFleetMessage(''); setSavedRoutesLoading(false); return; }
       setSavedRoutesLoading(true);
       setSavedRoutesError('');
       const [{ data, error }, { data: profiles, error: profilesError }, { data: fleetData, error: fleetError }] = await Promise.all([
