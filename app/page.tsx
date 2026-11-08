@@ -183,13 +183,12 @@ export default function Home() {
         },
       }).select('id').single();
       if (error) throw error;
-      const stopRows = stops.filter(s => s.value.trim()).map((stop, index) => {
-        const waypoint = result.waypoints?.[index + 1];
-        return {
-          route_id: saved.id, owner_id: user.id, sequence: index + 1,
-          location: { label: stop.value.trim(), ...(waypoint ? { lat: waypoint.lat, lng: waypoint.lng } : {}) },
-        };
-      });
+      const stopRows = (result.waypoints || []).filter(point => point.type === 'stop').map((point, index) => ({
+        route_id: saved.id,
+        owner_id: user.id,
+        sequence: index + 1,
+        location: { label: point.label || (point.lat + ', ' + point.lng), lat: point.lat, lng: point.lng },
+      }));
       if (stopRows.length) {
         const { error: stopError } = await supabase.from('route_stops').insert(stopRows);
         if (stopError) {
