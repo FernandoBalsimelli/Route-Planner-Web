@@ -8,7 +8,12 @@ export type LocationSelection = {
   lng: number;
   plusCode?: string;
   source?: string;
+  kind?: string;
 };
+
+function locationKind(kind?: string) {
+  return kind ? ({ locality: 'Ciudad o localidad', address: 'Dirección', venue: 'Lugar', street: 'Calle', neighbourhood: 'Colonia', borough: 'Distrito' } as Record<string, string>)[kind] : undefined;
+}
 
 type Props = {
   title: string;
@@ -42,6 +47,9 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       setLoading(false);
       return;
     }
+    setSuggestions([]);
+    setPending(null);
+    setSearchError('');
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       setLoading(true);
@@ -95,13 +103,13 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
         onClick={() => setPending(suggestion)}
       >
         <span className="suggestion-pin">⌖</span>
-        <span className="suggestion-copy"><strong>{suggestion.label}</strong><small>{suggestion.plusCode || `${suggestion.lat.toFixed(6)}, ${suggestion.lng.toFixed(6)}`}</small></span>
+        <span className="suggestion-copy"><strong>{suggestion.label}</strong><small>{locationKind(suggestion.kind) && `${locationKind(suggestion.kind)} · `}{suggestion.plusCode || `${suggestion.lat.toFixed(6)}, ${suggestion.lng.toFixed(6)}`}</small></span>
         <span className="suggestion-arrow">›</span>
       </button>)}
     </div>}
     {searchError && <p className="location-search-error">{searchError} Puedes continuar escribiendo una dirección completa.</p>}
     {pending && <div className="location-confirm-card">
-      <div><strong>¿Es este el punto correcto?</strong><p>{pending.label}</p><small>{pending.plusCode || `${pending.lat.toFixed(6)}, ${pending.lng.toFixed(6)}`}</small></div>
+      <div><strong>¿Es este el punto correcto?</strong><p>{pending.label}</p><small>{locationKind(pending.kind) && `${locationKind(pending.kind)} · `}{pending.plusCode || `${pending.lat.toFixed(6)}, ${pending.lng.toFixed(6)}`}</small></div>
       <a href={`https://www.google.com/maps/search/?api=1&query=${pending.lat},${pending.lng}`} target="_blank" rel="noreferrer">Ver mapa ↗</a>
       <div className="location-confirm-actions"><button type="button" onClick={() => setPending(null)}>Elegir otro</button><button type="button" onClick={confirmPending}>Confirmar punto</button></div>
     </div>}
