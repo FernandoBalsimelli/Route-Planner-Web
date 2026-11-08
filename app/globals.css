@@ -40,3 +40,10 @@
 .vehicle-profile-save-row button:disabled{opacity:.55;cursor:wait}
 .vehicle-profile-message{font-size:10px;color:#4b795e;margin:0;line-height:1.4}
 @media(max-width:480px){.vehicle-profile-save-row{grid-template-columns:1fr}.vehicle-profile-save-row button{height:38px}}
+
+.optimize-toggle{display:flex;align-items:flex-start;gap:9px;margin:13px 0;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#f8faf7;cursor:pointer}
+.optimize-toggle input{width:15px;height:15px;margin:1px 0 0;accent-color:var(--green);flex:none}
+.optimize-toggle b,.optimize-toggle small{display:block}
+.optimize-toggle b{font-size:11px;color:var(--ink)}
+.optimize-toggle small{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.4}
+.optimize-toggle:has(input:disabled){opacity:.68;cursor:not-allowed}
