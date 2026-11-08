@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 
 type Stop = { id: string; value: string };
 type VehicleProfile = { id: string; name: string; vehicle_type: 'delivery' | 'car' | 'truck'; height_m: number | null; width_m: number | null; length_m: number | null; gross_weight_t: number | null; axle_weight_t: number | null };
-type SavedRoute = { id: string; name: string; created_at: string; origin: { label?: string; lat?: number; lng?: number } | null; destination: { label?: string; lat?: number; lng?: number } | null; route_metadata?: { mode?: 'delivery' | 'truck'; vehicle?: { heightM?: number; widthM?: number; lengthM?: number; grossWeightT?: number; axleWeightT?: number } | null; result?: RouteResult } | null };
+type SavedRoute = { id: string; name: string; created_at: string; vehicle_id?: string | null; origin: { label?: string; lat?: number; lng?: number } | null; destination: { label?: string; lat?: number; lng?: number } | null; route_metadata?: { mode?: 'delivery' | 'truck'; vehicle?: { heightM?: number; widthM?: number; lengthM?: number; grossWeightT?: number; axleWeightT?: number } | null; result?: RouteResult } | null };
 type RouteResult = { distanceMeters: number; durationSeconds: number; polyline?: string; optimized?: boolean; sections: Array<{ summary?: { length?: number; duration?: number }; actions?: Array<{ instruction?: string; action?: string }> }>; notices?: Array<{ title?: string; code?: string; severity?: string; details?: string }>; waypoints?: Array<{ lat: number; lng: number; label?: string; type: string }> };
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://route-planner-api-fernandobalsimellis-projects.vercel.app';
 const RouteMap = dynamic(() => import('@/components/RouteMap'), { ssr: false, loading: () => <div className="route-map-loading">Cargando mapa…</div> });
@@ -55,7 +55,7 @@ export default function Home() {
       setSavedRoutesLoading(true);
       setSavedRoutesError('');
       const [{ data, error }, { data: profiles, error: profilesError }] = await Promise.all([
-        supabase.from('saved_routes').select('id,name,created_at,origin,destination,route_metadata').order('created_at', { ascending: false }).limit(10),
+        supabase.from('saved_routes').select('id,name,created_at,vehicle_id,origin,destination,route_metadata').order('created_at', { ascending: false }).limit(10),
         supabase.from('vehicles').select('id,name,vehicle_type,height_m,width_m,length_m,gross_weight_t,axle_weight_t').eq('vehicle_type', 'truck').order('created_at', { ascending: false }).limit(20),
       ]);
       if (!cancelled) {
@@ -70,7 +70,7 @@ export default function Home() {
     return () => { cancelled = true; };
   }, [user]);
 
-  function changeMode(nextMode: 'delivery' | 'truck') { setMode(nextMode); setResult(null); if (nextMode === 'truck') setOptimizeStops(false); }
+  function changeMode(nextMode: 'delivery' | 'truck') { setMode(nextMode); setResult(null); if (nextMode === 'truck') setOptimizeStops(false); else setSelectedVehicleProfileId(''); }
   function addStop() { setStops(items => [...items, { id: crypto.randomUUID(), value: '' }]); setResult(null); }
   function updateStop(id: string, value: string) { setStops(items => items.map(s => s.id === id ? { ...s, value } : s)); setResult(null); }
   function removeStop(id: string) { setStops(items => items.filter(s => s.id !== id)); setResult(null); }
@@ -98,6 +98,7 @@ export default function Home() {
     try {
       const { data, error } = await supabase.from('vehicles').insert({
         owner_id: user.id,
+        vehicle_id: mode === 'truck' ? selectedVehicleProfileId || null : null,
         name: vehicleProfileName.trim() || 'Camión ' + (vehicleProfiles.length + 1),
         vehicle_type: 'truck',
         height_m: Number(vehicle.height),
@@ -135,7 +136,7 @@ export default function Home() {
     setMode(route.route_metadata?.mode || (route.name.startsWith('Camión') ? 'truck' : 'delivery'));
     const savedVehicle = route.route_metadata?.vehicle;
     if (savedVehicle) setVehicle({ height: String(savedVehicle.heightM ?? 4), width: String(savedVehicle.widthM ?? 2.5), length: String(savedVehicle.lengthM ?? 18), grossWeight: String(savedVehicle.grossWeightT ?? 40), axleWeight: String(savedVehicle.axleWeightT ?? 10) });
-    setSelectedVehicleProfileId('');
+    setSelectedVehicleProfileId(route.vehicle_id || '');
     setResult(route.route_metadata?.result || null);
     setOptimizeStops(Boolean(route.route_metadata?.result?.optimized));
     setError('');
@@ -197,7 +198,7 @@ export default function Home() {
         }
       }
       setSaveMessage('Ruta guardada en tu cuenta.');
-      const { data: refreshed } = await supabase.from('saved_routes').select('id,name,created_at,origin,destination,route_metadata').order('created_at', { ascending: false }).limit(10);
+      const { data: refreshed } = await supabase.from('saved_routes').select('id,name,created_at,vehicle_id,origin,destination,route_metadata').order('created_at', { ascending: false }).limit(10);
       if (refreshed) setSavedRoutes(refreshed as SavedRoute[]);
     } catch (error) {
       setSaveMessage(error instanceof Error ? error.message : 'No se pudo guardar la ruta.');
