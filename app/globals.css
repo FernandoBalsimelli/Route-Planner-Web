@@ -20,3 +20,15 @@
 .saved-route-card button{flex:none;border:0;border-radius:8px;background:var(--green2);color:var(--green);padding:9px 12px;font:700 10px 'DM Sans';cursor:pointer}
 .saved-route-card button:hover{background:#cfe2d6}
 @media(max-width:600px){.saved-routes{padding:20px}.saved-routes-heading{align-items:flex-start;flex-direction:column}.saved-route-card{align-items:flex-start;flex-direction:column}.saved-route-card button{width:100%}}
+
+.route-map-wrap{position:relative;margin:0 0 18px;border:1px solid var(--line);border-radius:13px;overflow:hidden;background:#e9efea}
+.route-map{height:310px;width:100%;z-index:1}
+.route-map-loading,.route-map-empty{min-height:180px;display:grid;place-items:center;margin:0 0 18px;padding:20px;border:1px dashed #cbd8cf;border-radius:13px;background:#f3f7f3;color:var(--muted);font-size:11px;text-align:center}
+.rp-map-marker{background:transparent;border:0}
+.rp-map-pin{width:28px;height:28px;display:grid;place-items:center;border:3px solid white;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 8px #172b2540;font:800 10px 'DM Sans';color:white}
+.rp-map-pin::first-letter{transform:rotate(45deg)}
+.rp-map-pin-start{background:#4e9a73}
+.rp-map-pin-end{background:#e7a14e}
+.rp-map-pin-stop{background:#174b3c}
+.leaflet-container{font-family:'DM Sans',sans-serif}
+.leaflet-popup-content{font-size:11px}
