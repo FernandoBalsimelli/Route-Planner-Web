@@ -1,32 +1,36 @@
 # Route Planner Web
 
-Frontend PWA en Next.js para planificación de rutas de reparto y transporte pesado.
+Frontend web/PWA en Next.js para planificación de rutas de reparto y transporte pesado.
 
 ## Variables de entorno
+
 - `NEXT_PUBLIC_API_URL`: URL de Route Planner API.
-- `NEXT_PUBLIC_SUPABASE_URL`: proyecto Supabase independiente de Route Planner.
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: clave pública de Supabase. Nunca colocar service-role en el cliente.
+- `NEXT_PUBLIC_SUPABASE_URL`: URL del proyecto Supabase independiente de Route Planner.
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: clave pública/publishable de Supabase. Nunca colocar una service-role o secret key en el cliente.
 
 ## Desarrollo
+
 `npm install && npm run dev`
 
-La interfaz no calcula rutas localmente: solicita el cálculo a la API. La integración HERE requiere `HERE_API_KEY` configurada únicamente como secreto en el proyecto API de Vercel.
+La interfaz solicita los cálculos a Route Planner API. La API utiliza OpenRouteService (HeiGIT); la clave `ORS_API_KEY` debe existir únicamente como secreto del proyecto API de Vercel. No se necesita ni debe configurarse una clave ORS en el frontend.
 
+## Aplicación instalable
 
-## Activar autenticación por correo en Supabase
+La aplicación publica un manifiesto web en `/manifest.webmanifest` y un icono SVG en `/icon.svg`. En navegadores compatibles puede instalarse desde el menú del navegador. La instalación no implica todavía funcionamiento offline completo: el cálculo de rutas y la autenticación requieren conexión.
+
+## Autenticación y persistencia
 
 En Supabase Dashboard → Authentication → URL Configuration:
+
 - Site URL: `https://route-planner-web-fernandobalsimellis-projects.vercel.app`
-- Redirect URLs: agrega `https://route-planner-web-fernandobalsimellis-projects.vercel.app/**`
+- Redirect URLs: agrega el dominio de la aplicación y sus previews autorizados.
 
-La aplicación usa Supabase Auth con sesiones persistentes y guarda rutas en `saved_routes` y `route_stops`. Las políticas RLS existentes limitan los registros al usuario autenticado.
+La aplicación usa Supabase Auth. Las rutas guardadas se almacenan en `saved_routes` y las paradas en `route_stops`; las políticas RLS deben limitar los registros al usuario propietario.
 
-## Activar cálculo HERE
+## Proveedor de rutas
 
-En Vercel → proyecto `route-planner-api` → Settings → Environment Variables:
-- Key: `HERE_API_KEY`
-- Value: tu API key de HERE
-- Environments: Preview y Production (y Development si lo necesitas)
-- Type: Sensitive o Encrypted
+El frontend consume `POST /v1/routes/plan` en Route Planner API. Los perfiles y las credenciales del proveedor se administran en el backend. No publiques secretos en el repositorio ni los incluyas en variables `NEXT_PUBLIC_*`.
 
-No publiques esa clave en el repositorio ni la incluyas en variables `NEXT_PUBLIC_*`.
+## Limitaciones
+
+Las restricciones para vehículos pesados dependen de los atributos presentes en OpenStreetMap. La cobertura puede ser incompleta y el resultado no garantiza autorización legal ni transitabilidad física. Verifica señalización y normativa local antes de circular.
