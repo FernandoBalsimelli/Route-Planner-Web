@@ -96,6 +96,7 @@ export default function Home() {
     else {
       setFleets(items => [data as Fleet, ...items]);
       setSelectedFleetId(data.id);
+      setSelectedVehicleProfileId('');
       setNewFleetName('');
       setFleetMessage('Flota creada.');
     }
