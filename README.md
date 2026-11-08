@@ -74,3 +74,25 @@ Si no hay dirección disponible, el punto sigue siendo utilizable por coordenada
 Las paradas incluyen botones Subir y Bajar. El orden manual desactiva la
 optimización y requiere calcular de nuevo. Los cálculos pendientes se cancelan
 al editar el recorrido para que no aparezcan resultados anteriores.
+
+### Trabajo de reparto
+
+- **Mi perfil y vehículos**: guarda automóviles, unidades de reparto y camiones.
+  El selector del planificador carga la unidad y sus medidas; la ruta guardada
+  conserva el vínculo y una copia de las restricciones usadas en ese cálculo.
+- Establece primero el **origen** (GPS, dirección o mapa). Las búsquedas de
+  sucursales priorizan ese punto y muestran distancia en línea recta. Para otra
+  ciudad, escribe `Bodega Aurrera Express, Monterrey` o desactiva la prioridad.
+  La cobertura depende de los índices públicos; confirma sucursal, calle y acceso.
+- **Escanear o pegar manifiesto** admite fotos JPG/PNG/WebP/BMP de hasta 15 MB y
+  texto pegado. OCR en español mediante Tesseract.js, cargado al pedirlo y ejecutado
+  en el dispositivo. La foto no se envía al servidor; las consultas de direcciones
+  sí llegan al geocodificador. Se revisa una entrega a la vez. Solo se importan
+  puntos elegidos y confirmados. Hasta 8 paradas y un destino por recorrido.
+  PDF y lectura de tablas complejas quedan pendientes; se puede pegar su texto.
+- **Eliminar** mueve una ruta guardada a la papelera. **Deshacer** o **Recuperar**
+  la devuelve con sus paradas. No se borran físicamente registros existentes.
+
+Prueba opcional del motor OCR con una foto local:
+`node test/ocr-smoke.mjs /ruta/a/foto.png`. Requiere conexión para el modelo español
+la primera vez; esta prueba Node no sustituye la captura con la cámara de Android.

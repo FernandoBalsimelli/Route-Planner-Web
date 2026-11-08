@@ -30,12 +30,14 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
   const [pending, setPending] = useState<LocationSelection | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
+  const [preferNearby, setPreferNearby] = useState(true);
+  const [searchNotice, setSearchNotice] = useState('');
   const [geoStatus, setGeoStatus] = useState('');
   const [geoBusy, setGeoBusy] = useState(false);
   const geoRequest = useRef(0);
   const reverseController = useRef<AbortController | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
-  const [mapSeed, setMapSeed] = useState<Coordinates | null>(null);
+  const [mapSeed, setMapSeed] = useState<(Coordinates & { label?: string }) | null>(null);
   const mapButton = useRef<HTMLButtonElement | null>(null);
 
   function closeMap() { setMapOpen(false); mapButton.current?.focus(); }
@@ -99,15 +101,20 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
     setSuggestions([]);
     setPending(null);
     setSearchError('');
+    setSearchNotice('');
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       setLoading(true);
       setSearchError('');
       try {
-        const response = await fetch(`${apiUrl}/v1/locations/suggest?q=${encodeURIComponent(value.trim())}`, { signal: controller.signal });
+        const params = new URLSearchParams({ q: value.trim() });
+        if (preferNearby && mapReference) { params.set('lat', String(mapReference.lat)); params.set('lng', String(mapReference.lng)); }
+        const response = await fetch(`${apiUrl}/v1/locations/suggest?${params}`, { signal: controller.signal });
         const payload = await response.json();
+        if (controller.signal.aborted) return;
         if (!response.ok) throw new Error(payload.message || 'No se pudieron cargar las sugerencias.');
         setSuggestions(Array.isArray(payload.suggestions) ? payload.suggestions : []);
+        setSearchNotice(payload.warning === 'NO_NEARBY_MATCHES' ? 'No encontramos coincidencias a menos de 50 km del punto de referencia. Revisa la ciudad y la distancia de estos resultados.' : !payload.suggestions?.length ? 'Sin coincidencias. Añade calle, colonia o ciudad, o elige el punto en el mapa.' : '');
       } catch (error) {
         if (controller.signal.aborted) return;
         setSuggestions([]);
@@ -120,7 +127,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       clearTimeout(timer);
       controller.abort();
     };
-  }, [value, apiUrl, selected, mapOpen]);
+  }, [value, apiUrl, selected, mapOpen, preferNearby, mapReference?.lat, mapReference?.lng]);
 
   function confirmPending() {
     if (!pending) return;
@@ -134,8 +141,9 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
 
   return <div className="location-field">
     <label className="field">
-      <span><i className={color === 'number' ? 'stop-number' : `dot ${color}`}>{color === 'number' ? title.replace('PARADA ', '') : ''}</i> {color === 'number' ? title : title.toUpperCase()}</span>
+      <span><i className={color === 'number' ? 'stop-number' : `dot ${color}`}>{color === 'number' ? title.match(/\d+/)?.[0] : ''}</i> {color === 'number' ? title : title.toUpperCase()}</span>
       <input
+        maxLength={180}
         value={value}
         onChange={event => { cancelLocation(); setMapOpen(false); onChange(event.target.value); setPending(null); }}
         placeholder={placeholder}
@@ -144,6 +152,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
         aria-expanded={suggestions.length > 0}
       />
     </label>
+    {mapReference && !selected && <label className="nearby-toggle"><input type="checkbox" checked={preferNearby} onChange={event => setPreferNearby(event.target.checked)}/> Priorizar lugares cerca del origen <small>Para otra ciudad: escribe «lugar, ciudad».</small></label>}
     <button type="button" ref={mapButton} className="map-open-button" aria-label={`Elegir ${title.toLowerCase()} en el mapa`} aria-expanded={mapOpen} onClick={() => {
       if (mapOpen) { closeMap(); return; }
       cancelLocation();
@@ -151,7 +160,8 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       setMapOpen(true);
     }}>⌖ {mapOpen ? 'Cerrar mapa' : 'Elegir en el mapa'}</button>
     {mapOpen && <MapLocationPicker title={title} initialPoint={mapSeed} apiUrl={apiUrl} onClose={closeMap} onConfirm={location => {
-      onChange(location.label); onConfirm(location); setPending(null); setSearchError(''); closeMap();
+      const resolved = mapSeed?.label && location.lat === mapSeed.lat && location.lng === mapSeed.lng ? { ...location, label: mapSeed.label } : location;
+      onChange(resolved.label); onConfirm(resolved); setPending(null); setSearchError(''); closeMap();
     }} />}
     {allowCurrentLocation && <div className="current-location-tools">
       <button type="button" className="current-location-button" disabled={geoBusy} onClick={() => void useCurrentLocation()}><span aria-hidden="true">⌖</span> {geoBusy ? 'Localizando…' : 'Usar mi ubicación actual'}</button>
@@ -159,6 +169,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       {geoStatus && <p className="location-search-status" role="status" aria-live="polite">{geoStatus}</p>}
     </div>}
     {loading && <p className="location-search-status">Buscando direcciones y lugares…</p>}
+    {!loading && searchNotice && !selected && !pending && <p className="location-search-status" role="status">{searchNotice}</p>}
     {suggestions.length > 0 && !pending && <div className="location-suggestions" role="listbox" aria-label={`Sugerencias para ${title}`}>
       {suggestions.map((suggestion, index) => <button
         type="button"
@@ -167,7 +178,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
         onClick={() => setPending(suggestion)}
       >
         <span className="suggestion-pin">⌖</span>
-        <span className="suggestion-copy"><strong>{suggestion.label}</strong><small>{locationKind(suggestion.kind) && `${locationKind(suggestion.kind)} · `}{suggestion.plusCode || `${suggestion.lat.toFixed(6)}, ${suggestion.lng.toFixed(6)}`}</small></span>
+        <span className="suggestion-copy"><strong>{suggestion.label}</strong><small>{locationKind(suggestion.kind) && `${locationKind(suggestion.kind)} · `}{suggestion.plusCode || `${suggestion.lat.toFixed(6)}, ${suggestion.lng.toFixed(6)}`}</small>{suggestion.distanceMeters != null && <small>{suggestion.distanceMeters < 1000 ? `${suggestion.distanceMeters} m` : `${(suggestion.distanceMeters / 1000).toFixed(1)} km`} del origen · en línea recta</small>}</span>
         <span className="suggestion-arrow">›</span>
       </button>)}
     </div>}
@@ -175,6 +186,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
     {pending && <div className="location-confirm-card">
       <div><strong>¿Es este el punto correcto?</strong><p>{pending.label}</p><small>{locationKind(pending.kind) && `${locationKind(pending.kind)} · `}{pending.plusCode || `${pending.lat.toFixed(6)}, ${pending.lng.toFixed(6)}`}</small></div>
       <a href={`https://www.google.com/maps/search/?api=1&query=${pending.lat},${pending.lng}`} target="_blank" rel="noreferrer">Ver mapa ↗</a>
+      <button type="button" className="map-open-button" onClick={() => { setMapSeed(pending); setMapOpen(true); }}>Corroborar aquí en el mapa</button>
       <div className="location-confirm-actions"><button type="button" onClick={() => setPending(null)}>Elegir otro</button><button type="button" onClick={confirmPending}>Confirmar punto</button></div>
     </div>}
     {selected && selected.label === value && !pending && <p className="location-confirmed"><span>✓ Punto confirmado</span><small>{selected.plusCode || `${selected.lat.toFixed(6)}, ${selected.lng.toFixed(6)}`}</small></p>}

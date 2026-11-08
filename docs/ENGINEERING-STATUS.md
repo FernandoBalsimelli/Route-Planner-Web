@@ -137,3 +137,47 @@ Puede restaurarse cada despliegue por separado dentro de su proyecto de Vercel.
 Este ciclo no modifica tablas ni datos de usuarios, por lo que no necesita una
 reversión de datos. Restaurar una versión con dependencias antiguas también
 restauraría sus avisos de seguridad; se prefiere corregir hacia adelante.
+
+## Ciclo: operación de reparto, vehículos y manifiesto
+
+- Causa de resultados lejanos: el cliente no enviaba punto de referencia y la
+  API no usaba focus de Pelias/Photon. Se propaga el origen, se ordenan resultados
+  por distancia geodésica y se distingue esa distancia del recorrido por carretera.
+  Si el texto nombra la ciudad de una sucursal, su localidad prevalece sobre la
+  cercanía al origen. Una ciudad tras coma o «en» desactiva el sesgo del origen.
+- Sucursales: se mantienen sus coordenadas y Plus Codes; el mapa muestra el punto
+  de referencia y permite corroborar el acceso. No se inventan tiendas ausentes
+  del índice. Si no hay coincidencias dentro de 50 km se informa expresamente.
+- La API conserva resultados hasta 60 segundos en memoria, con un máximo de
+  200 entradas, sin persistir búsquedas privadas ni registrarlas en las URL del log.
+- Mi perfil permite guardar el nombre del operador. Iniciar sesión ya no
+  sobrescribe ese nombre con la parte inicial del correo.
+- Mis vehículos admite reparto, automóvil y camión, edición, flotas opcionales
+  y selección directa en el planificador. Las dimensiones del camión se validan.
+  Se corrige la omisión de vehicle_id al guardar una ruta. Los parámetros usados
+  se conservan también en route_metadata para no alterar el cálculo histórico
+  al editar después el vehículo.
+- Eliminar rutas es una operación recuperable con status=archived. La papelera
+  conserva los hijos route_stops y ofrece recuperación. Las consultas filtran
+  dueño y estado; la lista carga más páginas cuando hay más de 20 recorridos.
+- El manifiesto admite foto y texto. Tesseract.js 7.0.0 realiza OCR local en español
+  con un worker y descargas públicas bajo demanda. Se limita tamaño y tiempo de
+  lectura, hay cancelación y no se conserva la imagen. No se automatiza una
+  confirmación geográfica a partir de OCR: cada entrega exige selección explícita.
+  La revisión secuencial evita disparar 30 geocodificaciones simultáneas.
+- Verificación: 29 pruebas Web y 18 API, TypeScript, compilación de producción y
+  auditoría de dependencias. Pruebas de componentes ejercitan alta/edición de
+  unidad, papelera/recuperación, sesgo geográfico y rechazo de entregas sin confirmar.
+- OCR real: una imagen sintética con dos entregas fue leída con el modelo español;
+  reconoció Calle Cedro 312 y Avenida Universidad 100, con confianza global 95.
+  Esta cifra pertenece a la imagen sintética; no garantiza exactitud en fotos reales.
+- Supabase: prueba transaccional real con rol authenticated, inserción de unidad,
+  vínculo a ruta, archivo, conservación de paradas, recuperación y rechazo de
+  lectura/escritura desde otro uid. La transacción completa terminó en ROLLBACK.
+  No se migró el esquema ni se modificaron datos existentes.
+- Límites pendientes: prueba con cámara y fotos reales de manifiestos de Android,
+  PDF, tablas complejas y flujo de cuenta autenticada completo desde navegador.
+  Las pruebas DOM y SQL no se presentan como E2E con una sesión real.
+- Recuperación previa a este ciclo: Web eb4b26c / dpl_4ZZ9VtWEQvgBtwJfzZJGjyeUnNTu;
+  API af3d346 / dpl_5DpVxmL7RP4wL3j896aSyonCVNVS. El despliegue de API incorpora
+  4012769, con prioridad por ciudad explícita y 18 pruebas aprobadas.

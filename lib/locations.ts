@@ -6,6 +6,7 @@ export type LocationSelection = {
   source?: string;
   kind?: string;
   accuracyM?: number;
+  distanceMeters?: number;
 };
 
 export type Coordinates = { lat: number; lng: number };

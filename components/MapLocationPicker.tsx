@@ -27,6 +27,7 @@ export default function MapLocationPicker({ title, initialPoint, apiUrl, onConfi
   const controller = useRef<AbortController | null>(null);
   const requestId = useRef(0);
   const center: [number, number] = initialPoint ? [initialPoint.lat, initialPoint.lng] : [23.6345, -102.5528];
+  const marker = point || initialPoint;
 
   useEffect(() => () => { requestId.current++; controller.current?.abort(); }, []);
 
@@ -62,7 +63,7 @@ export default function MapLocationPicker({ title, initialPoint, apiUrl, onConfi
     <MapContainer center={center} zoom={initialPoint ? 15 : 5} ref={setMap} scrollWheelZoom={false} className="point-picker-map" aria-label={`Mapa interactivo para ${title.toLowerCase()}`}>
       <TileLayer attribution={TILE_ATTRIBUTION} url={TILE_URL} />
       <PickEvents onPick={next => void pick(next)} />
-      {point && <CircleMarker center={[point.lat, point.lng]} radius={9} pathOptions={{ color: '#fff', weight: 3, fillColor: '#174b3c', fillOpacity: 1 }} />}
+      {marker && <CircleMarker center={[marker.lat, marker.lng]} radius={9} pathOptions={{ color: '#fff', weight: 3, fillColor: '#174b3c', fillOpacity: 1 }} />}
     </MapContainer>
     <button type="button" className="map-center-button" disabled={!map} onClick={() => { const next = map?.getCenter(); if (next) void pick({ lat: next.lat, lng: next.lng }); }}>Elegir el centro del mapa</button>
     <p className="map-picker-status" role="status" aria-live="polite">{status}</p>

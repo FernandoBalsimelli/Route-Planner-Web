@@ -38,7 +38,7 @@ export default function AccountPanel({ onUserChange }: { onUserChange: (user: Us
     if (!supabase) return;
     const { error } = await supabase.from('profiles').upsert(
       { id: userId, display_name: displayName },
-      { onConflict: 'id' },
+      { onConflict: 'id', ignoreDuplicates: true },
     );
     if (error) throw new Error('La sesión se inició, pero no se pudo preparar tu perfil: ' + error.message);
   }
@@ -95,6 +95,7 @@ export default function AccountPanel({ onUserChange }: { onUserChange: (user: Us
       {user ? <>
         <strong>Cuenta activa</strong>
         <p>{user.email}</p>
+        <a href="#mi-perfil" onClick={() => setOpen(false)}>Mi perfil y vehículos</a>
         <button className="account-submit" onClick={logout} disabled={busy}>{busy ? 'Procesando…' : 'Cerrar sesión'}</button>
       </> : <>
         <div className="account-tabs">
