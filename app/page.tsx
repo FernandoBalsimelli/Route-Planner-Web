@@ -92,7 +92,7 @@ export default function Home() {
     setFleetSaving(true);
     setFleetMessage('');
     const { data, error } = await supabase.from('fleets').insert({ owner_id: user.id, name }).select('id,name').single();
-    if (error) setFleetMessage('No se pudo crear la flota: ' + error.message);
+    if (error || !data) setFleetMessage('No se pudo crear la flota: ' + (error?.message || 'No se recibió el registro.'));
     else {
       setFleets(items => [data as Fleet, ...items]);
       setSelectedFleetId(data.id);
@@ -156,6 +156,7 @@ export default function Home() {
         error = response.error;
       }
       if (error) throw error;
+      if (!data) throw new Error('No se recibió el perfil guardado.');
       setVehicleProfiles(items => [data as VehicleProfile, ...items.filter(item => item.id !== data.id)]);
       setSelectedVehicleProfileId(data.id);
       setVehicleProfileName('');
