@@ -47,3 +47,5 @@
 .optimize-toggle b{font-size:11px;color:var(--ink)}
 .optimize-toggle small{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.4}
 .optimize-toggle:has(input:disabled){opacity:.68;cursor:not-allowed}
+
+.optimized-note{margin:-5px 0 13px;padding:8px 10px;border-radius:8px;background:#edf5ef;color:#386b4e;font-size:10px;line-height:1.4}
