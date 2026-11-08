@@ -7,7 +7,7 @@ import AccountPanel from '@/components/AccountPanel';
 import { supabase } from '@/lib/supabase';
 
 type Stop = { id: string; value: string };
-type SavedRoute = { id: string; name: string; created_at: string; origin: { label?: string; lat?: number; lng?: number } | null; destination: { label?: string; lat?: number; lng?: number } | null };
+type SavedRoute = { id: string; name: string; created_at: string; origin: { label?: string; lat?: number; lng?: number } | null; destination: { label?: string; lat?: number; lng?: number } | null; route_metadata?: { mode?: 'delivery' | 'truck'; vehicle?: { heightM?: number; widthM?: number; lengthM?: number; grossWeightT?: number; axleWeightT?: number } | null; result?: RouteResult } | null };
 type RouteResult = { distanceMeters: number; durationSeconds: number; polyline?: string; sections: Array<{ summary?: { length?: number; duration?: number }; actions?: Array<{ instruction?: string; action?: string }> }>; notices?: Array<{ title?: string; code?: string; severity?: string; details?: string }>; waypoints?: Array<{ lat: number; lng: number; label?: string; type: string }> };
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://route-planner-api-fernandobalsimellis-projects.vercel.app';
 const RouteMap = dynamic(() => import('@/components/RouteMap'), { ssr: false, loading: () => <div className="route-map-loading">Cargando mapa…</div> });
@@ -45,7 +45,7 @@ export default function Home() {
       setSavedRoutesLoading(true);
       setSavedRoutesError('');
       const { data, error } = await supabase.from('saved_routes')
-        .select('id,name,created_at,origin,destination')
+        .select('id,name,created_at,origin,destination,route_metadata')
         .order('created_at', { ascending: false })
         .limit(10);
       if (!cancelled) {
@@ -76,9 +76,12 @@ export default function Home() {
       id: crypto.randomUUID(),
       value: row.location?.label || (row.location?.lat != null && row.location?.lng != null ? `${row.location.lat}, ${row.location.lng}` : ''),
     })));
-    setResult(null);
+    setMode(route.route_metadata?.mode || (route.name.startsWith('Camión') ? 'truck' : 'delivery'));
+    const savedVehicle = route.route_metadata?.vehicle;
+    if (savedVehicle) setVehicle({ height: String(savedVehicle.heightM ?? 4), width: String(savedVehicle.widthM ?? 2.5), length: String(savedVehicle.lengthM ?? 18), grossWeight: String(savedVehicle.grossWeightT ?? 40), axleWeight: String(savedVehicle.axleWeightT ?? 10) });
+    setResult(route.route_metadata?.result || null);
     setError('');
-    setSaveMessage(`Se cargó "${route.name}". Vuelve a calcular para obtener una ruta actualizada.`);
+    setSaveMessage(`Se cargó "${route.name}". Puedes continuar o volver a calcular la ruta.`);
     document.getElementById('planificador')?.scrollIntoView({ behavior: 'smooth' });
   }
 
@@ -109,11 +112,16 @@ export default function Home() {
     try {
       const { data: saved, error } = await supabase.from('saved_routes').insert({
         owner_id: user.id,
-        name: `Ruta ${new Date().toLocaleDateString('es-MX')}`,
+        name: `${mode === 'truck' ? 'Camión' : 'Reparto'} · ${new Date().toLocaleDateString('es-MX')}`,
         provider: 'openrouteservice',
         origin: result.waypoints?.[0] ?? { label: origin },
         destination: result.waypoints?.[result.waypoints.length - 1] ?? { label: destination },
         status: 'planned',
+        route_metadata: {
+          mode,
+          vehicle: mode === 'truck' ? { heightM: Number(vehicle.height), widthM: Number(vehicle.width), lengthM: Number(vehicle.length), grossWeightT: Number(vehicle.grossWeight), axleWeightT: Number(vehicle.axleWeight) } : null,
+          result,
+        },
       }).select('id').single();
       if (error) throw error;
       const stopRows = stops.filter(s => s.value.trim()).map((stop, index) => {
@@ -131,7 +139,7 @@ export default function Home() {
         }
       }
       setSaveMessage('Ruta guardada en tu cuenta.');
-      const { data: refreshed } = await supabase.from('saved_routes').select('id,name,created_at,origin,destination').order('created_at', { ascending: false }).limit(10);
+      const { data: refreshed } = await supabase.from('saved_routes').select('id,name,created_at,origin,destination,route_metadata').order('created_at', { ascending: false }).limit(10);
       if (refreshed) setSavedRoutes(refreshed as SavedRoute[]);
     } catch (error) {
       setSaveMessage(error instanceof Error ? error.message : 'No se pudo guardar la ruta.');
