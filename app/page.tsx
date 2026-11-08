@@ -204,7 +204,15 @@ export default function Home() {
     if (!canPlan) return;
     setLoading(true); setError(''); setResult(null);
     try {
-      const { data: sessionData } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
+      let sessionData;
+      try {
+        const sessionResult = supabase ? await supabase.auth.getSession() : { data: { session: null }, error: null };
+        if (sessionResult.error) throw sessionResult.error;
+        sessionData = sessionResult.data;
+      } catch (sessionError) {
+        console.error('Route Planner session lookup failed:', sessionError);
+        throw new Error('No se pudo comprobar tu sesión con Supabase. Comprueba tu conexión e inicia sesión nuevamente.');
+      }
       if (!sessionData.session) throw new Error('Inicia sesión para calcular una ruta.');
       let response: Response;
       try {
