@@ -7,7 +7,8 @@ import AccountPanel from '@/components/AccountPanel';
 import { supabase } from '@/lib/supabase';
 
 type Stop = { id: string; value: string };
-type VehicleProfile = { id: string; name: string; vehicle_type: 'delivery' | 'car' | 'truck'; height_m: number | null; width_m: number | null; length_m: number | null; gross_weight_t: number | null; axle_weight_t: number | null };
+type Fleet = { id: string; name: string };
+type VehicleProfile = { id: string; name: string; fleet_id: string | null; vehicle_type: 'delivery' | 'car' | 'truck'; height_m: number | null; width_m: number | null; length_m: number | null; gross_weight_t: number | null; axle_weight_t: number | null };
 type SavedRoute = { id: string; name: string; created_at: string; vehicle_id?: string | null; origin: { label?: string; lat?: number; lng?: number } | null; destination: { label?: string; lat?: number; lng?: number } | null; route_metadata?: { mode?: 'delivery' | 'truck'; vehicle?: { heightM?: number; widthM?: number; lengthM?: number; grossWeightT?: number; axleWeightT?: number } | null; result?: RouteResult } | null };
 type RouteResult = { distanceMeters: number; durationSeconds: number; polyline?: string; optimized?: boolean; sections: Array<{ summary?: { length?: number; duration?: number }; actions?: Array<{ instruction?: string; action?: string }> }>; notices?: Array<{ title?: string; code?: string; severity?: string; details?: string }>; waypoints?: Array<{ lat: number; lng: number; label?: string; type: string }> };
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://route-planner-api-fernandobalsimellis-projects.vercel.app';
@@ -38,6 +39,11 @@ export default function Home() {
   const [vehicleProfileName, setVehicleProfileName] = useState('');
   const [vehicleProfileSaving, setVehicleProfileSaving] = useState(false);
   const [vehicleProfileMessage, setVehicleProfileMessage] = useState('');
+  const [fleets, setFleets] = useState<Fleet[]>([]);
+  const [selectedFleetId, setSelectedFleetId] = useState('');
+  const [newFleetName, setNewFleetName] = useState('');
+  const [fleetSaving, setFleetSaving] = useState(false);
+  const [fleetMessage, setFleetMessage] = useState('');
   const canPlan = origin.trim().length > 2 && destination.trim().length > 2 && !loading;
   const mapsUrl = useMemo(() => {
     const routePoints = result?.waypoints?.length
@@ -54,15 +60,18 @@ export default function Home() {
       if (!user || !supabase) { setSavedRoutes([]); setSavedRoutesError(''); return; }
       setSavedRoutesLoading(true);
       setSavedRoutesError('');
-      const [{ data, error }, { data: profiles, error: profilesError }] = await Promise.all([
+      const [{ data, error }, { data: profiles, error: profilesError }, { data: fleetData, error: fleetError }] = await Promise.all([
         supabase.from('saved_routes').select('id,name,created_at,vehicle_id,origin,destination,route_metadata').order('created_at', { ascending: false }).limit(10),
-        supabase.from('vehicles').select('id,name,vehicle_type,height_m,width_m,length_m,gross_weight_t,axle_weight_t').eq('vehicle_type', 'truck').order('created_at', { ascending: false }).limit(20),
+        supabase.from('vehicles').select('id,name,fleet_id,vehicle_type,height_m,width_m,length_m,gross_weight_t,axle_weight_t').eq('vehicle_type', 'truck').order('created_at', { ascending: false }).limit(20),
+        supabase.from('fleets').select('id,name').order('created_at', { ascending: false }).limit(20),
       ]);
       if (!cancelled) {
         if (error) setSavedRoutesError('No se pudieron cargar tus rutas: ' + error.message);
         else setSavedRoutes((data || []) as SavedRoute[]);
         if (profilesError) setVehicleProfileMessage('No se pudieron cargar los perfiles: ' + profilesError.message);
         else setVehicleProfiles((profiles || []) as VehicleProfile[]);
+        if (fleetError) setFleetMessage('No se pudieron cargar las flotas: ' + fleetError.message);
+        else setFleets((fleetData || []) as Fleet[]);
         setSavedRoutesLoading(false);
       }
     }
@@ -75,10 +84,29 @@ export default function Home() {
   function updateStop(id: string, value: string) { setStops(items => items.map(s => s.id === id ? { ...s, value } : s)); setResult(null); }
   function removeStop(id: string) { setStops(items => items.filter(s => s.id !== id)); setResult(null); }
 
+  async function createFleet() {
+    if (!user || !supabase) { setFleetMessage('Inicia sesión para crear una flota.'); return; }
+    const name = newFleetName.trim();
+    if (!name) { setFleetMessage('Escribe un nombre para la flota.'); return; }
+    if (name.length > 120) { setFleetMessage('El nombre no puede superar 120 caracteres.'); return; }
+    setFleetSaving(true);
+    setFleetMessage('');
+    const { data, error } = await supabase.from('fleets').insert({ owner_id: user.id, name }).select('id,name').single();
+    if (error) setFleetMessage('No se pudo crear la flota: ' + error.message);
+    else {
+      setFleets(items => [data as Fleet, ...items]);
+      setSelectedFleetId(data.id);
+      setNewFleetName('');
+      setFleetMessage('Flota creada.');
+    }
+    setFleetSaving(false);
+  }
+
   function loadVehicleProfile(profileId: string) {
     const profile = vehicleProfiles.find(item => item.id === profileId);
     setSelectedVehicleProfileId(profileId);
     if (!profile) return;
+    setSelectedFleetId(profile.fleet_id || '');
     setMode('truck');
     setResult(null);
     setVehicle({
@@ -104,7 +132,7 @@ export default function Home() {
     try {
       const { data, error } = await supabase.from('vehicles').insert({
         owner_id: user.id,
-        vehicle_id: mode === 'truck' ? selectedVehicleProfileId || null : null,
+        fleet_id: selectedFleetId || null,
         name: vehicleProfileName.trim() || 'Camión ' + (vehicleProfiles.length + 1),
         vehicle_type: 'truck',
         height_m: Number(vehicle.height),
@@ -112,7 +140,7 @@ export default function Home() {
         length_m: Number(vehicle.length),
         gross_weight_t: Number(vehicle.grossWeight),
         axle_weight_t: Number(vehicle.axleWeight),
-      }).select('id,name,vehicle_type,height_m,width_m,length_m,gross_weight_t,axle_weight_t').single();
+      }).select('id,name,fleet_id,vehicle_type,height_m,width_m,length_m,gross_weight_t,axle_weight_t').single();
       if (error) throw error;
       setVehicleProfiles(items => [data as VehicleProfile, ...items]);
       setSelectedVehicleProfileId(data.id);
@@ -143,6 +171,7 @@ export default function Home() {
     const savedVehicle = route.route_metadata?.vehicle;
     if (savedVehicle) setVehicle({ height: String(savedVehicle.heightM ?? 4), width: String(savedVehicle.widthM ?? 2.5), length: String(savedVehicle.lengthM ?? 18), grossWeight: String(savedVehicle.grossWeightT ?? 40), axleWeight: String(savedVehicle.axleWeightT ?? 10) });
     setSelectedVehicleProfileId(route.vehicle_id || '');
+    setSelectedFleetId(vehicleProfiles.find(profile => profile.id === route.vehicle_id)?.fleet_id || '');
     setResult(route.route_metadata?.result || null);
     setOptimizeStops(Boolean(route.route_metadata?.result?.optimized));
     setError('');
@@ -216,6 +245,9 @@ export default function Home() {
     <section className="planner" id="planificador"><div className="planner-heading"><div><p className="eyebrow">CENTRO DE RUTAS</p><h2>Planifica un recorrido</h2><p>Agrega tus puntos y selecciona el tipo de vehículo.</p></div><div className="mode-switch"><button className={mode === 'delivery' ? 'selected' : ''} onClick={() => changeMode('delivery')}>↗ Reparto</button><button className={mode === 'truck' ? 'selected' : ''} onClick={() => changeMode('truck')}>▰ Camión</button></div></div>
       <div className="planner-grid"><div className="route-form"><label className="field"><span><i className="dot green"/> ORIGEN</span><input value={origin} onChange={e => { setOrigin(e.target.value); setResult(null); }} placeholder="Dirección, ciudad o coordenadas" /></label><div className="stops-head"><span>PARADAS INTERMEDIAS</span><button className="text-button" onClick={addStop}>＋ Agregar parada</button></div>{stops.map((stop, index) => <label className="field stop-field" key={stop.id}><span><i className="stop-number">{index + 1}</i> PARADA {index + 1}</span><div className="input-with-action"><input value={stop.value} onChange={e => updateStop(stop.id, e.target.value)} placeholder="Dirección de la parada"/><button aria-label="Eliminar parada" onClick={() => removeStop(stop.id)}>×</button></div></label>)}<label className="optimize-toggle"><input type="checkbox" checked={optimizeStops} onChange={e => setOptimizeStops(e.target.checked)} disabled={mode === 'truck' || stops.filter(stop => stop.value.trim()).length < 2}/><span><b>Optimizar orden de paradas</b><small>{mode === 'truck' ? 'En camiones conservamos el orden indicado y aplicamos las restricciones del vehículo.' : 'Reordena automáticamente las paradas para reducir el recorrido.'}</small></span></label><label className="field"><span><i className="dot orange"/> DESTINO</span><input value={destination} onChange={e => { setDestination(e.target.value); setResult(null); }} placeholder="Dirección o destino final" /></label>
       {mode === 'truck' && <div className="vehicle-panel"><div className="vehicle-title"><strong>Perfil del camión</strong><small>Medidas del vehículo cargado</small></div><div className="vehicle-fields"><label>Altura (m)<input type="number" min="0.5" max="10" step="0.1" value={vehicle.height} onChange={e => { setVehicle(v => ({...v,height:e.target.value})); setResult(null); }}/></label><label>Ancho (m)<input type="number" min="0.5" max="5" step="0.1" value={vehicle.width} onChange={e => { setVehicle(v => ({...v,width:e.target.value})); setResult(null); }}/></label><label>Largo (m)<input type="number" min="1" max="30" step="0.1" value={vehicle.length} onChange={e => { setVehicle(v => ({...v,length:e.target.value})); setResult(null); }}/></label><label>Peso bruto (t)<input type="number" min="0.1" max="100" step="0.1" value={vehicle.grossWeight} onChange={e => { setVehicle(v => ({...v,grossWeight:e.target.value})); setResult(null); }}/></label><label>Peso por eje (t)<input type="number" min="0.1" max="30" step="0.1" value={vehicle.axleWeight} onChange={e => { setVehicle(v => ({...v,axleWeight:e.target.value})); setResult(null); }}/></label></div><div className="vehicle-profile-tools">
+        <label>Flota<select value={selectedFleetId} onChange={e => setSelectedFleetId(e.target.value)}><option value="">Sin flota</option>{fleets.map(fleet => <option key={fleet.id} value={fleet.id}>{fleet.name}</option>)}</select></label>
+        <div className="fleet-create-row"><input aria-label="Nombre de nueva flota" value={newFleetName} onChange={e => setNewFleetName(e.target.value)} placeholder="Nombre de nueva flota" /><button type="button" onClick={() => void createFleet()} disabled={fleetSaving}>{fleetSaving ? 'Creando…' : 'Crear flota'}</button></div>
+        {fleetMessage && <p className="vehicle-profile-message" role="status">{fleetMessage}</p>}
         <label>Perfiles guardados<select value={selectedVehicleProfileId} onChange={e => loadVehicleProfile(e.target.value)}><option value="">Usar medidas actuales</option>{vehicleProfiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>
         <div className="vehicle-profile-save-row"><input aria-label="Nombre del perfil" value={vehicleProfileName} onChange={e => setVehicleProfileName(e.target.value)} placeholder="Nombre del perfil (opcional)" /><button type="button" onClick={() => void saveVehicleProfile()} disabled={vehicleProfileSaving}>{vehicleProfileSaving ? 'Guardando…' : 'Guardar perfil'}</button></div>
         {vehicleProfileMessage && <p className="vehicle-profile-message" role="status">{vehicleProfileMessage}</p>}
