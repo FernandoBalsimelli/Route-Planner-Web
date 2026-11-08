@@ -25,7 +25,7 @@ En Supabase Dashboard → Authentication → URL Configuration:
 - Site URL: `https://route-planner-web-fernandobalsimellis-projects.vercel.app`
 - Redirect URLs: agrega el dominio de la aplicación y sus previews autorizados.
 
-La aplicación usa Supabase Auth. Los perfiles de camión se guardan en `vehicles`; las rutas en `saved_routes`, sus datos de cálculo (perfil, vehículo, métricas, indicaciones y geometría) en `saved_routes.route_metadata`, y las paradas en `route_stops`. Las tablas mantienen RLS con políticas de propietario.
+La aplicación usa Supabase Auth. Las flotas personales se guardan en `fleets` y agrupan perfiles de vehículo; los perfiles de camión se guardan en `vehicles`; las rutas en `saved_routes`, sus datos de cálculo (perfil, vehículo, métricas, indicaciones y geometría) en `saved_routes.route_metadata`, y las paradas en `route_stops`. Las tablas mantienen RLS con políticas de propietario. La agrupación de flotas es individual por ahora; todavía no incluye invitaciones ni acceso compartido para conductores.
 
 ## Proveedor de rutas
 
