@@ -40,8 +40,10 @@ export default function Home() {
     if (!canPlan) return;
     setLoading(true); setError(''); setResult(null);
     try {
+      const { data: sessionData } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
+      if (!sessionData.session) throw new Error('Inicia sesión para calcular una ruta.');
       const response = await fetch(`${API_URL}/v1/routes/plan`, {
-        method: 'POST', headers: { 'content-type': 'application/json' },
+        method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${sessionData.session.access_token}` },
         body: JSON.stringify({ origin: origin.trim(), destination: destination.trim(), stops: stops.map(s => s.value.trim()).filter(Boolean), mode, vehicle: mode === 'truck' ? { heightM: Number(vehicle.height), widthM: Number(vehicle.width), lengthM: Number(vehicle.length), grossWeightT: Number(vehicle.grossWeight), axleWeightT: Number(vehicle.axleWeight) } : undefined }),
       });
       const payload = await response.json();
