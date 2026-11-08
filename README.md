@@ -47,3 +47,20 @@ El proxy admite hasta 75 segundos para el cálculo (geocodificación, optimizaci
 ruteo), y 25 segundos para otras solicitudes. Los fallos de conexión, las
 respuestas de infraestructura sin JSON y los tiempos de espera se devuelven como
 errores JSON legibles; los límites del proveedor conservan `Retry-After`.
+
+## Ubicación actual
+
+El botón del origen solicita permiso de ubicación al pulsarlo. Funciona en HTTPS
+y conserva la precisión de las coordenadas recibidas del navegador. Muestra el
+margen de error del dispositivo, permite cancelar y conserva las coordenadas si
+la búsqueda de una dirección legible no responde. No realiza seguimiento continuo.
+
+## Verificación y prioridades
+
+Con Node 24 o posterior: `npm test`, `npm run typecheck`, `npm run build` y
+`npm run test:e2e`. Para E2E instala Chromium con `npx playwright install chromium`
+o define `PLAYWRIGHT_CHROMIUM_EXECUTABLE` con la ruta de tu Chromium instalado.
+Las posiciones E2E son simuladas y no representan la ubicación real del usuario.
+
+Consulta [docs/ENGINEERING-STATUS.md](docs/ENGINEERING-STATUS.md) para el estado de
+la auditoría, pendientes y versiones de recuperación.

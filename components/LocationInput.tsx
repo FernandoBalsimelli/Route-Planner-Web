@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { locateDevice } from '@/lib/geolocation';
 
 export type LocationSelection = {
   label: string;
@@ -9,6 +10,7 @@ export type LocationSelection = {
   plusCode?: string;
   source?: string;
   kind?: string;
+  accuracyM?: number;
 };
 
 function locationKind(kind?: string) {
@@ -22,15 +24,71 @@ type Props = {
   placeholder: string;
   apiUrl: string;
   selected?: LocationSelection | null;
+  allowCurrentLocation?: boolean;
   onChange: (value: string) => void;
   onConfirm: (location: LocationSelection) => void;
 };
 
-export default function LocationInput({ title, color, value, placeholder, apiUrl, selected, onChange, onConfirm }: Props) {
+export default function LocationInput({ title, color, value, placeholder, apiUrl, selected, allowCurrentLocation = false, onChange, onConfirm }: Props) {
   const [suggestions, setSuggestions] = useState<LocationSelection[]>([]);
   const [pending, setPending] = useState<LocationSelection | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
+  const [geoStatus, setGeoStatus] = useState('');
+  const [geoBusy, setGeoBusy] = useState(false);
+  const geoRequest = useRef(0);
+  const reverseController = useRef<AbortController | null>(null);
+
+  useEffect(() => () => { geoRequest.current++; reverseController.current?.abort(); }, []);
+
+  function cancelLocation() {
+    geoRequest.current++;
+    reverseController.current?.abort();
+    setGeoBusy(false);
+    setGeoStatus('');
+  }
+
+  async function useCurrentLocation() {
+    cancelLocation();
+    if (!window.isSecureContext || !navigator.geolocation) {
+      setGeoStatus('La ubicación requiere HTTPS y un navegador compatible. Puedes escribir el origen manualmente.');
+      return;
+    }
+    const requestId = ++geoRequest.current;
+    setGeoBusy(true);
+    setGeoStatus('Obteniendo tu ubicación…');
+    try {
+      const point = await locateDevice(navigator.geolocation);
+      if (geoRequest.current !== requestId) return;
+      setGeoStatus('Buscando la dirección de tu ubicación…');
+      const controller = new AbortController();
+      reverseController.current = controller;
+      const timer = setTimeout(() => controller.abort(), 12000);
+      let label = `Mi ubicación (${point.lat.toFixed(6)}, ${point.lng.toFixed(6)})`;
+      let plusCode: string | undefined;
+      let addressFound = false;
+      try {
+        const response = await fetch(`${apiUrl}/v1/locations/reverse?lat=${point.lat}&lng=${point.lng}`, { signal: controller.signal });
+        if (response.ok) {
+          const payload = await response.json();
+          if (payload.ok && payload.location) {
+            if (payload.location.label && !payload.warning) { label = payload.location.label; addressFound = true; }
+            plusCode = payload.location.plusCode;
+          }
+        }
+      } catch { /* Coordinates remain usable when address lookup is unavailable. */ }
+      finally { clearTimeout(timer); }
+      if (geoRequest.current !== requestId) return;
+      const location = { label: label.slice(0, 180), lat: point.lat, lng: point.lng, accuracyM: point.accuracyM, plusCode, source: 'geolocation' };
+      onChange(location.label);
+      onConfirm(location);
+      setGeoStatus(addressFound ? 'Ubicación actual establecida como origen.' : 'Origen establecido con coordenadas. No se pudo obtener la dirección legible.');
+    } catch (error) {
+      if (geoRequest.current === requestId) setGeoStatus(error instanceof Error ? error.message : 'No se pudo obtener tu ubicación.');
+    } finally {
+      if (geoRequest.current === requestId) setGeoBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (selected && selected.label === value) {
@@ -75,6 +133,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
 
   function confirmPending() {
     if (!pending) return;
+    cancelLocation();
     onChange(pending.label);
     onConfirm(pending);
     setPending(null);
@@ -87,13 +146,18 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       <span><i className={color === 'number' ? 'stop-number' : `dot ${color}`}>{color === 'number' ? title.replace('PARADA ', '') : ''}</i> {color === 'number' ? title : title.toUpperCase()}</span>
       <input
         value={value}
-        onChange={event => { onChange(event.target.value); setPending(null); }}
+        onChange={event => { cancelLocation(); onChange(event.target.value); setPending(null); }}
         placeholder={placeholder}
         autoComplete="off"
         aria-autocomplete="list"
         aria-expanded={suggestions.length > 0}
       />
     </label>
+    {allowCurrentLocation && <div className="current-location-tools">
+      <button type="button" className="current-location-button" disabled={geoBusy} onClick={() => void useCurrentLocation()}><span aria-hidden="true">⌖</span> {geoBusy ? 'Localizando…' : 'Usar mi ubicación actual'}</button>
+      {geoBusy && <button type="button" className="text-button" onClick={cancelLocation}>Cancelar</button>}
+      {geoStatus && <p className="location-search-status" role="status" aria-live="polite">{geoStatus}</p>}
+    </div>}
     {loading && <p className="location-search-status">Buscando direcciones y lugares…</p>}
     {suggestions.length > 0 && !pending && <div className="location-suggestions" role="listbox" aria-label={`Sugerencias para ${title}`}>
       {suggestions.map((suggestion, index) => <button
@@ -114,5 +178,6 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       <div className="location-confirm-actions"><button type="button" onClick={() => setPending(null)}>Elegir otro</button><button type="button" onClick={confirmPending}>Confirmar punto</button></div>
     </div>}
     {selected && selected.label === value && !pending && <p className="location-confirmed"><span>✓ Punto confirmado</span><small>{selected.plusCode || `${selected.lat.toFixed(6)}, ${selected.lng.toFixed(6)}`}</small></p>}
+    {selected?.source === 'geolocation' && selected.label === value && <p className="location-accuracy">{Number.isFinite(selected.accuracyM) ? `Precisión aproximada: ±${Math.ceil(selected.accuracyM!)} m. ` : ''}Revisa que el punto corresponda al acceso que vas a utilizar. <a href={`https://www.google.com/maps/search/?api=1&query=${selected.lat},${selected.lng}`} target="_blank" rel="noreferrer">Ver ubicación ↗</a></p>}
   </div>;
 }

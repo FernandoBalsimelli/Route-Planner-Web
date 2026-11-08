@@ -86,3 +86,4 @@
 .stop-field .input-with-action>button{margin-top:29px;flex:none}
 .stop-field .location-field{flex:1;min-width:0}
 @media(max-width:480px){.location-confirm-actions{flex-direction:column}}
+.current-location-tools{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 0 12px}.current-location-tools p{flex-basis:100%;margin:0}.current-location-button{display:inline-flex;align-items:center;gap:7px;min-height:44px;border:1px solid var(--line);border-radius:9px;padding:9px 12px;background:var(--green);color:#fff;font:600 12px 'DM Sans',sans-serif;cursor:pointer}.current-location-button:disabled{opacity:.6;cursor:wait}.current-location-button:focus-visible{outline:3px solid #e8b56b;outline-offset:3px}.location-accuracy{font-size:11px;line-height:1.6;color:var(--muted);margin:7px 0 12px}.location-accuracy a{color:var(--green);font-weight:600}
