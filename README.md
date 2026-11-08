@@ -34,3 +34,10 @@ El frontend consume `POST /v1/routes/plan` en Route Planner API. Los perfiles y 
 ## Limitaciones
 
 Las restricciones para vehículos pesados dependen de los atributos presentes en OpenStreetMap. La cobertura puede ser incompleta y el resultado no garantiza autorización legal ni transitabilidad física. Verifica señalización y normativa local antes de circular.
+
+
+## Búsqueda de direcciones
+
+Los campos de origen, paradas y destino utilizan `components/LocationInput.tsx` para sugerir lugares mientras se escribe. El usuario elige un resultado y confirma el punto; la web conserva sus coordenadas exactas y Plus Code para enviar el punto al motor de rutas.
+
+La web utiliza el proxy same-origin `/api/route-planner/[...path]` para comunicarse con la API. Esto evita que el navegador dependa de CORS entre dominios y convierte los fallos de conexión con el backend en un mensaje controlado.
