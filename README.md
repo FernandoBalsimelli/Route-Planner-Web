@@ -25,7 +25,7 @@ En Supabase Dashboard → Authentication → URL Configuration:
 - Site URL: `https://route-planner-web-fernandobalsimellis-projects.vercel.app`
 - Redirect URLs: agrega el dominio de la aplicación y sus previews autorizados.
 
-La aplicación usa Supabase Auth. Las rutas guardadas se almacenan en `saved_routes` y las paradas en `route_stops`; las políticas RLS deben limitar los registros al usuario propietario.
+La aplicación usa Supabase Auth. Las rutas guardadas se almacenan en `saved_routes`, sus datos de cálculo (perfil, vehículo, métricas, indicaciones y geometría) en `saved_routes.route_metadata`, y las paradas en `route_stops`. Las tablas mantienen RLS con políticas de propietario.
 
 ## Proveedor de rutas
 
