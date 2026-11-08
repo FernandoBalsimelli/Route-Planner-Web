@@ -25,8 +25,7 @@
 .route-map{height:310px;width:100%;z-index:1}
 .route-map-loading,.route-map-empty{min-height:180px;display:grid;place-items:center;margin:0 0 18px;padding:20px;border:1px dashed #cbd8cf;border-radius:13px;background:#f3f7f3;color:var(--muted);font-size:11px;text-align:center}
 .rp-map-marker{background:transparent;border:0}
-.rp-map-pin{width:28px;height:28px;display:grid;place-items:center;border:3px solid white;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 8px #172b2540;font:800 10px 'DM Sans';color:white}
-.rp-map-pin::first-letter{transform:rotate(45deg)}
+.rp-map-pin{width:28px;height:28px;display:grid;place-items:center;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px #172b2540;font:800 10px 'DM Sans';color:white}
 .rp-map-pin-start{background:#4e9a73}
 .rp-map-pin-end{background:#e7a14e}
 .rp-map-pin-stop{background:#174b3c}
