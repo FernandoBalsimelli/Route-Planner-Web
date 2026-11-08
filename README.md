@@ -64,3 +64,13 @@ Las posiciones E2E son simuladas y no representan la ubicación real del usuario
 
 Consulta [docs/ENGINEERING-STATUS.md](docs/ENGINEERING-STATUS.md) para el estado de
 la auditoría, pendientes y versiones de recuperación.
+
+## Puntos sobre el mapa y orden de las entregas
+
+Cada campo permite abrir el mapa, tocar un acceso o elegir el centro de la vista,
+revisar la etiqueta y confirmar las coordenadas. Cancelar no altera el formulario.
+Si no hay dirección disponible, el punto sigue siendo utilizable por coordenadas.
+
+Las paradas incluyen botones Subir y Bajar. El orden manual desactiva la
+optimización y requiere calcular de nuevo. Los cálculos pendientes se cancelan
+al editar el recorrido para que no aparezcan resultados anteriores.

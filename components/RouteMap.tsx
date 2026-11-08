@@ -4,6 +4,7 @@ import { useEffect, useMemo } from 'react';
 import L, { type LatLngTuple } from 'leaflet';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import { TILE_ATTRIBUTION, TILE_URL } from '@/lib/map-config';
 
 type Waypoint = { lat: number; lng: number; label?: string; type: string };
 
@@ -68,8 +69,8 @@ export default function RouteMap({ polyline, waypoints }: { polyline?: string; w
   return <div className="route-map-wrap">
     <MapContainer center={center} zoom={12} scrollWheelZoom={false} className="route-map">
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution={TILE_ATTRIBUTION}
+        url={TILE_URL}
       />
       {routePoints.length > 1 && <Polyline positions={routePoints} pathOptions={{ color: '#174b3c', weight: 5, opacity: 0.88 }} />}
       {waypoints.map((point, index) => {

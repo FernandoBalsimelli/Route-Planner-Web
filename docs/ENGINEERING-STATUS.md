@@ -55,7 +55,7 @@ No se hicieron operaciones sobre otros proyectos ni se contrataron servicios.
 
 - Web: pruebas unitarias de precisión y errores de geolocalización, integración
   de componentes React, TypeScript y compilación de producción.
-- Resultado del ciclo: diez pruebas Web y doce pruebas API aprobadas. Ambas
+- Resultado acumulado: veinte pruebas Web y doce pruebas API aprobadas. Ambas
   auditorías npm devuelven cero vulnerabilidades conocidas.
 - Integración de interfaz: GPS y dirección inversa simulados, denegación de
   permiso, caída de geocodificación, cancelación y edición durante una lectura
@@ -72,14 +72,43 @@ No se hicieron operaciones sobre otros proyectos ni se contrataron servicios.
 - Los resultados y commits exactos del despliegue deben constar en el informe
   del ciclo y en la descripción de los PR existentes.
 
+## Ciclo: puntos sobre el mapa y orden manual
+
+- Origen, paradas y destino ofrecen un selector cargado solo al abrirlo. Puede
+  tocarse el mapa o desplazarse con teclado y elegir el centro. El punto requiere
+  confirmación explícita; cancelar conserva el valor previo del formulario.
+- La dirección inversa se consulta con debounce y cancelación de respuestas
+  anteriores. Las coordenadas elegidas nunca se reemplazan por las de un edificio
+  cercano; si falla el proveedor, se pueden confirmar las coordenadas.
+- El mapa conserva atribución visible de OpenStreetMap y utiliza su URL HTTPS
+  recomendada. Solo carga las teselas de la vista interactiva; no ofrece descarga
+  masiva ni mapas offline. Política: https://operations.osmfoundation.org/policies/tiles/
+- Las paradas se pueden subir o bajar con controles de teclado y táctiles. Se
+  conservan sus identificadores y puntos confirmados. Los extremos se deshabilitan.
+- Reordenar desactiva la optimización automática e invalida el resultado anterior.
+  Editar los puntos, vehículo o preferencias cancela cualquier cálculo pendiente;
+  una respuesta tardía ya no puede sustituir el recorrido actualizado.
+- Pruebas: selector real React/Leaflet en DOM simulado, confirmación explícita,
+  respaldo por coordenadas, controles de orden y un flujo del planificador que
+  comprueba el payload y descarta una respuesta tardía. Autenticación/proveedor de
+  ese flujo son fixtures; no equivalen a una cuenta ni a una ruta reales.
+- Archivos principales: MapLocationPicker.tsx, RouteStops.tsx, LocationInput.tsx,
+  RouteMap.tsx, page.tsx, locations.ts, route-stops.ts y map-config.ts.
+- Se corrigieron los enlaces de navegación para usar coordenadas confirmadas y
+  la sintaxis documentada de Maps URLs. Los recorridos largos se dividen en tramos
+  consecutivos con hasta tres paradas intermedias para navegador móvil, sin omitir
+  puntos. Los enlaces no transmiten dimensiones o pesos de camiones y la interfaz
+  lo indica. Referencia: https://developers.google.com/maps/documentation/urls/get-started
+
 ## Prioridades siguientes
 
 | Prioridad | Trabajo | Estado |
 | --- | --- | --- |
 | P0 | Arranque/API, errores de conexión y búsqueda | Reparados; conservar regresiones |
 | P1 | Ubicación actual como origen | Implementada; pendiente validación en Android físico |
-| P1 | Elegir origen, paradas y destino directamente en el mapa | Pendiente |
-| P1 | Reordenar paradas manualmente y exportar recorridos | Pendiente |
+| P1 | Elegir origen, paradas y destino directamente en el mapa | Implementado; prueba de producción en este ciclo |
+| P1 | Reordenar paradas manualmente | Implementado y probado |
+| P1 | Exportar recorridos | Pendiente |
 | P1 | Historial reciente y favoritos con controles de privacidad | Pendiente |
 | P1 | Pruebas autenticadas completas de cuenta, rutas, flotas y aislamiento RLS | Parcial; falta fixture de cuenta de prueba |
 | P1 | Rate limiting por cliente detrás del proxy | Revisar separación entre usuarios sin confiar en cabeceras falsificables |
@@ -97,7 +126,11 @@ objetivos distintos y no se ofrecerán como equivalentes.
 
 ## Recuperación
 
-Antes de este ciclo, la versión Web estable era el commit d9f0089, deployment
+Antes del ciclo del selector, la Web estable era d776d811, deployment
+dpl_CpW77X96bYdf1x5FgtmyNYjLc2mR. La API sigue en af3d346, deployment
+dpl_5DpVxmL7RP4wL3j896aSyonCVNVS; este ciclo modifica únicamente la Web.
+
+Antes del ciclo GPS, la versión Web estable era el commit d9f0089, deployment
 dpl_3M7ibEJNRc3Qc4JKDuTNeFemChAU. La API estable era d1af364, deployment
 dpl_33hVvwq58edHnvTwvYav6G3kUCCV. Se conservan ambos despliegues y el historial Git.
 Puede restaurarse cada despliegue por separado dentro de su proyecto de Vercel.

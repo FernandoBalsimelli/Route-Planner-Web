@@ -1,13 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import type { User } from '@supabase/supabase-js';
 import AccountPanel from '@/components/AccountPanel';
 import LocationInput, { type LocationSelection } from '@/components/LocationInput';
 import { supabase } from '@/lib/supabase';
+import RouteStops from '@/components/RouteStops';
+import { moveStop, type RouteStop } from '@/lib/route-stops';
+import { googleMapsUrls } from '@/lib/navigation';
+import NavigationLinks from '@/components/NavigationLinks';
 
-type Stop = { id: string; value: string; selected?: LocationSelection | null };
+type Stop = RouteStop;
 type Fleet = { id: string; name: string };
 type VehicleProfile = { id: string; name: string; fleet_id: string | null; vehicle_type: 'delivery' | 'car' | 'truck'; height_m: number | null; width_m: number | null; length_m: number | null; gross_weight_t: number | null; axle_weight_t: number | null };
 type SavedRoute = { id: string; name: string; created_at: string; vehicle_id?: string | null; origin: { label?: string; lat?: number; lng?: number } | null; destination: { label?: string; lat?: number; lng?: number } | null; route_metadata?: { mode?: 'delivery' | 'truck'; vehicle?: { heightM?: number; widthM?: number; lengthM?: number; grossWeightT?: number; axleWeightT?: number } | null; result?: RouteResult } | null };
@@ -26,6 +30,7 @@ export default function Home() {
   const [selectedDestination, setSelectedDestination] = useState<LocationSelection | null>(null);
   const [stops, setStops] = useState<Stop[]>([]);
   const [optimizeStops, setOptimizeStops] = useState(false);
+  const [stopOrderMessage, setStopOrderMessage] = useState('');
   const [vehicle, setVehicle] = useState({ height: '4.0', width: '2.5', length: '18', grossWeight: '40', axleWeight: '10' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -47,15 +52,19 @@ export default function Home() {
   const [newFleetName, setNewFleetName] = useState('');
   const [fleetSaving, setFleetSaving] = useState(false);
   const [fleetMessage, setFleetMessage] = useState('');
+  const planningRequest = useRef<AbortController | null>(null);
+  useEffect(() => {
+    planningRequest.current?.abort();
+    setLoading(false);
+  }, [origin, destination, selectedOrigin, selectedDestination, stops, mode, vehicle, optimizeStops]);
+  useEffect(() => () => planningRequest.current?.abort(), []);
   const canPlan = origin.trim().length > 2 && destination.trim().length > 2 && !loading;
-  const mapsUrl = useMemo(() => {
+  const mapsUrls = useMemo(() => {
     const routePoints = result?.waypoints?.length
-      ? result.waypoints.map(point => point.label || (point.lat + ', ' + point.lng))
-      : [origin, ...stops.map(s => s.value), destination];
-    const points = routePoints.filter(Boolean);
-    if (points.length < 2) return '';
-    return 'https://www.google.com/maps/dir/' + points.map(encodeURIComponent).join('/');
-  }, [origin, destination, stops, result]);
+      ? result.waypoints
+      : [selectedOrigin || origin, ...stops.map(s => s.selected || s.value), selectedDestination || destination];
+    return googleMapsUrls(routePoints);
+  }, [origin, destination, selectedOrigin, selectedDestination, stops, result]);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,6 +95,7 @@ export default function Home() {
   function addStop() { if (stops.length >= 8) return; setStops(items => [...items, { id: crypto.randomUUID(), value: '', selected: null }]); setResult(null); }
   function updateStop(id: string, value: string) { setStops(items => items.map(s => s.id === id ? { ...s, value, selected: null } : s)); setResult(null); }
   function removeStop(id: string) { setStops(items => items.filter(s => s.id !== id)); setResult(null); }
+  function reorderStop(id: string, direction: -1 | 1) { setStops(items => moveStop(items, id, direction)); setOptimizeStops(false); setResult(null); setStopOrderMessage('Orden actualizado. Calcula de nuevo para usar este orden; la optimización automática está desactivada.'); }
 
   async function createFleet() {
     if (!user || !supabase) { setFleetMessage('Inicia sesión para crear una flota.'); return; }
@@ -202,6 +212,9 @@ export default function Home() {
 
   async function planRoute() {
     if (!canPlan) return;
+    planningRequest.current?.abort();
+    const controller = new AbortController();
+    planningRequest.current = controller;
     setLoading(true); setError(''); setResult(null);
     try {
       let sessionData;
@@ -217,6 +230,7 @@ export default function Home() {
       let response: Response;
       try {
         response = await fetch(`${API_URL}/v1/routes/plan`, {
+          signal: controller.signal,
           method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${sessionData.session.access_token}` },
           body: JSON.stringify({ origin: selectedOrigin || origin.trim(), destination: selectedDestination || destination.trim(), stops: stops.filter(s => s.value.trim()).map(s => s.selected || s.value.trim()), mode, optimize: optimizeStops && mode === 'delivery', vehicle: mode === 'truck' ? { heightM: Number(vehicle.height), widthM: Number(vehicle.width), lengthM: Number(vehicle.length), grossWeightT: Number(vehicle.grossWeight), axleWeightT: Number(vehicle.axleWeight) } : undefined }),
         });
@@ -224,13 +238,15 @@ export default function Home() {
         throw new Error('No se pudo conectar con Route Planner API. La conexión fue interrumpida antes de recibir respuesta.');
       }
       const payload = await response.json().catch(() => ({}));
+      if (controller.signal.aborted) return;
       if (!response.ok) { if (payload.code === 'ORS_API_KEY_MISSING') setProviderStatus('missing'); throw new Error(payload.message || 'No se pudo calcular la ruta.'); }
       setResult(payload.route); setProviderStatus('ready');
     } catch (e) {
+      if (controller.signal.aborted) return;
       const message = e instanceof Error ? e.message : 'Error inesperado al calcular la ruta.';
       setError(message);
       if (message.toLowerCase().includes('ors_api_key_missing')) setProviderStatus('missing');
-    } finally { setLoading(false); }
+    } finally { if (planningRequest.current === controller) setLoading(false); }
   }
 
   async function saveRoute() {
@@ -277,7 +293,7 @@ export default function Home() {
     <header className="topbar"><a className="brand" href="#inicio"><span className="brand-mark">R</span><span>ROUTE <b>PLANNER</b></span></a><nav><a href="#planificador">Planificador</a><a href="#como-funciona">Cómo funciona</a></nav><AccountPanel onUserChange={setUser} /><span className="status"><i /> Beta · staging</span></header>
     <section className="hero" id="inicio"><div className="hero-copy"><p className="eyebrow">PLANIFICACIÓN INTELIGENTE DE RUTAS</p><h1>Tu ruta, <em>mejor pensada.</em></h1><p className="lead">Planifica recorridos de reparto y transporte pesado con paradas, perfiles de vehículo y cálculo de rutas OpenRouteService.</p><div className="hero-tags"><span>01 · Reparto</span><span>02 · Camiones</span><span>03 · Múltiples paradas</span></div></div><div className="hero-art" aria-hidden="true"><div className="map-grid"/><svg viewBox="0 0 460 300" role="img"><path d="M30 230 C95 190 94 110 175 132 S265 255 325 178 S380 65 435 55" fill="none" stroke="#b8d8c9" strokeWidth="18" strokeLinecap="round"/><path d="M30 230 C95 190 94 110 175 132 S265 255 325 178 S380 65 435 55" fill="none" stroke="#0f3d31" strokeWidth="4" strokeDasharray="7 9" strokeLinecap="round"/><circle cx="30" cy="230" r="12" fill="#f2b35f" stroke="#fff" strokeWidth="5"/><circle cx="175" cy="132" r="12" fill="#f2b35f" stroke="#fff" strokeWidth="5"/><circle cx="325" cy="178" r="12" fill="#f2b35f" stroke="#fff" strokeWidth="5"/><circle cx="435" cy="55" r="12" fill="#0f3d31" stroke="#fff" strokeWidth="5"/></svg><div className="route-chip"><span>RUTA OPTIMIZADA</span><strong>Lista para planear</strong></div></div></section>
     <section className="planner" id="planificador"><div className="planner-heading"><div><p className="eyebrow">CENTRO DE RUTAS</p><h2>Planifica un recorrido</h2><p>Agrega tus puntos y selecciona el tipo de vehículo.</p></div><div className="mode-switch"><button className={mode === 'delivery' ? 'selected' : ''} onClick={() => changeMode('delivery')}>↗ Reparto</button><button className={mode === 'truck' ? 'selected' : ''} onClick={() => changeMode('truck')}>▰ Camión</button></div></div>
-      <div className="planner-grid"><div className="route-form"><LocationInput title="Origen" color="green" allowCurrentLocation value={origin} placeholder="Dirección, lugar, Plus Code o coordenadas" apiUrl={API_URL} selected={selectedOrigin} onChange={value => { setOrigin(value); setSelectedOrigin(null); setResult(null); }} onConfirm={location => { setSelectedOrigin(location); setResult(null); }}/><div className="stops-head"><span>PARADAS INTERMEDIAS</span><button className="text-button" onClick={addStop} disabled={stops.length >= 8}>＋ Agregar parada</button></div>{stops.map((stop, index) => <div className="stop-field" key={stop.id}><div className="input-with-action"><LocationInput title={`PARADA ${index + 1}`} color="number" value={stop.value} placeholder="Dirección, Plus Code o coordenadas" apiUrl={API_URL} selected={stop.selected} onChange={value => updateStop(stop.id, value)} onConfirm={location => { setStops(items => items.map(item => item.id === stop.id ? { ...item, value: location.label, selected: location } : item)); setResult(null); }}/><button aria-label="Eliminar parada" onClick={() => removeStop(stop.id)}>×</button></div></div>)}<label className="optimize-toggle"><input type="checkbox" checked={optimizeStops} onChange={e => setOptimizeStops(e.target.checked)} disabled={mode === 'truck' || stops.filter(stop => stop.value.trim()).length < 2}/><span><b>Optimizar orden de paradas</b><small>{mode === 'truck' ? 'En camiones conservamos el orden indicado y aplicamos las restricciones del vehículo.' : 'Reordena automáticamente las paradas para reducir el recorrido.'}</small></span></label><LocationInput title="Destino" color="orange" value={destination} placeholder="Dirección, lugar, Plus Code o coordenadas" apiUrl={API_URL} selected={selectedDestination} onChange={value => { setDestination(value); setSelectedDestination(null); setResult(null); }} onConfirm={location => { setSelectedDestination(location); setResult(null); }}/>
+      <div className="planner-grid"><div className="route-form"><LocationInput title="Origen" color="green" allowCurrentLocation value={origin} placeholder="Dirección, lugar, Plus Code o coordenadas" apiUrl={API_URL} selected={selectedOrigin} onChange={value => { setOrigin(value); setSelectedOrigin(null); setResult(null); }} onConfirm={location => { setSelectedOrigin(location); setResult(null); }}/><div className="stops-head"><span>PARADAS INTERMEDIAS</span><button className="text-button" onClick={addStop} disabled={stops.length >= 8}>＋ Agregar parada</button></div><RouteStops stops={stops} apiUrl={API_URL} mapReference={selectedOrigin} onChange={updateStop} onConfirm={(id, location) => { setStops(items => items.map(item => item.id === id ? { ...item, value: location.label, selected: location } : item)); setResult(null); }} onMove={reorderStop} onRemove={removeStop}/>{stopOrderMessage && <p className="stop-order-message" role="status">{stopOrderMessage}</p>}<label className="optimize-toggle"><input type="checkbox" checked={optimizeStops} onChange={e => { setOptimizeStops(e.target.checked); setStopOrderMessage(''); setResult(null); }} disabled={mode === 'truck' || stops.filter(stop => stop.value.trim()).length < 2}/><span><b>Optimizar orden de paradas</b><small>{mode === 'truck' ? 'En camiones conservamos el orden indicado y aplicamos las restricciones del vehículo.' : 'Reordena automáticamente las paradas para reducir el recorrido.'}</small></span></label><LocationInput title="Destino" color="orange" mapReference={selectedOrigin} value={destination} placeholder="Dirección, lugar, Plus Code o coordenadas" apiUrl={API_URL} selected={selectedDestination} onChange={value => { setDestination(value); setSelectedDestination(null); setResult(null); }} onConfirm={location => { setSelectedDestination(location); setResult(null); }}/>
       {mode === 'truck' && <div className="vehicle-panel"><div className="vehicle-title"><strong>Perfil del camión</strong><small>Medidas del vehículo cargado</small></div><div className="vehicle-fields"><label>Altura (m)<input type="number" min="0.5" max="10" step="0.1" value={vehicle.height} onChange={e => { setVehicle(v => ({...v,height:e.target.value})); setResult(null); }}/></label><label>Ancho (m)<input type="number" min="0.5" max="5" step="0.1" value={vehicle.width} onChange={e => { setVehicle(v => ({...v,width:e.target.value})); setResult(null); }}/></label><label>Largo (m)<input type="number" min="1" max="30" step="0.1" value={vehicle.length} onChange={e => { setVehicle(v => ({...v,length:e.target.value})); setResult(null); }}/></label><label>Peso bruto (t)<input type="number" min="0.1" max="100" step="0.1" value={vehicle.grossWeight} onChange={e => { setVehicle(v => ({...v,grossWeight:e.target.value})); setResult(null); }}/></label><label>Peso por eje (t)<input type="number" min="0.1" max="30" step="0.1" value={vehicle.axleWeight} onChange={e => { setVehicle(v => ({...v,axleWeight:e.target.value})); setResult(null); }}/></label></div><div className="vehicle-profile-tools">
         <label>Flota<select value={selectedFleetId} onChange={e => setSelectedFleetId(e.target.value)}><option value="">Sin flota</option>{fleets.map(fleet => <option key={fleet.id} value={fleet.id}>{fleet.name}</option>)}</select></label>
         <div className="fleet-create-row"><input aria-label="Nombre de nueva flota" value={newFleetName} onChange={e => setNewFleetName(e.target.value)} placeholder="Nombre de nueva flota" /><button type="button" onClick={() => void createFleet()} disabled={fleetSaving}>{fleetSaving ? 'Creando…' : 'Crear flota'}</button></div>
@@ -286,9 +302,9 @@ export default function Home() {
         <div className="vehicle-profile-save-row"><input aria-label="Nombre del perfil" value={vehicleProfileName} onChange={e => setVehicleProfileName(e.target.value)} placeholder="Nombre del perfil (opcional)" /><button type="button" onClick={() => void saveVehicleProfile()} disabled={vehicleProfileSaving}>{vehicleProfileSaving ? 'Guardando…' : selectedVehicleProfileId ? 'Actualizar perfil' : 'Guardar perfil'}</button></div>
         {vehicleProfileMessage && <p className="vehicle-profile-message" role="status">{vehicleProfileMessage}</p>}
       </div><p className="hint">OpenRouteService considerará las restricciones disponibles en OpenStreetMap; la cobertura puede ser incompleta.</p></div>}
-      <button className="primary-button" disabled={!canPlan} onClick={planRoute}>{loading ? 'Calculando ruta…' : 'Calcular ruta  →'}</button>{mapsUrl && <a className="secondary-button" href={mapsUrl} target="_blank" rel="noreferrer">Abrir puntos en Google Maps ↗</a>}
+      <button className="primary-button" disabled={!canPlan} onClick={planRoute}>{loading ? 'Calculando ruta…' : 'Calcular ruta  →'}</button><NavigationLinks urls={mapsUrls} truck={mode === 'truck'} />
       {error && <div className="error-box"><strong>No se pudo calcular</strong><p>{error}</p>{providerStatus === 'missing' && <small>Falta configurar ORS_API_KEY como variable secreta en Vercel.</small>}</div>}
-      </div><aside className="result-panel"><div className="result-top"><span>RESULTADO DEL RECORRIDO</span><span className="result-icon">⌁</span></div>{result ? <><div className="metrics"><div><small>DISTANCIA</small><strong>{formatDistance(result.distanceMeters)}</strong></div><div><small>TIEMPO ESTIMADO</small><strong>{formatDuration(result.durationSeconds)}</strong></div></div>{result.optimized && <p className="optimized-note">Orden de paradas optimizado automáticamente para reducir el recorrido.</p>}<RouteMap polyline={result.polyline} waypoints={result.waypoints || []}/><div className="route-line"><div className="route-point"><i className="dot green"/><span><b>Origen</b><small>{origin}</small></span></div>{(result.waypoints || []).filter(point => point.type === 'stop').map((point,i)=><div className="route-point" key={i}><i className="stop-number">{i+1}</i><span><b>Parada {i+1}</b><small>{point.label || (point.lat + ', ' + point.lng)}</small></span></div>)}<div className="route-point"><i className="dot orange"/><span><b>Destino</b><small>{destination}</small></span></div></div><div className="instructions"><strong>Indicaciones</strong>{result.sections.flatMap(section => section.actions || []).filter(action => action.instruction).slice(0, 12).map((action, index) => <p key={index}>{index + 1}. {action.instruction}</p>)}</div>{(result.notices || []).length > 0 && <div className="notice-box"><strong>Avisos de ruta</strong>{result.notices?.map((n,i)=><p key={i}>{n.title || n.details || n.code}</p>)}</div>}<button className="primary-button save-button" disabled={saving} onClick={saveRoute}>{saving ? 'Guardando…' : 'Guardar esta ruta'}</button>{saveMessage && <p className="save-message">{saveMessage}</p>}<a className="secondary-button" href={mapsUrl} target="_blank" rel="noreferrer">Abrir navegación ↗</a></> : <div className="empty-state"><div className="empty-route">⌁</div><strong>Tu ruta aparecerá aquí</strong><p>Completa origen y destino para obtener distancia, tiempo y avisos del recorrido.</p><div className="empty-stats"><span>— km <small>Distancia</small></span><span>— min <small>Duración</small></span></div></div>}</aside></div><p className="disclaimer">Las rutas para camiones dependen de los datos y restricciones disponibles en OpenStreetMap. Verifica señalización y normativa local antes de circular.</p>
+      </div><aside className="result-panel"><div className="result-top"><span>RESULTADO DEL RECORRIDO</span><span className="result-icon">⌁</span></div>{result ? <><div className="metrics"><div><small>DISTANCIA</small><strong>{formatDistance(result.distanceMeters)}</strong></div><div><small>TIEMPO ESTIMADO</small><strong>{formatDuration(result.durationSeconds)}</strong></div></div>{result.optimized && <p className="optimized-note">Orden de paradas optimizado automáticamente para reducir el recorrido.</p>}<RouteMap polyline={result.polyline} waypoints={result.waypoints || []}/><div className="route-line"><div className="route-point"><i className="dot green"/><span><b>Origen</b><small>{origin}</small></span></div>{(result.waypoints || []).filter(point => point.type === 'stop').map((point,i)=><div className="route-point" key={i}><i className="stop-number">{i+1}</i><span><b>Parada {i+1}</b><small>{point.label || (point.lat + ', ' + point.lng)}</small></span></div>)}<div className="route-point"><i className="dot orange"/><span><b>Destino</b><small>{destination}</small></span></div></div><div className="instructions"><strong>Indicaciones</strong>{result.sections.flatMap(section => section.actions || []).filter(action => action.instruction).slice(0, 12).map((action, index) => <p key={index}>{index + 1}. {action.instruction}</p>)}</div>{(result.notices || []).length > 0 && <div className="notice-box"><strong>Avisos de ruta</strong>{result.notices?.map((n,i)=><p key={i}>{n.title || n.details || n.code}</p>)}</div>}<button className="primary-button save-button" disabled={saving} onClick={saveRoute}>{saving ? 'Guardando…' : 'Guardar esta ruta'}</button>{saveMessage && <p className="save-message">{saveMessage}</p>}<NavigationLinks urls={mapsUrls} truck={mode === 'truck'} /></> : <div className="empty-state"><div className="empty-route">⌁</div><strong>Tu ruta aparecerá aquí</strong><p>Completa origen y destino para obtener distancia, tiempo y avisos del recorrido.</p><div className="empty-stats"><span>— km <small>Distancia</small></span><span>— min <small>Duración</small></span></div></div>}</aside></div><p className="disclaimer">Las rutas para camiones dependen de los datos y restricciones disponibles en OpenStreetMap. Verifica señalización y normativa local antes de circular.</p>
     </section>
     <section className="saved-routes" aria-labelledby="saved-routes-title">
       <div className="saved-routes-heading">

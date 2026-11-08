@@ -1,17 +1,12 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { locateDevice } from '@/lib/geolocation';
+import { resolvePointLabel, type Coordinates, type LocationSelection } from '@/lib/locations';
 
-export type LocationSelection = {
-  label: string;
-  lat: number;
-  lng: number;
-  plusCode?: string;
-  source?: string;
-  kind?: string;
-  accuracyM?: number;
-};
+export type { LocationSelection } from '@/lib/locations';
+const MapLocationPicker = dynamic(() => import('./MapLocationPicker'), { ssr: false, loading: () => <p role="status">Cargando mapa…</p> });
 
 function locationKind(kind?: string) {
   return kind ? ({ locality: 'Ciudad o localidad', address: 'Dirección', venue: 'Lugar', street: 'Calle', neighbourhood: 'Colonia', borough: 'Distrito' } as Record<string, string>)[kind] : undefined;
@@ -25,11 +20,12 @@ type Props = {
   apiUrl: string;
   selected?: LocationSelection | null;
   allowCurrentLocation?: boolean;
+  mapReference?: Coordinates | null;
   onChange: (value: string) => void;
   onConfirm: (location: LocationSelection) => void;
 };
 
-export default function LocationInput({ title, color, value, placeholder, apiUrl, selected, allowCurrentLocation = false, onChange, onConfirm }: Props) {
+export default function LocationInput({ title, color, value, placeholder, apiUrl, selected, allowCurrentLocation = false, mapReference, onChange, onConfirm }: Props) {
   const [suggestions, setSuggestions] = useState<LocationSelection[]>([]);
   const [pending, setPending] = useState<LocationSelection | null>(null);
   const [loading, setLoading] = useState(false);
@@ -38,6 +34,11 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
   const [geoBusy, setGeoBusy] = useState(false);
   const geoRequest = useRef(0);
   const reverseController = useRef<AbortController | null>(null);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [mapSeed, setMapSeed] = useState<Coordinates | null>(null);
+  const mapButton = useRef<HTMLButtonElement | null>(null);
+
+  function closeMap() { setMapOpen(false); mapButton.current?.focus(); }
 
   useEffect(() => () => { geoRequest.current++; reverseController.current?.abort(); }, []);
 
@@ -50,6 +51,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
 
   async function useCurrentLocation() {
     cancelLocation();
+    setMapOpen(false);
     if (!window.isSecureContext || !navigator.geolocation) {
       setGeoStatus('La ubicación requiere HTTPS y un navegador compatible. Puedes escribir el origen manualmente.');
       return;
@@ -64,22 +66,10 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       const controller = new AbortController();
       reverseController.current = controller;
       const timer = setTimeout(() => controller.abort(), 12000);
-      let label = `Mi ubicación (${point.lat.toFixed(6)}, ${point.lng.toFixed(6)})`;
-      let plusCode: string | undefined;
-      let addressFound = false;
-      try {
-        const response = await fetch(`${apiUrl}/v1/locations/reverse?lat=${point.lat}&lng=${point.lng}`, { signal: controller.signal });
-        if (response.ok) {
-          const payload = await response.json();
-          if (payload.ok && payload.location) {
-            if (payload.location.label && !payload.warning) { label = payload.location.label; addressFound = true; }
-            plusCode = payload.location.plusCode;
-          }
-        }
-      } catch { /* Coordinates remain usable when address lookup is unavailable. */ }
-      finally { clearTimeout(timer); }
+      const { location: resolved, addressFound } = await resolvePointLabel(point, apiUrl, controller.signal);
+      clearTimeout(timer);
       if (geoRequest.current !== requestId) return;
-      const location = { label: label.slice(0, 180), lat: point.lat, lng: point.lng, accuracyM: point.accuracyM, plusCode, source: 'geolocation' };
+      const location = { ...resolved, label: addressFound ? resolved.label : `Mi ubicación (${point.lat.toFixed(6)}, ${point.lng.toFixed(6)})`, accuracyM: point.accuracyM, source: 'geolocation' };
       onChange(location.label);
       onConfirm(location);
       setGeoStatus(addressFound ? 'Ubicación actual establecida como origen.' : 'Origen establecido con coordenadas. No se pudo obtener la dirección legible.');
@@ -91,6 +81,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
   }
 
   useEffect(() => {
+    if (mapOpen) { setSuggestions([]); setPending(null); setLoading(false); return; }
     if (selected && selected.label === value) {
       setSuggestions([]);
       setPending(null);
@@ -129,7 +120,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       clearTimeout(timer);
       controller.abort();
     };
-  }, [value, apiUrl, selected]);
+  }, [value, apiUrl, selected, mapOpen]);
 
   function confirmPending() {
     if (!pending) return;
@@ -146,13 +137,22 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       <span><i className={color === 'number' ? 'stop-number' : `dot ${color}`}>{color === 'number' ? title.replace('PARADA ', '') : ''}</i> {color === 'number' ? title : title.toUpperCase()}</span>
       <input
         value={value}
-        onChange={event => { cancelLocation(); onChange(event.target.value); setPending(null); }}
+        onChange={event => { cancelLocation(); setMapOpen(false); onChange(event.target.value); setPending(null); }}
         placeholder={placeholder}
         autoComplete="off"
         aria-autocomplete="list"
         aria-expanded={suggestions.length > 0}
       />
     </label>
+    <button type="button" ref={mapButton} className="map-open-button" aria-label={`Elegir ${title.toLowerCase()} en el mapa`} aria-expanded={mapOpen} onClick={() => {
+      if (mapOpen) { closeMap(); return; }
+      cancelLocation();
+      setMapSeed(selected || pending || suggestions[0] || mapReference || null);
+      setMapOpen(true);
+    }}>⌖ {mapOpen ? 'Cerrar mapa' : 'Elegir en el mapa'}</button>
+    {mapOpen && <MapLocationPicker title={title} initialPoint={mapSeed} apiUrl={apiUrl} onClose={closeMap} onConfirm={location => {
+      onChange(location.label); onConfirm(location); setPending(null); setSearchError(''); closeMap();
+    }} />}
     {allowCurrentLocation && <div className="current-location-tools">
       <button type="button" className="current-location-button" disabled={geoBusy} onClick={() => void useCurrentLocation()}><span aria-hidden="true">⌖</span> {geoBusy ? 'Localizando…' : 'Usar mi ubicación actual'}</button>
       {geoBusy && <button type="button" className="text-button" onClick={cancelLocation}>Cancelar</button>}

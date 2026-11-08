@@ -13,6 +13,8 @@ Object.defineProperty(window, 'isSecureContext', { value: true });
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const { createRoot } = await import('react-dom/client');
 const { default: LocationInput } = await import('../components/LocationInput.tsx');
+const { default: RouteStops } = await import('../components/RouteStops.tsx');
+const { moveStop } = await import('../lib/route-stops.ts');
 const savedFetch = globalThis.fetch;
 let root, container, reverseCalls;
 
@@ -87,4 +89,23 @@ test('typing during GPS lookup cancels the late result', async () => {
   await act(async () => finish({ coords: { latitude: 28.66, longitude: -106.09, accuracy: 10 } }));
   assert.equal(input.value, 'Origen escrito');
   assert.equal(reverseCalls.length, 0);
+});
+
+test('stop controls reorder the complete input and keep boundary controls disabled', async () => {
+  const original = [
+    { id: 'one', value: 'Primera dirección', selected: { label: 'Primera dirección', lat: 28.66, lng: -106.09 } },
+    { id: 'two', value: 'Segunda dirección', selected: { label: 'Segunda dirección', lat: 28.67, lng: -106.10 } },
+  ];
+  function StopsHarness() {
+    const [stops, setStops] = useState(original);
+    return React.createElement(RouteStops, { stops, apiUrl: '/api/route-planner', onChange() {}, onConfirm() {}, onRemove() {},
+      onMove: (id, direction) => setStops(items => moveStop(items, id, direction)) });
+  }
+  container = document.createElement('div'); document.body.append(container); root = createRoot(container);
+  await act(async () => root.render(React.createElement(StopsHarness)));
+  assert.equal(container.querySelector('[aria-label="Subir parada 1"]').disabled, true);
+  assert.equal(container.querySelector('[aria-label="Bajar parada 2"]').disabled, true);
+  await act(async () => container.querySelector('[aria-label="Bajar parada 1"]').click());
+  assert.deepEqual([...container.querySelectorAll('input')].map(input => input.value), ['Segunda dirección', 'Primera dirección']);
+  assert.equal(container.querySelectorAll('.location-confirmed').length, 2);
 });
