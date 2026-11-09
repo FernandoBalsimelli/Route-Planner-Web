@@ -7,7 +7,20 @@ export type LocationSelection = {
   kind?: string;
   accuracyM?: number;
   distanceMeters?: number;
+  houseNumber?: string;
+  street?: string;
+  postalCode?: string;
+  requestedHouseNumber?: string;
+  numberMatch?: 'matched' | 'missing' | 'different';
+  providerAccuracy?: string;
 };
+
+export function addressNumberNotice(point: LocationSelection): string {
+  if (point.numberMatch === 'missing') return `No se encontró el número ${point.requestedHouseNumber}. Este resultado es aproximado: puede ser el centro de la calle o colonia. Ajusta el acceso en el mapa o usa su Plus Code.`;
+  if (point.numberMatch === 'different') return `Pediste el número ${point.requestedHouseNumber}, pero este resultado corresponde al ${point.houseNumber}. Revisa la dirección y el acceso antes de confirmar.`;
+  if (point.numberMatch === 'matched') return `El proveedor reporta el número ${point.houseNumber}. Verifica también calle, colonia y acceso; el número coincidente no garantiza la entrada de descarga.`;
+  return '';
+}
 
 export type Coordinates = { lat: number; lng: number };
 
