@@ -571,15 +571,93 @@ autorizados del programa general. No desactivar la tarea periódica todavía.
 Este cierre solo actualiza documentación después de los despliegues citados.
 
 
-### Ciclo activo: cobertura nacional y navegación con Google
+### Publicación: directorio nacional y puntos guía · 9 de noviembre de 2026
 
-Solicitud actual: retirar destacado de Monterrey, orden alfabético nacional,
-puntos guía de la ruta y revisión periódica de fuentes. Cambios de código y
-pruebas en `feat/national-regulations`; detalle y límites reales en
-MEXICO-COVERAGE.md. Antes de publicar: CI y comprobación de producción.
-Recuperación base: Web dpl_8MqVo364dxPMbc6aixeap9Npa42f (b0b6949d), API
-dpl_AyMGxz2xbFXzS93aUJP3eoBfvZgJ (967cef4c). Sin cambios de base de datos.
-Google Maps exacto/legal para camión en México y cobertura de todos los municipios
-continúan sin resolver; no presentarlos como terminados por tener puntos guía
-o un catálogo geográfico. Retomar primero vigencia/geometría de jurisdicciones
-con entregas reales, sin restaurar versiones antiguas ni tocar Gestión.
+**Estado:** avance desplegado y comprobado. El requisito de Google exacto/legal
+para camión en México y la incorporación completa de las normas de todos los
+municipios siguen pendientes. No se declara terminado el prompt maestro.
+
+Problemas y causas: el recuadro de Monterrey estaba escrito directamente en
+TruckGuide y el directorio iniciaba con estado 19/municipio 19039. Se retiró el
+recuadro y la preselección; el orden por clave INEGI se reemplazó por orden
+alfabético antes de paginar. Google Maps URLs no recibe la polilínea ORS ni
+atributos HGV: añadir puntos no bloquea su motor. El producto Large Vehicle
+Routing de Google declara cobertura en EE. UU. continental/Japón y requiere
+provisionamiento; no resuelve México ni la app de Google Maps del conductor.
+
+Cambios publicados:
+
+- Directorio de 32 entidades/2,478 municipios, sin favorito geográfico.
+- Referencias parciales para 13 municipios: Monterrey, nueve del AMG, Juárez,
+  Guachochi y Cuauhtémoc (sólo perímetro A). Ámbitos, clases de vehículo,
+  horarios, fuentes y dudas de vigencia explícitos. Cero municipios cuentan
+  con validación legal automática completa. No se inventaron geometrías.
+- Puntos guía sobre la polilínea de ORS, 25 m tras maniobras y cada 1.5 km;
+  entregas exactas y orden conservados, también en bucles/repeticiones.
+  Validación del mapeo de cada entrega antes de habilitar guías. Enlaces
+  Google de 9/3 intermedias, límite de longitud y tramos con extremos comunes.
+  Opción para quitar guías y aviso de que Google puede escoger otras calles.
+- Monitor de cinco fuentes oficiales programado cada seis horas, con hashes,
+  última descarga correcta, cambios y fallos. No modifica reglas legales.
+  Primera ejecución en main: 791f16fec55da7b38aba53c803480c05d12fdd6a,
+  comprobada 2026-11-09T19:04:47Z. El reporte se lee con caché de 15 min y
+  fallback local, sin otro despliegue. GitHub puede retrasar el horario.
+  La ejecución alojada marcó CDMX y Juárez no disponibles; mantiene evidencia
+  previa de Juárez. No oculta fallos como vigencia verificada.
+
+Archivos modificados, Web: app/page.tsx y globals.css; components/TruckGuide,
+MunicipalCoverage, NavigationLinks y OfficialSourceMonitor; lib/navigation,
+routes y google-route-guides; test/geolocation.e2e, fixtures/route-navigation,
+google-route-guides y official-source-monitor; docs/ENGINEERING-STATUS y
+MEXICO-COVERAGE. API: index.js; lib/municipal-regulations y source-monitor;
+data/mx/national-references y source-status; scripts/check-official-sources;
+.github/workflows/official-sources; pruebas municipal-regulations, routing y
+source-monitor; docs/MEXICO-COVERAGE. Extensiones originales se conservan.
+
+Validación: 39 pruebas API y 78 pruebas Web; TypeScript, build y auditorías sin
+vulnerabilidades conocidas. CI API 42679587996 aprobó las ocho migraciones y
+RLS en Postgres 17 desechable. CI Web 42679730901 aprobó los 15 E2E móviles,
+incluidos orden del directorio, guías y cambio a sólo entregas. No se desactivó
+el límite de solicitudes para probar; un caso de prueba nuevo usa una IP de
+fixture distinta para no consumir el presupuesto de otros casos.
+
+API PR #7 y Web PR #8 integradas. Producción READY y alias comprobados:
+
+| Servicio | Commit desplegado | Despliegue |
+| --- | --- | --- |
+| API | dae18342d45d5a8538e405e4c1f41b9e20282b1a | dpl_5hchiEtfQuAtHYu16ue6Rrw9F67L |
+| Web | b500f3695c9561a2d27eb487199833476a8bfd33 | dpl_ABriiPZmhs6qdnPqqcgBqzUvzVHg |
+
+https://route-planner-web-sand.vercel.app/
+https://route-planner-api.vercel.app/
+
+En producción, a través del proxy del mismo origen, se comprobaron catálogo,
+coordenadas decimales y Plus Code completo (200, una ubicación en cada caso).
+La búsqueda Bodega Aurrera Express con foco público de prueba en Chihuahua
+respondió 200 con ocho sugerencias, pero fuera de 50 km: devolvió
+NO_NEARBY_MATCHES. No se afirma que existan coincidencias locales precisas;
+queda P1 revisar cobertura de POI/proveedores y confirmación en mapa.
+
+También se comprobaron endpoints de catálogo, orden/paginación,
+Guadalajara, Guachochi, Cuauhtémoc y reporte actualizado. Navegador real:
+recuadro retirado, selector inicial vacío, estados alfabéticos, municipios de
+Jalisco ordenados, fuente y cuatro reglas específicas de Guadalajara con su
+ámbito. El seguimiento muestra fechas y fallos actuales. No se encontraron
+clusters de errores runtime ni logs error/fatal en ambos despliegues durante
+la ventana revisada. No se ejecutó cálculo autenticado con ORS real ni prueba
+de navegación en carretera con la app nativa Android; los E2E usan fixtures.
+
+Recuperación: Web dpl_8MqVo364dxPMbc6aixeap9Npa42f (b0b6949d), API
+ dpl_AyMGxz2xbFXzS93aUJP3eoBfvZgJ (967cef4c). No hay migración nueva de base
+de datos ni cambio de privilegios, planes, dominios o credenciales. Sólo se
+mutaron recursos de Route Planner; Gestión y demás proyectos no se tocaron.
+El historial git conserva reglamentos y reportes. Este cierre documental no
+cambia el código que ya se verificó en producción.
+
+Próxima prioridad: obtener vigencia y geometrías/sentidos legales de las
+jurisdicciones con entregas reales, modelar sus excepciones y permisos y probar
+exclusiones antes de activarlas. Completar el resto nacional y nuevas
+publicaciones sigue abierto; el monitor no encuentra todos los acuerdos ni
+asegura ausencia de multas. Conservar pruebas autenticadas y Android físico
+como pendientes. La rama antigua test/authenticated-flow es un borrador;
+portar/revisar sus pruebas sobre main actual, nunca fusionar su producto viejo.
