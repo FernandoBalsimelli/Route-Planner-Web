@@ -1,0 +1,280 @@
+# Route Planner — estado de ingeniería
+
+Fecha de revisión: 2026-11-08. Alcance: exclusivamente Route Planner.
+
+## Recursos verificados
+
+| Recurso | Identificador |
+| --- | --- |
+| Web | FernandoBalsimelli/Route-Planner-Web; Next.js 15 / React 19 |
+| API REST | FernandoBalsimelli/Route-Planner-API; Fastify 5 / Zod |
+| Vercel Web | prj_sbuLeCkEuxAwxr9N8kHTy6HkxO67 |
+| Vercel API | prj_FhoaKKMQcPJCNad826fBz9BlXF09 |
+| Supabase | pakhlscjbjvwnheeyjxd; Route Planner; us-west-1; ACTIVE_HEALTHY |
+| Producción | https://route-planner-web-sand.vercel.app |
+| API | https://route-planner-api.vercel.app |
+
+No se hicieron operaciones sobre otros proyectos ni se contrataron servicios.
+
+## Auditoría inicial
+
+- Frontend → proxy Next.js del mismo origen → API → HeiGIT/Photon. La clave del
+  proveedor permanece en el backend. El proxy conserva autorización, errores JSON,
+  Retry-After y un presupuesto mayor para los cálculos de múltiples etapas.
+- Se comprobaron los recursos y despliegues de producción. La búsqueda y el cálculo
+  ya funcionaron con la cuenta del propietario según su confirmación. Las pruebas
+  nuevas de ruteo automatizado usan autenticación y proveedores simulados.
+- CORS comprobado: el dominio de Route Planner obtiene su cabecera de autorización;
+  un origen ajeno no la obtiene. El navegador usa el proxy del mismo origen.
+- Las cinco tablas públicas tienen RLS. Se inspeccionaron las políticas de dueño
+  y las comprobaciones de pertenencia de vehículos, flotas, rutas y paradas.
+  No se ejecutó todavía una prueba de aislamiento con dos cuentas reales.
+- Supabase no reportó avisos de RLS. Reportó protección de contraseñas filtradas
+  desactivada; queda pendiente evaluar disponibilidad/costo sin habilitar servicios
+  de pago: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
+- No hubo errores de ejecución agregados por Vercel en los 15 minutos consultados.
+  Esto no equivale a monitoreo permanente ni garantiza ausencia de errores futuros.
+- La auditoría npm detectó avisos en Fastify, Zod y PostCSS. Se actualizaron Fastify
+  a 5.12.8 y Zod a 4.6.7, y se fijó PostCSS 8.5.32 mediante override compatible.
+  Ambas auditorías npm posteriores devolvieron cero vulnerabilidades conocidas.
+
+## Ciclo: origen con ubicación actual
+
+- Solo se solicita ubicación tras pulsar el botón en el origen.
+- Se usa getCurrentPosition, alta precisión, sin posición cacheada y con límite
+  de espera de 15 segundos. No se activa seguimiento continuo.
+- Se conservan las coordenadas originales; la geocodificación inversa solo añade
+  una etiqueta. La precisión aproximada del dispositivo se muestra en metros.
+- Hay mensajes específicos para permiso denegado, señal no disponible y timeout.
+- Es posible cancelar. Editar manualmente invalida cualquier respuesta tardía.
+- Si fallan los proveedores de dirección inversa, sigue disponible el punto GPS.
+- Las consultas de ubicación se omiten de los mensajes de solicitud de la API.
+  El proveedor sigue recibiendo las coordenadas necesarias para buscar o enrutar.
+
+## Verificación
+
+- Web: pruebas unitarias de precisión y errores de geolocalización, integración
+  de componentes React, TypeScript y compilación de producción.
+- Resultado acumulado: veinte pruebas Web y doce pruebas API aprobadas. Ambas
+  auditorías npm devuelven cero vulnerabilidades conocidas.
+- Integración de interfaz: GPS y dirección inversa simulados, denegación de
+  permiso, caída de geocodificación, cancelación y edición durante una lectura
+  pendiente. No se utilizan ubicaciones privadas de usuarios como fixtures.
+- E2E móvil: suite escrita para la compilación de producción; ejecución bloqueada
+  en este entorno porque Chromium no puede crear su socket de proceso. No se
+  considera aprobada. Debe ejecutarse en un host/CI compatible con Chromium.
+- API: validación, concurrencia, autenticación, Plus Codes, selección de ciudad,
+  fallback, errores específicos, restricciones de camión y dirección inversa.
+- Producción: la dirección inversa respondió HTTP 200 preservando las coordenadas
+  decimales completas de un punto público de prueba; coordenadas vacías dieron 400.
+- Pendiente: probar sensores y permisos del Android físico del propietario.
+  No se presenta la precisión simulada como una medición de su teléfono.
+- Los resultados y commits exactos del despliegue deben constar en el informe
+  del ciclo y en la descripción de los PR existentes.
+
+## Ciclo: puntos sobre el mapa y orden manual
+
+- Origen, paradas y destino ofrecen un selector cargado solo al abrirlo. Puede
+  tocarse el mapa o desplazarse con teclado y elegir el centro. El punto requiere
+  confirmación explícita; cancelar conserva el valor previo del formulario.
+- La dirección inversa se consulta con debounce y cancelación de respuestas
+  anteriores. Las coordenadas elegidas nunca se reemplazan por las de un edificio
+  cercano; si falla el proveedor, se pueden confirmar las coordenadas.
+- El mapa conserva atribución visible de OpenStreetMap y utiliza su URL HTTPS
+  recomendada. Solo carga las teselas de la vista interactiva; no ofrece descarga
+  masiva ni mapas offline. Política: https://operations.osmfoundation.org/policies/tiles/
+- Las paradas se pueden subir o bajar con controles de teclado y táctiles. Se
+  conservan sus identificadores y puntos confirmados. Los extremos se deshabilitan.
+- Reordenar desactiva la optimización automática e invalida el resultado anterior.
+  Editar los puntos, vehículo o preferencias cancela cualquier cálculo pendiente;
+  una respuesta tardía ya no puede sustituir el recorrido actualizado.
+- Pruebas: selector real React/Leaflet en DOM simulado, confirmación explícita,
+  respaldo por coordenadas, controles de orden y un flujo del planificador que
+  comprueba el payload y descarta una respuesta tardía. Autenticación/proveedor de
+  ese flujo son fixtures; no equivalen a una cuenta ni a una ruta reales.
+- Archivos principales: MapLocationPicker.tsx, RouteStops.tsx, LocationInput.tsx,
+  RouteMap.tsx, page.tsx, locations.ts, route-stops.ts y map-config.ts.
+- Se corrigieron los enlaces de navegación para usar coordenadas confirmadas y
+  la sintaxis documentada de Maps URLs. Los recorridos largos se dividen en tramos
+  consecutivos con hasta tres paradas intermedias para navegador móvil, sin omitir
+  puntos. Los enlaces no transmiten dimensiones o pesos de camiones y la interfaz
+  lo indica. Referencia: https://developers.google.com/maps/documentation/urls/get-started
+
+## Prioridades siguientes
+
+| Prioridad | Trabajo | Estado |
+| --- | --- | --- |
+| P0 | Arranque/API, errores de conexión y búsqueda | Reparados; conservar regresiones |
+| P1 | Ubicación actual como origen | Implementada; pendiente validación en Android físico |
+| P1 | Elegir origen, paradas y destino directamente en el mapa | Implementado; prueba de producción en este ciclo |
+| P1 | Reordenar paradas manualmente | Implementado y probado |
+| P1 | Exportar recorridos | CSV, GPX y GeoJSON implementados; GPX validado con esquema oficial |
+| P1 | Historial reciente y favoritos con controles de privacidad | 12 recientes por cuenta/dispositivo; favoritos privados en Supabase |
+| P1 | Pruebas autenticadas completas de cuenta, rutas, flotas y aislamiento RLS | Parcial; falta fixture de cuenta de prueba |
+| P1 | Rate limiting por cliente detrás del proxy | Revisar separación entre usuarios sin confiar en cabeceras falsificables |
+| P2 | Caché acotada, deduplicación de búsquedas y estados accesibles de teclado | Pendiente |
+| P2 | Mapa como elemento principal, tema claro/oscuro y revisión Android | Mapa principal implementado; tema y Android físico pendientes |
+| P2 | Evitar peajes/autopistas, alternativas y preferencias verificadas del proveedor | Pendiente |
+| P3 | Compartir enlaces con autorización y caducidad | Pendiente |
+| P3 | Ejes, tipos de carga, restricciones locales y navegación avanzada | Pendiente |
+
+La optimización actual solo se ofrece para reparto. Para camiones se mantiene el
+orden indicado y se envían dimensiones y pesos al perfil HGV. No hay garantía de
+cobertura legal o de restricciones completas en México; no se anunciará una ruta
+como segura/legal sin datos suficientes. Distancia, tiempo y restricciones son
+objetivos distintos y no se ofrecerán como equivalentes.
+
+## Recuperación
+
+Antes del ciclo del selector, la Web estable era d776d811, deployment
+dpl_CpW77X96bYdf1x5FgtmyNYjLc2mR. La API sigue en af3d346, deployment
+dpl_5DpVxmL7RP4wL3j896aSyonCVNVS; este ciclo modifica únicamente la Web.
+
+Antes del ciclo GPS, la versión Web estable era el commit d9f0089, deployment
+dpl_3M7ibEJNRc3Qc4JKDuTNeFemChAU. La API estable era d1af364, deployment
+dpl_33hVvwq58edHnvTwvYav6G3kUCCV. Se conservan ambos despliegues y el historial Git.
+Puede restaurarse cada despliegue por separado dentro de su proyecto de Vercel.
+Este ciclo no modifica tablas ni datos de usuarios, por lo que no necesita una
+reversión de datos. Restaurar una versión con dependencias antiguas también
+restauraría sus avisos de seguridad; se prefiere corregir hacia adelante.
+
+## Ciclo: operación de reparto, vehículos y manifiesto
+
+- Causa de resultados lejanos: el cliente no enviaba punto de referencia y la
+  API no usaba focus de Pelias/Photon. Se propaga el origen, se ordenan resultados
+  por distancia geodésica y se distingue esa distancia del recorrido por carretera.
+  Si el texto nombra la ciudad de una sucursal, su localidad prevalece sobre la
+  cercanía al origen. Una ciudad tras coma o «en» desactiva el sesgo del origen.
+- Sucursales: se mantienen sus coordenadas y Plus Codes; el mapa muestra el punto
+  de referencia y permite corroborar el acceso. No se inventan tiendas ausentes
+  del índice. Si no hay coincidencias dentro de 50 km se informa expresamente.
+- La API conserva resultados hasta 60 segundos en memoria, con un máximo de
+  200 entradas, sin persistir búsquedas privadas ni registrarlas en las URL del log.
+- Mi perfil permite guardar el nombre del operador. Iniciar sesión ya no
+  sobrescribe ese nombre con la parte inicial del correo.
+- Mis vehículos admite reparto, automóvil y camión, edición, flotas opcionales
+  y selección directa en el planificador. Las dimensiones del camión se validan.
+  Se corrige la omisión de vehicle_id al guardar una ruta. Los parámetros usados
+  se conservan también en route_metadata para no alterar el cálculo histórico
+  al editar después el vehículo.
+- Eliminar rutas es una operación recuperable con status=archived. La papelera
+  conserva los hijos route_stops y ofrece recuperación. Las consultas filtran
+  dueño y estado; la lista carga más páginas cuando hay más de 20 recorridos.
+- El manifiesto admite foto y texto. Tesseract.js 7.0.0 realiza OCR local en español
+  con un worker y descargas públicas bajo demanda. Se limita tamaño y tiempo de
+  lectura, hay cancelación y no se conserva la imagen. No se automatiza una
+  confirmación geográfica a partir de OCR: cada entrega exige selección explícita.
+  La revisión secuencial evita disparar 30 geocodificaciones simultáneas.
+- Verificación: 30 pruebas Web y 18 API, TypeScript, compilación de producción y
+  auditoría de dependencias. Pruebas de componentes ejercitan alta/edición de
+  unidad, papelera/recuperación, sesgo geográfico y rechazo de entregas sin confirmar.
+- OCR real: una imagen sintética con dos entregas fue leída con el modelo español;
+  reconoció Calle Cedro 312 y Avenida Universidad 100, con confianza global 95.
+  Esta cifra pertenece a la imagen sintética; no garantiza exactitud en fotos reales.
+- Supabase: prueba transaccional real con rol authenticated, inserción de unidad,
+  vínculo a ruta, archivo, conservación de paradas, recuperación y rechazo de
+  lectura/escritura desde otro uid. La transacción completa terminó en ROLLBACK.
+  No se migró el esquema ni se modificaron datos existentes.
+- Límites pendientes: prueba con cámara y fotos reales de manifiestos de Android,
+  PDF, tablas complejas y flujo de cuenta autenticada completo desde navegador.
+  Las pruebas DOM y SQL no se presentan como E2E con una sesión real.
+- Recuperación previa a este ciclo: Web eb4b26c / dpl_4ZZ9VtWEQvgBtwJfzZJGjyeUnNTu;
+  API af3d346 / dpl_5DpVxmL7RP4wL3j896aSyonCVNVS. El despliegue de API incorpora
+  4012769, con prioridad por ciudad explícita y 18 pruebas aprobadas.
+
+### Verificación de producción del ciclo
+
+- Navegador real: foto sintética seleccionada mediante el control de archivos,
+  OCR en español ejecutado en Web Worker y texto extraído visible. Se prepararon
+  dos entregas, se corrigió el texto de prueba para consultar una sucursal real,
+  se eligió una Bodega Aurrera Express de Monterrey y se importó como destino.
+  El mapa mostró su marcador en 25.721274, -100.325989, con Plus Code preservado.
+- Búsqueda real con origen Monterrey: sucursales ordenadas por distancia, desde
+  aproximadamente 4.2 km. La consulta «Bodega Aurrera Chihuahua» devolvió una
+  sucursal de la ciudad Chihuahua y desactivó la prioridad del origen Monterrey.
+- Se redujo la descarga de rutas guardadas: el listado obtiene resúmenes; la
+  geometría, instrucciones y restricciones completas se solicitan al cargar una
+  ruta concreta. La consulta PostgREST usa el alias mode:route_metadata->>mode.
+- Logs consultados del nuevo despliegue API: sin registros de nivel error/fatal
+  en la ventana revisada. La validación de cámara Android sigue pendiente.
+
+## Ciclo: sucursales reutilizables y exportación
+
+- Se agregan recientes locales por cuenta, limitados a 12 puntos confirmados, con
+  eliminación desde la interfaz. No se guardan imágenes del manifiesto, precisión
+  GPS ni historial de consultas escritas sin confirmar.
+- Los favoritos permiten un nombre operativo, coordenadas exactas y Plus Code.
+  Se sincronizan mediante favorite_locations, con índices por dueño y políticas
+  RLS USING/WITH CHECK. Los permisos públicos se restringen a SELECT/INSERT/UPDATE
+  de authenticated; anon no accede y el cliente no puede borrar físicamente.
+- Eliminar de favoritos archiva el registro. Un upsert del mismo punto recupera
+  la sucursal sin duplicarla. Las listas de favoritos se cargan por páginas.
+- Las ubicaciones guardadas se reutilizan sin volver a geocodificar. Abrir el
+  selector local pausa la búsqueda externa hasta cerrarlo o elegir un punto.
+- Exportaciones locales: CSV ordenado con protección contra fórmulas de hoja de
+  cálculo, GPX 1.1 con nombres escapados y GeoJSON con coordenadas longitud/latitud.
+  El trazado se añade únicamente si hay polilínea válida del proveedor. Los
+  archivos advierten que no transfieren restricciones de camión a otro navegador.
+- Verificación: 38 pruebas Web aprobadas más las 18 API conservadas; TypeScript
+  y compilación de producción correctos. El GPX generado pasó el XSD oficial de
+  Topografix. Se verificaron botones de descarga, favoritos/archivo/recuperación,
+  reutilización sin solicitudes externas y limpieza de recientes.
+- Supabase real: creación, archivo, upsert/restauración, aislamiento entre uid y
+  ausencia de permiso DELETE comprobados en transacción terminada en ROLLBACK.
+  Las migraciones son aditivas; no se eliminaron tablas ni datos existentes.
+- Advisories: sin avisos nuevos de RLS. Sigue el aviso de protección de claves
+  filtradas deshabilitada; no se activaron opciones de pago. Índices aún sin uso
+  se conservan por ser nuevas rutas de acceso y claves foráneas.
+- Pendiente: validar los favoritos con dos sesiones reales de navegador y probar
+  sensores/cámara del Android físico. El test SQL no se presenta como ese E2E.
+
+- Accesibilidad del buscador: semántica combobox/listbox, opción activa enlazada
+  con aria-activedescendant y selección por flechas/Enter. Escape cierra la lista.
+  El primer Enter elige una propuesta; el segundo confirma el punto, manteniendo
+  la misma comprobación explícita disponible con ratón o pantalla táctil.
+
+## Ciclo: guardado transaccional y reintentos
+
+- Causa del riesgo: se guardaba primero saved_routes y después route_stops. Un
+  fallo entre ambas llamadas podía dejar un recorrido sin todas sus entregas.
+- save_route_with_stops crea la ruta y sus paradas en una sola transacción.
+  Valida nombre, coordenadas, hasta ocho paradas, pertenencia del vehículo y
+  límites de tamaño. Se ejecuta como SECURITY INVOKER y respeta las políticas RLS.
+- El cliente conserva una clave de solicitud mientras el contenido no cambie.
+  Un índice único por dueño/solicitud y la huella del contenido impiden duplicar
+  recorridos al reintentar; reutilizar la clave con otro contenido da error.
+- La interfaz ofrece nombre de recorrido y muestra errores de guardado completo.
+  Se reemplazan las dos inserciones y la compensación por DELETE por una RPC.
+- Se corrigieron claves React idénticas de los paneles perfil/rutas para una
+  cuenta activa; el test de planificación autenticada ahora exige cero avisos
+  de reconciliación al guardar y reintentar.
+- Verificación: 42 pruebas Web y 18 API, TypeScript y build. La prueba de interfaz
+  simula una conexión interrumpida y comprueba que el segundo intento conserva
+  la clave y todas las paradas. La transacción real de Supabase comprobó orden,
+  reintento sin duplicados, rechazo de contenido diferente, ausencia de datos
+  parciales con un punto inválido y aislamiento entre uid; terminó en ROLLBACK.
+- Las nuevas columnas permiten NULL para conservar compatibilidad con rutas
+  anteriores. Revertir el frontend no requiere eliminar columnas ni registros.
+- Navegador de producción del ciclo anterior: selección por flechas/Enter y
+  reutilización de un reciente confirmadas, con coordenadas y Plus Code intactos.
+
+## Ciclo: mapa principal de sucursales
+
+- El mapa aparece antes del cálculo y muestra los puntos confirmados. La vista
+  móvil lo coloca primero, y la cabecera se reduce para dar prioridad al trabajo.
+- Solo el campo enfocado publica sus coincidencias al mapa. Los marcadores
+  S1…S8 corresponden al orden del buscador. Su popup permite confirmar el punto
+  como origen, parada concreta o destino sin volver a geocodificarlo.
+- Un enlace desde los resultados lleva al mapa en móvil. Elegir un marcador
+  devuelve el foco al campo y conserva coordenadas y Plus Code. Al calcular se
+  desplaza la vista al resultado; antes no se dibujan líneas de carretera.
+- La vista inicial prioriza el entorno del primer resultado para evitar que un
+  homónimo de otro país aleje todas las sucursales. La lista conserva todas las
+  propuestas y el usuario puede desplazar/acercar/alejar el mapa.
+- No se reajusta la vista cuando llegan arrays nuevos con las mismas coordenadas.
+  Una selección externa cancela una lectura GPS pendiente para que no la sustituya.
+- Verificación: 48 pruebas Web, incluidas confirmación real del popup Leaflet,
+  asignación al campo activo, coordenadas exactas en el enlace de navegación,
+  exclusión de resultados lejanos de la vista inicial y cancelación del GPS.
+  Se actualizan los selectores de la suite E2E al rol combobox; su ejecución móvil
+  completa sigue pendiente en un host que pueda iniciar Chromium.
