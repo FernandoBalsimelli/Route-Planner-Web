@@ -16,7 +16,7 @@ export default function NavigationLinks({ points, truck = false }: { points: Nav
   const lastIndex = segments[segments.length - 1].endIndex;
   return <div className="navigation-links">
     <div className="navigation-heading"><strong>Continuar en Google Maps</strong><span>{segments.length === 1 ? 'Todos los puntos en un enlace' : `${segments.length} tramos · orden completo`}</span></div>
-    <label className="navigation-limit">Paradas intermedias por enlace<select value={limit} onChange={event => {
+    <label className="navigation-limit">Paradas intermedias por enlace<select aria-label="Paradas intermedias por enlace" value={limit} onChange={event => {
       const next = event.target.value === '3' ? 3 : 9; setLimit(next);
       try { window.localStorage.setItem('route-planner:google-waypoints', String(next)); } catch {}
     }}><option value="9">Máximo de Google Maps · 9</option><option value="3">Navegador móvil · 3</option></select></label>
