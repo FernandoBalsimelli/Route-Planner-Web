@@ -1,0 +1,15 @@
+'use client';
+import React,{useEffect,useState} from 'react';
+type Source={id:string;title:string;url:string;scope:string;reviewedAt:string;legalReview:string;status:string;checkedAt:string|null;lastSuccessAt:string|null;error:string|null};
+type Report={checkedAt:string|null;stale:boolean;intervalHours:number;notice:string;sources:Source[]};
+const statusLabels:Record<string,string>={unchanged:'Documento sin cambios detectados',changed:'Cambio detectado · requiere revisión',unreviewed:'Disponible · vigencia pendiente de revisión',unavailable:'No se pudo comprobar la fuente',not_checked:'Sin comprobación técnica todavía'};
+function date(value:string|null){return value?new Date(value).toLocaleString('es-MX'):'Pendiente';}
+export default function OfficialSourceMonitor({sourceId}:{sourceId?:string}){
+ const [report,setReport]=useState<Report|null>(null),[error,setError]=useState('');
+ useEffect(()=>{const controller=new AbortController();void fetch('/api/route-planner/v1/regulations/source-status',{signal:controller.signal}).then(async response=>{const payload=await response.json();if(!response.ok||!Array.isArray(payload.sources)||typeof payload.intervalHours!=='number')throw Error('No se pudo consultar el seguimiento de fuentes.');if(!controller.signal.aborted)setReport(payload);}).catch(()=>{if(!controller.signal.aborted)setError('Seguimiento temporalmente no disponible; revisa directamente la fuente oficial.');});return()=>controller.abort();},[]);
+ return <details className="official-source-monitor"><summary>Seguimiento de fuentes oficiales</summary>
+  {error&&<p role="status">{error}</p>}{!report&&!error&&<p role="status">Consultando comprobaciones de documentos…</p>}
+  {report&&<><p className="hint">Comprobación programada cada {report.intervalHours} horas; GitHub puede retrasar su ejecución. Última ejecución: {date(report.checkedAt)}.{report.stale?' El reporte está pendiente o tiene más de 18 horas.':''}</p><p className="coverage-status">{report.notice}</p>
+  {report.sources.filter(source=>!sourceId||source.id===sourceId).sort((a,b)=>a.title.localeCompare(b.title,'es')).map(source=><article key={source.id}><strong>{source.title}</strong><p>{statusLabels[source.status]||statusLabels.not_checked}</p><p className="hint">Comprobación: {date(source.checkedAt)} · última descarga correcta: {date(source.lastSuccessAt)}</p>{source.error&&<p className="hint">Detalle técnico: {source.error}</p>}<p className="hint">{source.scope}</p><p className="hint">Revisión de contenido: {date(source.reviewedAt)}. {source.legalReview==='partial_consolidated'?'Revisión parcial de documento consolidado.':'Vigencia completa y excepciones sin certificar.'}</p><a href={source.url} target="_blank" rel="noreferrer">Consultar documento oficial ↗</a></article>)}</>}
+ </details>;
+}

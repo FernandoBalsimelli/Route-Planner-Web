@@ -261,7 +261,7 @@ export default function Home() {
           {mode === 'truck' && <details className="vehicle-panel" open><summary><AppIcon name="truck" size={18}/><span>Medidas del camión cargado</span></summary><div className="vehicle-fields">{([['height','Altura (m)','0.5','10'],['width','Ancho (m)','0.5','5'],['length','Largo (m)','1','30'],['grossWeight','Peso bruto (t)','0.1','100'],['axleWeight','Peso por eje (t)','0.1','30']] as const).map(([key,title,min,max]) => <label key={key}>{title}<input type="number" min={min} max={max} step="0.1" value={vehicle[key]} onChange={event => { setVehicle(values => ({...values,[key]:event.target.value})); setResult(null); }}/></label>)}</div><p className="hint">Los valores iniciales son un ejemplo. Usa los de tu unidad.</p><button type="button" className="text-button" onClick={() => openWorkspace('guide')}>Qué restricciones considera esta ruta ↗</button></details>}
           <div className="plan-actions"><button type="button" className="primary-button" disabled={!canPlan} onClick={planRoute}>{loading ? 'Calculando ruta…' : 'Calcular ruta'}<AppIcon name="arrow"/></button>{!user && <small>Inicia sesión para calcular y guardar tus recorridos.</small>}</div>
           {error && <div className="error-box" role="alert"><strong>No se pudo calcular</strong><p>{error}</p>{providerStatus === 'missing' && <small>El servicio de rutas requiere configuración del administrador.</small>}</div>}
-          {!result && <NavigationLinks points={navigationPoints} truck={mode === 'truck'}/>}
+          {!result && <NavigationLinks points={navigationPoints} route={result} truck={mode === 'truck'}/>}
         </div>
         <aside id="mapa-planificacion" className={`result-panel ${result ? 'has-result' : 'is-planning'}`} aria-label="Mapa y resultado de la ruta">
           <div className="map-card">
@@ -277,7 +277,7 @@ export default function Home() {
             <details className="instructions"><summary>Indicaciones de conducción</summary>{result.sections.flatMap(section => section.actions || []).filter(action => action.instruction).slice(0, 12).map((action, index) => <p key={index}>{index + 1}. {action.instruction}</p>)}</details>
             {(result.notices || []).length > 0 && <div className="notice-box"><strong>Avisos de ruta</strong>{result.notices?.map((notice,index) => <p key={index}>{notice.title || notice.details || notice.code}</p>)}</div>}
             <div className="save-route-area"><label className="route-save-name">Nombre del recorrido<input maxLength={120} value={routeName} onChange={event => setRouteName(event.target.value)} placeholder="Ej. Express · entregas de la mañana"/></label><button type="button" className="primary-button save-button" disabled={saving} onClick={saveRoute}><AppIcon name="saved"/>{saving ? 'Guardando…' : 'Guardar esta ruta'}</button>{saveMessage && <p className="save-message" role="status">{saveMessage}</p>}</div>
-            <NavigationLinks points={navigationPoints} truck={mode === 'truck'}/><RouteExports route={result} truck={mode === 'truck'}/>
+            <NavigationLinks points={navigationPoints} route={result} truck={mode === 'truck'}/><RouteExports route={result} truck={mode === 'truck'}/>
           </div>}
         </aside>
       </div>

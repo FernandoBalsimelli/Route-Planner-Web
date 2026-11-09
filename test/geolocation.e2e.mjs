@@ -295,12 +295,19 @@ test('municipal directory distinguishes source records from missing legal covera
  try{
   await page.route('**/api/route-planner/v1/regulations/municipalities**',route=>{
    const url=new URL(route.request().url());
-   if(url.pathname.endsWith('/19039'))return route.fulfill({json:{name:'Monterrey',status:'reference_only',routingEnforced:false,source:{url:'https://www.monterrey.gob.mx/reglamento.pdf',checkedAt:'2026-11-09T00:00:00Z'},trunkSegments:[{road:'Morones Prieto',segment:'Tramo de referencia, sentido al poniente',page:163,annex:1}],timeRules:[],notices:['Falta validar geometrías y permisos.']}});
+   if(url.pathname.endsWith('/19039'))return route.fulfill({json:{name:'Monterrey',status:'reference_only',routingEnforced:false,source:{id:'monterrey-transito',url:'https://www.monterrey.gob.mx/reglamento.pdf',checkedAt:'2026-11-09T00:00:00Z'},trunkSegments:[{road:'Morones Prieto',segment:'Tramo de referencia, sentido al poniente',page:163,annex:1}],timeRules:[],notices:['Falta validar geometrías y permisos.']}});
    if(url.pathname.endsWith('/19001'))return route.fulfill({json:{name:'Abasolo',status:'not_loaded',routingEnforced:false,source:null,trunkSegments:[],timeRules:[],notices:['No equivale a circulación libre.']}});
-   return route.fulfill({json:{states:[{id:'19',name:'Nuevo León'}],totalMunicipalities:2478,municipalities:[{id:'19039',name:'Monterrey',state:'19',coverage:'reference_only',routingEnforced:false},{id:'19001',name:'Abasolo',state:'19',coverage:'not_loaded',routingEnforced:false}]}});
+   return route.fulfill({json:{states:[{id:'19',name:'Nuevo León'},{id:'08',name:'Chihuahua'},{id:'01',name:'Aguascalientes'}],totalMunicipalities:2478,municipalities:[{id:'19039',name:'Monterrey',state:'19',coverage:'reference_only',routingEnforced:false},{id:'19001',name:'Abasolo',state:'19',coverage:'not_loaded',routingEnforced:false}]}});
   });
   await page.goto(base+'/#guia-camion');await page.getByRole('button',{name:'Consultar cobertura municipal'}).click();
   await page.getByText(/Ningún municipio tiene todavía validación automática completa/).waitFor();
+  assert.equal(await page.getByRole('heading',{name:'Consultar las vías municipales: Monterrey'}).count(),0);
+  assert.ok(await page.getByRole('combobox',{name:'Municipio o demarcación'}).isDisabled());
+  assert.deepEqual(await page.getByRole('combobox',{name:'Entidad federativa'}).locator('option').allTextContents(),['Elige una entidad','Aguascalientes','Chihuahua','Nuevo León']);
+  await page.getByRole('combobox',{name:'Entidad federativa'}).selectOption('19');
+  await page.getByRole('combobox',{name:'Municipio o demarcación'}).locator('option').filter({hasText:'Abasolo'}).waitFor({state:'attached'});
+  const names=await page.getByRole('combobox',{name:'Municipio o demarcación'}).locator('option').allTextContents();assert.match(names[1],/^Abasolo/);
+  await page.getByRole('combobox',{name:'Municipio o demarcación'}).selectOption('19039');
   await page.getByText('Referencia oficial consultable; no se aplica automáticamente al trazado.').waitFor();
   await page.getByText('1 tramos de red troncal · Anexo 1').click();await page.getByRole('cell',{name:'Morones Prieto'}).waitFor();
   await page.getByRole('combobox',{name:'Municipio o demarcación'}).selectOption('19001');
@@ -342,4 +349,15 @@ test('mobile creates twelve deliveries and sends every point to Google in consec
     await verify(3,4);
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
   } finally {await context.close();}
+});
+
+ test('truck Google links add maneuver guides without losing the endpoints and can return to deliveries only',async()=>{
+ const {context,page}=await navigationSetup();
+ try{
+  const checkbox=page.getByRole('checkbox',{name:/Añadir puntos guía/});await checkbox.waitFor();assert.ok(await checkbox.isChecked());
+  const link=page.getByRole('link',{name:'Abrir puntos en Google Maps ↗'});let params=new URL(await link.getAttribute('href')).searchParams;assert.equal(params.get('waypoints').split('|').length,2);
+  await checkbox.uncheck();params=new URL(await link.getAttribute('href')).searchParams;assert.equal(params.has('waypoints'),false);assert.equal(params.get('origin'),'25, -100');assert.equal(params.get('destination'),'25.001, -99.998');
+  await checkbox.check();await page.getByText(/Google puede desviarse entre ellos/).waitFor();
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+ }finally{await context.close();}
 });

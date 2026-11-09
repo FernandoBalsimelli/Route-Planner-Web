@@ -569,3 +569,17 @@ main actual; no fusionarla en bloque ni restaurar su versión antigua del produc
 Continúan pendientes Android físico, preferencias/alternativas y enlaces
 autorizados del programa general. No desactivar la tarea periódica todavía.
 Este cierre solo actualiza documentación después de los despliegues citados.
+
+
+### Ciclo activo: cobertura nacional y navegación con Google
+
+Solicitud actual: retirar destacado de Monterrey, orden alfabético nacional,
+puntos guía de la ruta y revisión periódica de fuentes. Cambios de código y
+pruebas en `feat/national-regulations`; detalle y límites reales en
+MEXICO-COVERAGE.md. Antes de publicar: CI y comprobación de producción.
+Recuperación base: Web dpl_8MqVo364dxPMbc6aixeap9Npa42f (b0b6949d), API
+dpl_AyMGxz2xbFXzS93aUJP3eoBfvZgJ (967cef4c). Sin cambios de base de datos.
+Google Maps exacto/legal para camión en México y cobertura de todos los municipios
+continúan sin resolver; no presentarlos como terminados por tener puntos guía
+o un catálogo geográfico. Retomar primero vigencia/geometría de jurisdicciones
+con entregas reales, sin restaurar versiones antiguas ni tocar Gestión.
