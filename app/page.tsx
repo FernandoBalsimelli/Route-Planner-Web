@@ -17,6 +17,7 @@ import { VEHICLE_COLUMNS, type VehicleProfile } from '@/lib/vehicles';
 import type { RouteResult } from '@/lib/routes';
 import LocationBookProvider from '@/components/LocationBookProvider';
 import RouteExports from '@/components/RouteExports';
+import { persistRoute, routeSaveData } from '@/lib/route-save';
 
 type Stop = RouteStop;
 const API_URL = '/api/route-planner';
@@ -42,6 +43,8 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [routeName, setRouteName] = useState('');
+  const saveIntent = useRef<{ signature: string; id: string } | null>(null);
   const [routesRevision, setRoutesRevision] = useState(0);
   const [vehicleProfiles, setVehicleProfiles] = useState<VehicleProfile[]>([]);
   const [selectedVehicleProfileId, setSelectedVehicleProfileId] = useState('');
@@ -118,6 +121,7 @@ export default function Home() {
     const savedVehicle = route.route_metadata?.vehicle;
     if (savedVehicle) setVehicle({ height: String(savedVehicle.heightM ?? 4), width: String(savedVehicle.widthM ?? 2.5), length: String(savedVehicle.lengthM ?? 18), grossWeight: String(savedVehicle.grossWeightT ?? 40), axleWeight: String(savedVehicle.axleWeightT ?? 10) });
     setSelectedVehicleProfileId(route.vehicle_id || '');
+    setRouteName(route.name);
     if (route.origin?.lat != null && route.origin?.lng != null) setSearchArea({ label: label(route.origin), lat: route.origin.lat, lng: route.origin.lng });
     setResult(route.route_metadata?.result || null);
     setOptimizeStops(Boolean(route.route_metadata?.result?.optimized));
@@ -170,34 +174,15 @@ export default function Home() {
     if (!result) return;
     setSaving(true); setSaveMessage('');
     try {
-      const { data: saved, error } = await supabase.from('saved_routes').insert({
-        owner_id: user.id,
-        name: `${mode === 'truck' ? 'Camión' : 'Reparto'} · ${new Date().toLocaleDateString('es-MX')}`,
-        provider: 'openrouteservice',
-        vehicle_id: selectedVehicleProfileId || null,
-        origin: result.waypoints?.[0] ?? { label: origin },
-        destination: result.waypoints?.[result.waypoints.length - 1] ?? { label: destination },
-        status: 'planned',
-        route_metadata: {
-          mode,
-          vehicle: mode === 'truck' ? { heightM: Number(vehicle.height), widthM: Number(vehicle.width), lengthM: Number(vehicle.length), grossWeightT: Number(vehicle.grossWeight), axleWeightT: Number(vehicle.axleWeight) } : null,
-          result,
-        },
-      }).select('id').single();
-      if (error) throw error;
-      const stopRows = (result.waypoints || []).filter(point => point.type === 'stop').map((point, index) => ({
-        route_id: saved.id,
-        owner_id: user.id,
-        sequence: index + 1,
-        location: { label: point.label || (point.lat + ', ' + point.lng), lat: point.lat, lng: point.lng },
-      }));
-      if (stopRows.length) {
-        const { error: stopError } = await supabase.from('route_stops').insert(stopRows);
-        if (stopError) {
-          await supabase.from('saved_routes').delete().eq('id', saved.id);
-          throw stopError;
-        }
-      }
+      const data = routeSaveData(result, {
+        name: routeName.trim() || `${mode === 'truck' ? 'Camión' : 'Reparto'} · ${new Date().toLocaleDateString('es-MX')}`,
+        vehicleId: selectedVehicleProfileId || null,
+        mode,
+        vehicle: mode === 'truck' ? { heightM: Number(vehicle.height), widthM: Number(vehicle.width), lengthM: Number(vehicle.length), grossWeightT: Number(vehicle.grossWeight), axleWeightT: Number(vehicle.axleWeight) } : null,
+      });
+      const signature = JSON.stringify(data);
+      if (!saveIntent.current || saveIntent.current.signature !== signature) saveIntent.current = { signature, id: crypto.randomUUID() };
+      await persistRoute(supabase, data, saveIntent.current.id);
       setSaveMessage('Ruta guardada en tu cuenta.');
       setRoutesRevision(value => value + 1);
     } catch (error) {
@@ -213,10 +198,10 @@ export default function Home() {
       {mode === 'truck' && <div className="vehicle-panel"><div className="vehicle-title"><strong>Medidas para este recorrido</strong><small>Medidas del vehículo cargado</small></div><div className="vehicle-fields"><label>Altura (m)<input type="number" min="0.5" max="10" step="0.1" value={vehicle.height} onChange={e => { setVehicle(v => ({...v,height:e.target.value})); setResult(null); }}/></label><label>Ancho (m)<input type="number" min="0.5" max="5" step="0.1" value={vehicle.width} onChange={e => { setVehicle(v => ({...v,width:e.target.value})); setResult(null); }}/></label><label>Largo (m)<input type="number" min="1" max="30" step="0.1" value={vehicle.length} onChange={e => { setVehicle(v => ({...v,length:e.target.value})); setResult(null); }}/></label><label>Peso bruto (t)<input type="number" min="0.1" max="100" step="0.1" value={vehicle.grossWeight} onChange={e => { setVehicle(v => ({...v,grossWeight:e.target.value})); setResult(null); }}/></label><label>Peso por eje (t)<input type="number" min="0.1" max="30" step="0.1" value={vehicle.axleWeight} onChange={e => { setVehicle(v => ({...v,axleWeight:e.target.value})); setResult(null); }}/></label></div><p className="hint">OpenRouteService considerará las restricciones disponibles en OpenStreetMap; la cobertura puede ser incompleta.</p></div>}
       <button className="primary-button" disabled={!canPlan} onClick={planRoute}>{loading ? 'Calculando ruta…' : 'Calcular ruta  →'}</button><NavigationLinks urls={mapsUrls} truck={mode === 'truck'} />
       {error && <div className="error-box"><strong>No se pudo calcular</strong><p>{error}</p>{providerStatus === 'missing' && <small>Falta configurar ORS_API_KEY como variable secreta en Vercel.</small>}</div>}
-      </div><aside className="result-panel"><div className="result-top"><span>RESULTADO DEL RECORRIDO</span><span className="result-icon">⌁</span></div>{result ? <><div className="metrics"><div><small>DISTANCIA</small><strong>{formatDistance(result.distanceMeters)}</strong></div><div><small>TIEMPO ESTIMADO</small><strong>{formatDuration(result.durationSeconds)}</strong></div></div>{result.optimized && <p className="optimized-note">Orden de paradas optimizado automáticamente para reducir el recorrido.</p>}<RouteMap polyline={result.polyline} waypoints={result.waypoints || []}/><div className="route-line"><div className="route-point"><i className="dot green"/><span><b>Origen</b><small>{origin}</small></span></div>{(result.waypoints || []).filter(point => point.type === 'stop').map((point,i)=><div className="route-point" key={i}><i className="stop-number">{i+1}</i><span><b>Parada {i+1}</b><small>{point.label || (point.lat + ', ' + point.lng)}</small></span></div>)}<div className="route-point"><i className="dot orange"/><span><b>Destino</b><small>{destination}</small></span></div></div><div className="instructions"><strong>Indicaciones</strong>{result.sections.flatMap(section => section.actions || []).filter(action => action.instruction).slice(0, 12).map((action, index) => <p key={index}>{index + 1}. {action.instruction}</p>)}</div>{(result.notices || []).length > 0 && <div className="notice-box"><strong>Avisos de ruta</strong>{result.notices?.map((n,i)=><p key={i}>{n.title || n.details || n.code}</p>)}</div>}<button className="primary-button save-button" disabled={saving} onClick={saveRoute}>{saving ? 'Guardando…' : 'Guardar esta ruta'}</button>{saveMessage && <p className="save-message">{saveMessage}</p>}<RouteExports route={result} truck={mode === 'truck'} /><NavigationLinks urls={mapsUrls} truck={mode === 'truck'} /></> : <div className="empty-state"><div className="empty-route">⌁</div><strong>Tu ruta aparecerá aquí</strong><p>Completa origen y destino para obtener distancia, tiempo y avisos del recorrido.</p><div className="empty-stats"><span>— km <small>Distancia</small></span><span>— min <small>Duración</small></span></div></div>}</aside></div><p className="disclaimer">Las rutas para camiones dependen de los datos y restricciones disponibles en OpenStreetMap. Verifica señalización y normativa local antes de circular.</p>
+      </div><aside className="result-panel"><div className="result-top"><span>RESULTADO DEL RECORRIDO</span><span className="result-icon">⌁</span></div>{result ? <><div className="metrics"><div><small>DISTANCIA</small><strong>{formatDistance(result.distanceMeters)}</strong></div><div><small>TIEMPO ESTIMADO</small><strong>{formatDuration(result.durationSeconds)}</strong></div></div>{result.optimized && <p className="optimized-note">Orden de paradas optimizado automáticamente para reducir el recorrido.</p>}<RouteMap polyline={result.polyline} waypoints={result.waypoints || []}/><div className="route-line"><div className="route-point"><i className="dot green"/><span><b>Origen</b><small>{origin}</small></span></div>{(result.waypoints || []).filter(point => point.type === 'stop').map((point,i)=><div className="route-point" key={i}><i className="stop-number">{i+1}</i><span><b>Parada {i+1}</b><small>{point.label || (point.lat + ', ' + point.lng)}</small></span></div>)}<div className="route-point"><i className="dot orange"/><span><b>Destino</b><small>{destination}</small></span></div></div><div className="instructions"><strong>Indicaciones</strong>{result.sections.flatMap(section => section.actions || []).filter(action => action.instruction).slice(0, 12).map((action, index) => <p key={index}>{index + 1}. {action.instruction}</p>)}</div>{(result.notices || []).length > 0 && <div className="notice-box"><strong>Avisos de ruta</strong>{result.notices?.map((n,i)=><p key={i}>{n.title || n.details || n.code}</p>)}</div>}<label className="route-save-name">Nombre del recorrido<input maxLength={120} value={routeName} onChange={event => setRouteName(event.target.value)} placeholder="Ej. Express · entregas de la mañana"/></label><button className="primary-button save-button" disabled={saving} onClick={saveRoute}>{saving ? 'Guardando…' : 'Guardar esta ruta'}</button>{saveMessage && <p className="save-message">{saveMessage}</p>}<RouteExports route={result} truck={mode === 'truck'} /><NavigationLinks urls={mapsUrls} truck={mode === 'truck'} /></> : <div className="empty-state"><div className="empty-route">⌁</div><strong>Tu ruta aparecerá aquí</strong><p>Completa origen y destino para obtener distancia, tiempo y avisos del recorrido.</p><div className="empty-stats"><span>— km <small>Distancia</small></span><span>— min <small>Duración</small></span></div></div>}</aside></div><p className="disclaimer">Las rutas para camiones dependen de los datos y restricciones disponibles en OpenStreetMap. Verifica señalización y normativa local antes de circular.</p>
     </section>
-    <VehicleManager key={user?.id || 'guest-profile'} user={user} vehicles={vehicleProfiles} onSelect={loadVehicleProfile} onSaved={profile => { setVehicleProfiles(items => [profile, ...items.filter(item => item.id !== profile.id)]); loadVehicleProfile(profile.id, profile); }}/>
-    <SavedRoutesPanel key={user?.id || 'guest-routes'} user={user} revision={routesRevision} onLoad={restoreSavedRoute}/>
+    <VehicleManager key={`profile-${user?.id || 'guest'}`} user={user} vehicles={vehicleProfiles} onSelect={loadVehicleProfile} onSaved={profile => { setVehicleProfiles(items => [profile, ...items.filter(item => item.id !== profile.id)]); loadVehicleProfile(profile.id, profile); }}/>
+    <SavedRoutesPanel key={`routes-${user?.id || 'guest'}`} user={user} revision={routesRevision} onLoad={restoreSavedRoute}/>
     <section className="features" id="como-funciona"><div><p className="eyebrow">DISEÑADO PARA TRABAJAR</p><h2>Una herramienta para cada tipo de recorrido.</h2></div><article><span>01</span><h3>Reparto y mensajería</h3><p>Organiza origen, entregas y destino desde un solo lugar.</p></article><article><span>02</span><h3>Transporte pesado</h3><p>Considera dimensiones, peso bruto y peso por eje.</p></article><article><span>03</span><h3>Tu operación, después</h3><p>Guarda tus unidades y recorridos, e importa entregas desde tu manifiesto.</p></article></section>
     <footer><a className="brand" href="#inicio"><span className="brand-mark">R</span><span>ROUTE <b>PLANNER</b></span></a><span>Hecho para mover el trabajo.</span><span>Versión inicial · 2026</span></footer>
   </main></LocationBookProvider>;

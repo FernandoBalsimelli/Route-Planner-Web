@@ -140,3 +140,29 @@ test('export buttons prepare a downloadable file with the selected format',async
   await render(React.createElement(RouteExports,{truck:true,route:{distanceMeters:100,durationSeconds:60,sections:[],waypoints:[{type:'origin',label:'Origen',lat:25,lng:-100},{type:'destination',label:'Destino',lat:26,lng:-101}]}}));
   await act(async()=>button('GPX').click()); assert.match(downloadName,/\.gpx$/);assert.match(await savedBlob.text(),/<rtept lat="25" lon="-100">/);
 });
+
+test('planner retries a failed save with the same key and sends route and stops in one RPC',async t=>{
+  database();
+  const renderingErrors=[];t.mock.method(console,'error',(...args)=>renderingErrors.push(args.map(String).join(' ')));
+  const {registerHooks}=await import('node:module');
+  // Map rendering has its own integration tests; isolate this persistence flow.
+  const hooks=registerHooks({load(url,context,next){if(url.endsWith('/components/RouteMap.tsx'))return {format:'module',source:'export default function RouteMap(){return null}',shortCircuit:true};return next(url,context);}});
+  const oldUser=supabase.auth.getUser,oldSession=supabase.auth.getSession,oldAuthState=supabase.auth.onAuthStateChange,oldRpc=supabase.rpc;
+  globalThis.React=React;
+  supabase.auth.getUser=async()=>({data:{user},error:null});
+  supabase.auth.getSession=async()=>({data:{session:{access_token:'test-session'}},error:null});
+  supabase.auth.onAuthStateChange=()=>({data:{subscription:{unsubscribe(){}}}});
+  const calls=[];
+  supabase.rpc=async(name,args)=>{calls.push({name,args});return calls.length===1?{data:null,error:{message:'Connection interrupted'}}:{data:'saved-route-id',error:null};};
+  t.after(()=>{hooks.deregister();supabase.auth.getUser=oldUser;supabase.auth.getSession=oldSession;supabase.auth.onAuthStateChange=oldAuthState;supabase.rpc=oldRpc;});
+  globalThis.fetch=async(url)=>Response.json(url.endsWith('/v1/routes/plan')?{ok:true,route:{distanceMeters:1000,durationSeconds:180,sections:[],waypoints:[{type:'origin',label:'Origen',lat:28.66,lng:-106.09},{type:'stop',label:'Sucursal uno',lat:28.67,lng:-106.10},{type:'destination',label:'Destino',lat:28.68,lng:-106.11}]}}:{suggestions:[]});
+  const {default:Home}=await import('../app/page.tsx');await render(React.createElement(Home));
+  await fill(container.querySelectorAll('.route-form .field input')[0],'Origen de prueba');await fill(container.querySelectorAll('.route-form .field input')[1],'Destino de prueba');
+  await act(async()=>button('Calcular ruta').click());
+  await fill(container.querySelector('.route-save-name input'),'Express · ruta de prueba');
+  await act(async()=>button('Guardar esta ruta').click());assert.match(container.textContent,/Connection interrupted/);
+  await act(async()=>button('Guardar esta ruta').click());assert.match(container.textContent,/Ruta guardada en tu cuenta/);
+  assert.equal(calls.length,2);assert.equal(calls[0].name,'save_route_with_stops');assert.equal(calls[0].args.p_request_id,calls[1].args.p_request_id);
+  assert.equal(calls[1].args.p_stops[0].label,'Sucursal uno');assert.equal(calls[1].args.p_route.name,'Express · ruta de prueba');
+  assert.deepEqual(renderingErrors,[]);
+});

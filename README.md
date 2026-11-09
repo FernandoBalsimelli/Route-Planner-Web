@@ -110,3 +110,7 @@ GPX 1.1 o GeoJSON. CSV conserva las entregas en orden y sus coordenadas. GPX y
 GeoJSON incluyen el trazado real del proveedor cuando existe; no conectan paradas
 con una línea inventada. Las restricciones de camión no se transfieren a otras
 aplicaciones al importar estos archivos.
+
+El guardado del recorrido y de todas sus entregas utiliza una sola transacción
+en Supabase. Si se interrumpe la conexión, reintentar el mismo contenido no crea
+otra ruta. Puedes asignar un nombre operativo antes de guardarla.

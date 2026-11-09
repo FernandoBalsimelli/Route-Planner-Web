@@ -232,3 +232,28 @@ restauraría sus avisos de seguridad; se prefiere corregir hacia adelante.
   con aria-activedescendant y selección por flechas/Enter. Escape cierra la lista.
   El primer Enter elige una propuesta; el segundo confirma el punto, manteniendo
   la misma comprobación explícita disponible con ratón o pantalla táctil.
+
+## Ciclo: guardado transaccional y reintentos
+
+- Causa del riesgo: se guardaba primero saved_routes y después route_stops. Un
+  fallo entre ambas llamadas podía dejar un recorrido sin todas sus entregas.
+- save_route_with_stops crea la ruta y sus paradas en una sola transacción.
+  Valida nombre, coordenadas, hasta ocho paradas, pertenencia del vehículo y
+  límites de tamaño. Se ejecuta como SECURITY INVOKER y respeta las políticas RLS.
+- El cliente conserva una clave de solicitud mientras el contenido no cambie.
+  Un índice único por dueño/solicitud y la huella del contenido impiden duplicar
+  recorridos al reintentar; reutilizar la clave con otro contenido da error.
+- La interfaz ofrece nombre de recorrido y muestra errores de guardado completo.
+  Se reemplazan las dos inserciones y la compensación por DELETE por una RPC.
+- Se corrigieron claves React idénticas de los paneles perfil/rutas para una
+  cuenta activa; el test de planificación autenticada ahora exige cero avisos
+  de reconciliación al guardar y reintentar.
+- Verificación: 42 pruebas Web y 18 API, TypeScript y build. La prueba de interfaz
+  simula una conexión interrumpida y comprueba que el segundo intento conserva
+  la clave y todas las paradas. La transacción real de Supabase comprobó orden,
+  reintento sin duplicados, rechazo de contenido diferente, ausencia de datos
+  parciales con un punto inválido y aislamiento entre uid; terminó en ROLLBACK.
+- Las nuevas columnas permiten NULL para conservar compatibilidad con rutas
+  anteriores. Revertir el frontend no requiere eliminar columnas ni registros.
+- Navegador de producción del ciclo anterior: selección por flechas/Enter y
+  reutilización de un reciente confirmadas, con coordenadas y Plus Code intactos.
