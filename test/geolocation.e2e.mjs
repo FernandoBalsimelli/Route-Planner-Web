@@ -305,7 +305,7 @@ test('municipal directory distinguishes source records from missing legal covera
   assert.ok(await page.getByRole('combobox',{name:'Municipio o demarcación'}).isDisabled());
   assert.deepEqual(await page.getByRole('combobox',{name:'Entidad federativa'}).locator('option').allTextContents(),['Elige una entidad','Aguascalientes','Chihuahua','Nuevo León']);
   await page.getByRole('combobox',{name:'Entidad federativa'}).selectOption('19');
-  await page.getByRole('combobox',{name:'Municipio o demarcación'}).locator('option').filter({hasText:'Abasolo'}).waitFor();
+  await page.getByRole('combobox',{name:'Municipio o demarcación'}).locator('option').filter({hasText:'Abasolo'}).waitFor({state:'attached'});
   const names=await page.getByRole('combobox',{name:'Municipio o demarcación'}).locator('option').allTextContents();assert.match(names[1],/^Abasolo/);
   await page.getByRole('combobox',{name:'Municipio o demarcación'}).selectOption('19039');
   await page.getByText('Referencia oficial consultable; no se aplica automáticamente al trazado.').waitFor();
