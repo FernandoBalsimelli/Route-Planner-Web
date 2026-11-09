@@ -525,7 +525,47 @@ la rama test/authenticated-flow, sin incorporarlo ni sobrescribir CI vigente.
   entregas y cambio de capacidad de Google.
 - Validación local: API 32 pruebas y build; Web 73 pruebas, TypeScript y build
   aprobados. Migración 20261109171027 aplicada en Route Planner conservando
-  privilegios. CI y despliegue pendientes al crear este commit.
+  privilegios. CI API 42662271514 y Web 42662895443 aprobados: 32 y 73 pruebas,
+  ocho migraciones/RLS en Postgres desechable, TypeScript, build, 14 E2E sin
+  omisiones y auditorías sin vulnerabilidades conocidas.
 - Recuperación anterior: Web dpl_A1eWvcovWY94jV4nAjrdW6S9vNs7 y API
   dpl_AeaEHucyAEh4icPdHU8MQt4NsG8B. La migración solo cambia el máximo de la
   función invoker existente, sin eliminar datos ni ampliar privilegios.
+
+
+### Cierre de publicación de más entregas
+
+- Web PR #7 integrada, main b0b6949d, árbol 78c9b696; API PR #6 integrada,
+  main 967cef4c, árbol 1e923988. Ambos árboles coinciden con los comprobados.
+- Producción READY: Web dpl_8MqVo364dxPMbc6aixeap9Npa42f y API
+  dpl_AyMGxz2xbFXzS93aUJP3eoBfvZgJ. Alias y SHA de cada despliegue verificados.
+- Navegador real en producción: doce paradas añadidas; el modo de nueve conserva
+  los catorce puntos en dos enlaces y el modo de tres en cuatro enlaces, con
+  continuidad exacta hasta el destino. Google Maps Web cargó un enlace real
+  con origen, nueve intermedias y destino (once puntos, máximo reconocido).
+- API de producción a través del proxy: validate de 48 paradas responde 200;
+  49 responde 400 antes de consultar cartografía. La transacción real de
+  Supabase comprobó 48 puntos intermedios, orden, reintento sin duplicado,
+  rechazo de 49 y RLS; terminó en ROLLBACK sin dejar registros de prueba.
+- En el primer E2E falló la selección por nombre accesible del nuevo control.
+  Se corrigió su aria-label y la segunda ejecución aprobó los catorce E2E,
+  incluida la reconstrucción de doce entregas en ambos modos. No se omitió
+  ni debilitó la prueba.
+- No se ejecutó un cálculo autenticado de 48 paradas con ORS real ni la app
+  nativa Android; esos puntos permanecen pendientes. No se afirma ruteo
+  ilimitado ni transferencia de restricciones de camión a Google Maps.
+- No se registraron errores/fatal de funciones en las ventanas revisadas de
+  ambos despliegues después de la comprobación de producción.
+- Solo se modificaron recursos identificados de Route Planner; Gestión no se
+  tocó. No se habilitaron gastos. Las rutas previas y sus datos se conservan.
+
+### Próxima reanudación
+
+Esta solicitud está completada. Retomar las reglas de Monterrey por sentido y
+las pruebas autenticadas completas de cuentas, vehículos y rutas sin usar
+credenciales del propietario ni datos de producción. La rama antigua
+`test/authenticated-flow` es solo un borrador: portar/revisar sus pruebas sobre
+main actual; no fusionarla en bloque ni restaurar su versión antigua del producto.
+Continúan pendientes Android físico, preferencias/alternativas y enlaces
+autorizados del programa general. No desactivar la tarea periódica todavía.
+Este cierre solo actualiza documentación después de los despliegues citados.
