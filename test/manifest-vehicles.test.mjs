@@ -29,3 +29,9 @@ test('photo validation rejects PDFs and oversized files before loading an OCR wo
   await assert.rejects(scanManifest({ type: 'application/pdf', size: 100 }, () => {}, new AbortController().signal), /foto JPG/);
   await assert.rejects(scanManifest({ type: 'image/jpeg', size: 16 * 1024 * 1024 }, () => {}, new AbortController().signal), /15 MB/);
 });
+
+
+test('manifest review keeps more than thirty proposed deliveries instead of silently truncating',()=>{
+  const deliveries=Array.from({length:49},(_,i)=>`Bodega Aurrera Express, Calle Ejemplo ${100+i}, Chihuahua`);
+  assert.deepEqual(manifestCandidates(deliveries.join('\n')),deliveries);
+});

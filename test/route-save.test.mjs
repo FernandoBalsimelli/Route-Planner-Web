@@ -21,3 +21,11 @@ test('invalid points are rejected before writing and database failures remain vi
   assert.throws(()=>routeSaveData({...result,waypoints:[]},details),/origen, destino/);
   await assert.rejects(persistRoute({rpc:async()=>({data:null,error:{message:'Connection interrupted'}})},routeSaveData(result,details),'key'),/Connection interrupted/);
 });
+
+
+test('saving preserves 48 deliveries and rejects totals above the provider limit',()=>{
+  const stops=Array.from({length:48},(_,i)=>({type:'stop',label:`Delivery ${i+1}`,lat:28+i/1000,lng:-106}));
+  const data=routeSaveData({...result,waypoints:[result.waypoints[0],...stops,result.waypoints.at(-1)]},details);
+  assert.equal(data.p_stops.length,48);assert.equal(data.p_stops.at(-1).label,'Delivery 48');
+  assert.throws(()=>routeSaveData({...result,waypoints:[result.waypoints[0],...stops,stops[0],result.waypoints.at(-1)]},details),/48 paradas/);
+});

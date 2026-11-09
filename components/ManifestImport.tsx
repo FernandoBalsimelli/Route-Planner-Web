@@ -1,5 +1,7 @@
 'use client';
 
+import { MAX_INTERMEDIATE_STOPS } from '@/lib/route-limits';
+
 import React, { useEffect, useRef, useState } from 'react';
 import LocationInput from './LocationInput';
 import { manifestCandidates } from '@/lib/manifest';
@@ -69,7 +71,7 @@ export default function ManifestImport({ apiUrl, reference, remaining, hasDestin
         {candidates.map((candidate, index) => <div className="manifest-candidate" key={candidate.id}><label className="manifest-include"><input type="checkbox" checked={candidate.enabled} onChange={event => setCandidates(rows => rows.map(row => row.id === candidate.id ? { ...row, enabled: event.target.checked } : row))}/> Incluir entrega {index + 1}</label><p>{candidate.value} {candidate.selected && <strong>✓ Confirmada</strong>}</p>{candidate.enabled && <button type="button" className="map-open-button" aria-expanded={activeId === candidate.id} onClick={() => setActiveId(candidate.id)}>{candidate.selected ? 'Revisar punto confirmado' : 'Revisar ubicación'}</button>}{candidate.enabled && activeId === candidate.id && <LocationInput title={`Entrega ${index + 1}`} color="number" apiUrl={apiUrl} value={candidate.value} selected={candidate.selected} mapReference={reference} placeholder="Sucursal, dirección y ciudad" onChange={value => setCandidates(rows => rows.map(row => row.id === candidate.id ? { ...row, value, selected: null } : row))} onConfirm={point => { setCandidates(rows => rows.map(row => row.id === candidate.id ? { ...row, value: point.label, selected: point } : row)); setActiveId(candidates.find(row => row.id !== candidate.id && row.enabled && !row.selected)?.id || candidate.id); }}/>}</div>)}
         <label className="manifest-include"><input type="checkbox" checked={useLast} onChange={event => setUseLast(event.target.checked)}/> Usar la última entrega como destino{hasDestination ? ' (reemplaza el destino actual)' : ''}</label>
         <p role="status">{points.length} de {selected.length} entregas confirmadas. Espacio para {capacity} entregas en este recorrido.</p>
-        {selected.length > capacity && <p className="location-search-error">Excluye entregas para respetar el máximo de 8 paradas intermedias y un destino.</p>}
+        {selected.length > capacity && <p className="location-search-error">Excluye entregas para respetar el máximo de {MAX_INTERMEDIATE_STOPS} paradas intermedias y un destino.</p>}
         <button type="button" className="primary-button" disabled={!points.length || points.length !== selected.length || points.length > capacity} onClick={() => { onImport(points, useLast); setCandidates([]); setText(''); setPdfFile(null); setOpen(false); }}>Añadir {points.length} entregas confirmadas</button>
       </>}
     </div>}

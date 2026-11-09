@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { googleMapsUrls } from '../lib/navigation.ts';
+import { googleMapsUrls, googleMapsSegments } from '../lib/navigation.ts';
 
 test('navigation uses confirmed coordinates in the requested order, not ambiguous labels', () => {
   const points = [{ label: 'Mismo nombre', lat: 28.661234567, lng: -106.09 }, { lat: 28.67, lng: -106.10 }, { lat: 28.68, lng: -106.11 }];
@@ -21,7 +21,7 @@ test('navigation supports typed addresses and requires two valid points', () => 
 
 test('long itineraries preserve every stop across consecutive mobile-compatible segments', () => {
   const points = Array.from({ length: 10 }, (_, i) => ({ lat: 28 + i / 100, lng: -106 }));
-  const links = googleMapsUrls(points).map(link => new URL(link));
+  const links = googleMapsUrls(points, 3).map(link => new URL(link));
   assert.equal(links.length, 3);
   const visited = [];
   for (const [index, link] of links.entries()) {
@@ -32,4 +32,41 @@ test('long itineraries preserve every stop across consecutive mobile-compatible 
     visited.push(...segment.slice(index ? 1 : 0));
   }
   assert.deepEqual(visited, points.map(p => `${p.lat}, ${p.lng}`));
+});
+
+
+for (const limit of [3,9]) test(`50 points retain order and shared endpoints with ${limit} intermediate stops per Google link`,()=>{
+  const points=Array.from({length:50},(_,i)=>({lat:28+i/1000,lng:-106.123456789}));
+  const segments=googleMapsSegments(points,limit);
+  assert.equal(segments.length,Math.ceil(49/(limit+1)));
+  const visited=[];
+  for(const [index,segment] of segments.entries()){
+    assert.ok(segment.url.length<=2048);
+    const params=new URL(segment.url).searchParams;
+    const stops=params.get('waypoints')?.split('|')||[];
+    assert.ok(stops.length<=limit);
+    const part=[params.get('origin'),...stops,params.get('destination')];
+    if(index) assert.equal(part[0],visited.at(-1));
+    assert.equal(segment.startIndex,index ? segments[index-1].endIndex : 0);
+    visited.push(...part.slice(index?1:0));
+  }
+  assert.deepEqual(visited,points.map(p=>`${p.lat}, ${p.lng}`));
+});
+
+test('encoded long addresses split before Google URL length is exceeded without losing points',()=>{
+  const points=Array.from({length:20},(_,i)=>`Sucursal ${i} · ${'Árbol '.repeat(23)}Chihuahua`);
+  const segments=googleMapsSegments(points);
+  assert.ok(segments.length>2);
+  const visited=[];
+  for(const [index,segment] of segments.entries()){
+    assert.ok(segment.url.length<=2048);
+    const p=new URL(segment.url).searchParams;
+    const part=[p.get('origin'),...(p.get('waypoints')?.split('|')||[]),p.get('destination')];
+    visited.push(...part.slice(index?1:0));
+  }
+  assert.deepEqual(visited,points);
+});
+
+test('an unrepresentable pair asks for confirmation instead of emitting an oversized link',()=>{
+  assert.throws(()=>googleMapsSegments(['漢'.repeat(180),'字'.repeat(180)]),/Confirma estos puntos/);
 });

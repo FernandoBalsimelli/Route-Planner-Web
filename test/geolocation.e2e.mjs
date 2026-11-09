@@ -309,3 +309,37 @@ test('municipal directory distinguishes source records from missing legal covera
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
  }finally{await context.close();}
 });
+
+test('mobile creates twelve deliveries and sends every point to Google in consecutive maximum-size links', async () => {
+  const { context, page } = await setup(() => {});
+  try {
+    await page.route('**/api/route-planner/**', route => route.fulfill({json:{ok:true,suggestions:[]}}));
+    await page.goto(base);
+    await page.getByRole('combobox',{name:'Origen',exact:true}).fill('Origen de prueba');
+    await page.getByRole('combobox',{name:'Destino',exact:true}).fill('Destino de prueba');
+    for(let i=1;i<=12;i++){
+      await page.getByRole('button',{name:'Agregar parada'}).click();
+      await page.getByRole('combobox',{name:`PARADA ${i}`,exact:true}).fill(`Entrega ${i}`);
+    }
+    assert.equal(await page.getByRole('combobox',{name:'PARADA 12',exact:true}).inputValue(),'Entrega 12');
+    const expected=['Origen de prueba',...Array.from({length:12},(_,i)=>`Entrega ${i+1}`),'Destino de prueba'];
+    async function verify(limit,count){
+      const links=await page.getByRole('link',{name:/^Abrir tramo/}).all();
+      assert.equal(links.length,count);
+      const visited=[];
+      for(const [index,link] of links.entries()){
+        const href=await link.getAttribute('href');assert.ok(href.length<=2048);
+        const p=new URL(href).searchParams,stops=p.get('waypoints')?.split('|')||[];
+        assert.ok(stops.length<=limit);
+        const part=[p.get('origin'),...stops,p.get('destination')];
+        if(index)assert.equal(part[0],visited.at(-1));
+        visited.push(...part.slice(index?1:0));
+      }
+      assert.deepEqual(visited,expected);
+    }
+    await verify(9,2);
+    await page.getByLabel('Paradas intermedias por enlace',{exact:true}).selectOption('3');
+    await verify(3,4);
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+  } finally {await context.close();}
+});
