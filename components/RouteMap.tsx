@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef } from 'react';
 import L, { type LatLngTuple } from 'leaflet';
-import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
+import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { TILE_ATTRIBUTION, TILE_URL } from '@/lib/map-config';
 import { decodePolyline } from '@/lib/polyline';
@@ -33,6 +33,11 @@ function FitRoute({ points }: { points: LatLngTuple[] }) {
   return null;
 }
 
+function LivePosition({point,follow}:{point:Coordinates;follow:boolean}){
+ const map=useMap();useEffect(()=>{if(follow)map.setView([point.lat,point.lng],Math.max(15,map.getZoom()),{animate:false});},[map,point.lat,point.lng,follow]);
+ return <CircleMarker center={[point.lat,point.lng]} radius={7} pathOptions={{color:"#fff",weight:3,fillColor:"#2478cf",fillOpacity:1}}><Popup>Tu posición GPS</Popup></CircleMarker>;
+}
+
 function markerIcon(label: string, kind: string) {
   const className = kind === 'origin' ? 'rp-map-pin rp-map-pin-start' : kind === 'destination' ? 'rp-map-pin rp-map-pin-end' : kind === 'candidate' ? 'rp-map-pin rp-map-pin-search' : 'rp-map-pin rp-map-pin-stop';
   return L.divIcon({
@@ -43,7 +48,7 @@ function markerIcon(label: string, kind: string) {
   });
 }
 
-export default function RouteMap({ polyline, waypoints, planning = false, candidates = EMPTY_CANDIDATES, targetTitle, onChooseCandidate, reference }: { polyline?: string; waypoints: Waypoint[]; planning?: boolean; candidates?: LocationSelection[]; targetTitle?: string; onChooseCandidate?: (point: LocationSelection) => void; reference?: Coordinates | null }) {
+export default function RouteMap({ polyline, waypoints, planning = false, candidates = EMPTY_CANDIDATES, targetTitle, onChooseCandidate, reference, livePosition, followPosition = false }: { polyline?: string; waypoints: Waypoint[]; planning?: boolean; candidates?: LocationSelection[]; targetTitle?: string; onChooseCandidate?: (point: LocationSelection) => void; reference?: Coordinates | null; livePosition?: Coordinates | null; followPosition?: boolean }) {
   const routePoints = useMemo(() => polyline ? decodePolyline(polyline) : [], [polyline]);
   const markerPoints = useMemo(() => waypoints.map(point => [point.lat, point.lng] as LatLngTuple), [waypoints]);
   const candidatePoints = useMemo(() => candidateMapPoints(candidates), [candidates]);
@@ -71,6 +76,7 @@ export default function RouteMap({ polyline, waypoints, planning = false, candid
       })}
       {candidates.map((point, index) => <Marker key={`candidate-${point.lat}-${point.lng}-${index}`} title={`Sugerencia ${index + 1}: ${point.label}`} position={[point.lat, point.lng]} icon={markerIcon(`S${index + 1}`, 'candidate')}><Popup><strong>{point.label}</strong>{point.distanceMeters != null && <p>{(point.distanceMeters / 1000).toFixed(1)} km del origen, en línea recta</p>}{onChooseCandidate && <button type="button" className="map-candidate-confirm" onClick={() => onChooseCandidate(point)}>Usar como {targetTitle || 'punto'}</button>}</Popup></Marker>)}
       <FitRoute points={allPoints} />
+      {livePosition && <LivePosition point={livePosition} follow={followPosition}/>}
     </MapContainer>
     <div className="route-map-attribution">Mapa © OpenStreetMap contributors</div>
   </div>;

@@ -410,3 +410,22 @@ rediseño, favoritos, exportación ni lector PDF, que ya tienen implementación.
 - Las nuevas fixtures usan una dirección ficticia, sin conservar el domicilio
   reportado. La comparación real con Photon/Komoot quedó bloqueada por revisión
   automática de permisos; no se reintenta ese envío por otra vía.
+
+## Ciclo: navegación del trazado y directorio municipal de México
+
+Fecha: 2026-11-09. Base Web 5637925, API e2ce88c. Se usan ramas y copias de trabajo
+separadas; no se alteró el trabajo de integración autenticada de la copia anterior.
+
+- Navegación GPS interna, guía por índices reales de geometría, voz opcional,
+  aviso de desvío sin recálculo, pausa en segundo plano y limpieza de sensores al
+  detener/cambiar sección/cuenta/ruta. No equivale a ensayo con Android físico.
+- Catálogo oficial INEGI: 32 entidades, 2,478 municipios/demarcaciones; consulta
+  de cobertura y fuentes dentro de Guía camión. Monterrey: 38 tramos de red
+  troncal y 19 registros de horarios conservados de anexos oficiales. No se
+  aplican como exclusiones sin geometría y validación de interpretación/vigencia.
+- Cada ruta declara que aún no tiene verificación municipal completa. No se
+  confunde catálogo nacional con cobertura legal. Falta la mayor parte del
+  programa municipal nacional y no se desactiva la tarea de continuidad.
+- Alcance, reproducción de fuentes, contratos y siguiente trabajo documentados
+  en MEXICO-COVERAGE.md. No se reintenta la consulta privada bloqueada a Photon.
+- Validación/publicación: pendiente de registrar CI y despliegues al cerrar release.
