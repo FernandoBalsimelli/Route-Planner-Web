@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { locateDevice } from '@/lib/geolocation';
 import { resolvePointLabel, type Coordinates, type LocationSelection } from '@/lib/locations';
+import LocationBookTools from './LocationBookTools';
+import { useLocationBook } from './LocationBookProvider';
 
 export type { LocationSelection } from '@/lib/locations';
 const MapLocationPicker = dynamic(() => import('./MapLocationPicker'), { ssr: false, loading: () => <p role="status">Cargando mapa…</p> });
@@ -26,6 +28,10 @@ type Props = {
 };
 
 export default function LocationInput({ title, color, value, placeholder, apiUrl, selected, allowCurrentLocation = false, mapReference, onChange, onConfirm }: Props) {
+  const book = useLocationBook();
+  const [bookOpen, setBookOpen] = useState(false);
+  const listId = useId();
+  const [activeIndex, setActiveIndex] = useState(-1);
   const [suggestions, setSuggestions] = useState<LocationSelection[]>([]);
   const [pending, setPending] = useState<LocationSelection | null>(null);
   const [loading, setLoading] = useState(false);
@@ -73,7 +79,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       if (geoRequest.current !== requestId) return;
       const location = { ...resolved, label: addressFound ? resolved.label : `Mi ubicación (${point.lat.toFixed(6)}, ${point.lng.toFixed(6)})`, accuracyM: point.accuracyM, source: 'geolocation' };
       onChange(location.label);
-      onConfirm(location);
+      onConfirm(location); book?.remember(location);
       setGeoStatus(addressFound ? 'Ubicación actual establecida como origen.' : 'Origen establecido con coordenadas. No se pudo obtener la dirección legible.');
     } catch (error) {
       if (geoRequest.current === requestId) setGeoStatus(error instanceof Error ? error.message : 'No se pudo obtener tu ubicación.');
@@ -83,7 +89,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
   }
 
   useEffect(() => {
-    if (mapOpen) { setSuggestions([]); setPending(null); setLoading(false); return; }
+    if (mapOpen || bookOpen) { setSuggestions([]); setPending(null); setLoading(false); return; }
     if (selected && selected.label === value) {
       setSuggestions([]);
       setPending(null);
@@ -99,6 +105,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       return;
     }
     setSuggestions([]);
+    setActiveIndex(-1);
     setPending(null);
     setSearchError('');
     setSearchNotice('');
@@ -127,15 +134,16 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       clearTimeout(timer);
       controller.abort();
     };
-  }, [value, apiUrl, selected, mapOpen, preferNearby, mapReference?.lat, mapReference?.lng]);
+  }, [value, apiUrl, selected, mapOpen, bookOpen, preferNearby, mapReference?.lat, mapReference?.lng]);
 
   function confirmPending() {
     if (!pending) return;
     cancelLocation();
     onChange(pending.label);
-    onConfirm(pending);
+    onConfirm(pending); book?.remember(pending);
     setPending(null);
     setSuggestions([]);
+    setActiveIndex(-1);
     setSearchError('');
   }
 
@@ -143,25 +151,38 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
     <label className="field">
       <span><i className={color === 'number' ? 'stop-number' : `dot ${color}`}>{color === 'number' ? title.match(/\d+/)?.[0] : ''}</i> {color === 'number' ? title : title.toUpperCase()}</span>
       <input
+        role="combobox"
         maxLength={180}
         value={value}
         onChange={event => { cancelLocation(); setMapOpen(false); onChange(event.target.value); setPending(null); }}
         placeholder={placeholder}
         autoComplete="off"
         aria-autocomplete="list"
-        aria-expanded={suggestions.length > 0}
+        aria-expanded={!pending && suggestions.length > 0}
+        aria-controls={listId}
+        aria-activedescendant={!pending && activeIndex >= 0 && activeIndex < suggestions.length ? `${listId}-${activeIndex}` : undefined}
+        aria-busy={loading}
+        onKeyDown={event => {
+          if (event.key === 'Escape') { setPending(null); setSuggestions([]); setActiveIndex(-1); return; }
+          if (event.key === 'Enter' && pending) { event.preventDefault(); confirmPending(); return; }
+          if (!suggestions.length || pending) return;
+          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setActiveIndex(index => index < 0 ? event.key === 'ArrowDown' ? 0 : suggestions.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + suggestions.length) % suggestions.length); }
+          else if (event.key === 'Enter') { event.preventDefault(); setPending(suggestions[activeIndex >= 0 ? activeIndex : 0]); }
+        }}
       />
     </label>
+    <LocationBookTools title={title} value={value} selected={selected} open={bookOpen} onToggle={() => { cancelLocation(); setMapOpen(false); setBookOpen(current => !current); }} onPick={point => { cancelLocation(); setMapOpen(false); setBookOpen(false); setPending(null); onChange(point.label); onConfirm(point); book?.remember(point); }}/>
     {mapReference && !selected && <label className="nearby-toggle"><input type="checkbox" checked={preferNearby} onChange={event => setPreferNearby(event.target.checked)}/> Priorizar lugares cerca del origen <small>Para otra ciudad: escribe «lugar, ciudad».</small></label>}
     <button type="button" ref={mapButton} className="map-open-button" aria-label={`Elegir ${title.toLowerCase()} en el mapa`} aria-expanded={mapOpen} onClick={() => {
       if (mapOpen) { closeMap(); return; }
       cancelLocation();
+      setBookOpen(false);
       setMapSeed(selected || pending || suggestions[0] || mapReference || null);
       setMapOpen(true);
     }}>⌖ {mapOpen ? 'Cerrar mapa' : 'Elegir en el mapa'}</button>
     {mapOpen && <MapLocationPicker title={title} initialPoint={mapSeed} apiUrl={apiUrl} onClose={closeMap} onConfirm={location => {
       const resolved = mapSeed?.label && location.lat === mapSeed.lat && location.lng === mapSeed.lng ? { ...location, label: mapSeed.label } : location;
-      onChange(resolved.label); onConfirm(resolved); setPending(null); setSearchError(''); closeMap();
+      onChange(resolved.label); onConfirm(resolved); book?.remember(resolved); setPending(null); setSearchError(''); closeMap();
     }} />}
     {allowCurrentLocation && <div className="current-location-tools">
       <button type="button" className="current-location-button" disabled={geoBusy} onClick={() => void useCurrentLocation()}><span aria-hidden="true">⌖</span> {geoBusy ? 'Localizando…' : 'Usar mi ubicación actual'}</button>
@@ -170,10 +191,14 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
     </div>}
     {loading && <p className="location-search-status">Buscando direcciones y lugares…</p>}
     {!loading && searchNotice && !selected && !pending && <p className="location-search-status" role="status">{searchNotice}</p>}
-    {suggestions.length > 0 && !pending && <div className="location-suggestions" role="listbox" aria-label={`Sugerencias para ${title}`}>
+    {suggestions.length > 0 && !pending && <div className="location-suggestions" id={listId} role="listbox" aria-label={`Sugerencias para ${title}`}>
       {suggestions.map((suggestion, index) => <button
         type="button"
         className="location-suggestion"
+        id={`${listId}-${index}`}
+        role="option"
+        aria-selected={index === activeIndex}
+        onMouseEnter={() => setActiveIndex(index)}
         key={`${suggestion.lat}-${suggestion.lng}-${index}`}
         onClick={() => setPending(suggestion)}
       >

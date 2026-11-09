@@ -108,8 +108,8 @@ No se hicieron operaciones sobre otros proyectos ni se contrataron servicios.
 | P1 | Ubicación actual como origen | Implementada; pendiente validación en Android físico |
 | P1 | Elegir origen, paradas y destino directamente en el mapa | Implementado; prueba de producción en este ciclo |
 | P1 | Reordenar paradas manualmente | Implementado y probado |
-| P1 | Exportar recorridos | Pendiente |
-| P1 | Historial reciente y favoritos con controles de privacidad | Pendiente |
+| P1 | Exportar recorridos | CSV, GPX y GeoJSON implementados; GPX validado con esquema oficial |
+| P1 | Historial reciente y favoritos con controles de privacidad | 12 recientes por cuenta/dispositivo; favoritos privados en Supabase |
 | P1 | Pruebas autenticadas completas de cuenta, rutas, flotas y aislamiento RLS | Parcial; falta fixture de cuenta de prueba |
 | P1 | Rate limiting por cliente detrás del proxy | Revisar separación entre usuarios sin confiar en cabeceras falsificables |
 | P2 | Caché acotada, deduplicación de búsquedas y estados accesibles de teclado | Pendiente |
@@ -197,3 +197,38 @@ restauraría sus avisos de seguridad; se prefiere corregir hacia adelante.
   ruta concreta. La consulta PostgREST usa el alias mode:route_metadata->>mode.
 - Logs consultados del nuevo despliegue API: sin registros de nivel error/fatal
   en la ventana revisada. La validación de cámara Android sigue pendiente.
+
+## Ciclo: sucursales reutilizables y exportación
+
+- Se agregan recientes locales por cuenta, limitados a 12 puntos confirmados, con
+  eliminación desde la interfaz. No se guardan imágenes del manifiesto, precisión
+  GPS ni historial de consultas escritas sin confirmar.
+- Los favoritos permiten un nombre operativo, coordenadas exactas y Plus Code.
+  Se sincronizan mediante favorite_locations, con índices por dueño y políticas
+  RLS USING/WITH CHECK. Los permisos públicos se restringen a SELECT/INSERT/UPDATE
+  de authenticated; anon no accede y el cliente no puede borrar físicamente.
+- Eliminar de favoritos archiva el registro. Un upsert del mismo punto recupera
+  la sucursal sin duplicarla. Las listas de favoritos se cargan por páginas.
+- Las ubicaciones guardadas se reutilizan sin volver a geocodificar. Abrir el
+  selector local pausa la búsqueda externa hasta cerrarlo o elegir un punto.
+- Exportaciones locales: CSV ordenado con protección contra fórmulas de hoja de
+  cálculo, GPX 1.1 con nombres escapados y GeoJSON con coordenadas longitud/latitud.
+  El trazado se añade únicamente si hay polilínea válida del proveedor. Los
+  archivos advierten que no transfieren restricciones de camión a otro navegador.
+- Verificación: 38 pruebas Web aprobadas más las 18 API conservadas; TypeScript
+  y compilación de producción correctos. El GPX generado pasó el XSD oficial de
+  Topografix. Se verificaron botones de descarga, favoritos/archivo/recuperación,
+  reutilización sin solicitudes externas y limpieza de recientes.
+- Supabase real: creación, archivo, upsert/restauración, aislamiento entre uid y
+  ausencia de permiso DELETE comprobados en transacción terminada en ROLLBACK.
+  Las migraciones son aditivas; no se eliminaron tablas ni datos existentes.
+- Advisories: sin avisos nuevos de RLS. Sigue el aviso de protección de claves
+  filtradas deshabilitada; no se activaron opciones de pago. Índices aún sin uso
+  se conservan por ser nuevas rutas de acceso y claves foráneas.
+- Pendiente: validar los favoritos con dos sesiones reales de navegador y probar
+  sensores/cámara del Android físico. El test SQL no se presenta como ese E2E.
+
+- Accesibilidad del buscador: semántica combobox/listbox, opción activa enlazada
+  con aria-activedescendant y selección por flechas/Enter. Escape cierra la lista.
+  El primer Enter elige una propuesta; el segundo confirma el punto, manteniendo
+  la misma comprobación explícita disponible con ratón o pantalla táctil.

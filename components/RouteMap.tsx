@@ -5,39 +5,9 @@ import L, { type LatLngTuple } from 'leaflet';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { TILE_ATTRIBUTION, TILE_URL } from '@/lib/map-config';
+import { decodePolyline } from '@/lib/polyline';
 
 type Waypoint = { lat: number; lng: number; label?: string; type: string };
-
-function decodePolyline(encoded: string): LatLngTuple[] {
-  const points: LatLngTuple[] = [];
-  let index = 0;
-  let latitude = 0;
-  let longitude = 0;
-  while (index < encoded.length) {
-    let result = 0;
-    let shift = 0;
-    let byte = 0;
-    do {
-      if (index >= encoded.length) return points;
-      byte = encoded.charCodeAt(index++) - 63;
-      result |= (byte & 0x1f) << shift;
-      shift += 5;
-    } while (byte >= 0x20);
-    latitude += (result & 1) ? ~(result >> 1) : (result >> 1);
-
-    result = 0;
-    shift = 0;
-    do {
-      if (index >= encoded.length) return points;
-      byte = encoded.charCodeAt(index++) - 63;
-      result |= (byte & 0x1f) << shift;
-      shift += 5;
-    } while (byte >= 0x20);
-    longitude += (result & 1) ? ~(result >> 1) : (result >> 1);
-    points.push([latitude / 1e5, longitude / 1e5]);
-  }
-  return points;
-}
 
 function FitRoute({ points }: { points: LatLngTuple[] }) {
   const map = useMap();

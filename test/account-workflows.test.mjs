@@ -13,22 +13,27 @@ const { default: VehicleManager } = await import('../components/VehicleManager.t
 const { default: SavedRoutesPanel } = await import('../components/SavedRoutesPanel.tsx');
 const { default: ManifestImport } = await import('../components/ManifestImport.tsx');
 const { default: LocationInput } = await import('../components/LocationInput.tsx');
+const { default: LocationBookProvider } = await import('../components/LocationBookProvider.tsx');
+const { default: RouteExports } = await import('../components/RouteExports.tsx');
 const savedFrom = supabase.from, savedFetch = globalThis.fetch;
 let root, container, tables, writes, reads;
 const user = { id: 'owner-one', email: 'owner@example.test' };
 function database() {
-  tables = { profiles: [{ id: user.id, display_name: 'Operador' }], fleets: [], vehicles: [], saved_routes: [{ id: 'route-one', name: 'Entrega anterior', owner_id: user.id, status: 'planned', created_at: '2026-11-08', origin: { label: 'Origen' }, destination: { label: 'Destino' } }] }; writes = []; reads = [];
+  tables = { favorite_locations: [], profiles: [{ id: user.id, display_name: 'Operador' }], fleets: [], vehicles: [], saved_routes: [{ id: 'route-one', name: 'Entrega anterior', owner_id: user.id, status: 'planned', created_at: '2026-11-08', origin: { label: 'Origen' }, destination: { label: 'Destino' } }] }; writes = []; reads = [];
   supabase.from = table => {
     let filters = [], mode = 'read', values, singular = false;
     const query = {
       select(columns) { reads.push({ table, columns }); return query; }, order() { return query; }, limit() { return query; },
       eq(key, value) { filters.push(row => row[key] === value); return query; },
       neq(key, value) { filters.push(row => row[key] !== value); return query; },
+      abortSignal() { return query; },
+      upsert(value) { mode = 'upsert'; values = value; return query; },
       insert(value) { mode = 'insert'; values = value; return query; },
       update(value) { mode = 'update'; values = value; return query; },
       single() { singular = true; return query; }, maybeSingle() { singular = true; return query; },
       then(resolve, reject) {
         let data = tables[table].filter(row => filters.every(filter => filter(row)));
+        if (mode === 'upsert') { let row = tables[table].find(item => item.owner_id === values.owner_id && item.lat === values.lat && item.lng === values.lng); if (row) Object.assign(row, values); else { row = { id:'favorite-new', ...values }; tables[table].push(row); } data = [row]; writes.push({ table, values }); }
         if (mode === 'insert') { data = [{ id: 'vehicle-new', ...values }]; tables[table].push(...data); writes.push({ table, values }); }
         if (mode === 'update') { data.forEach(row => Object.assign(row, values)); writes.push({ table, values }); }
         return Promise.resolve({ data: singular ? data[0] || null : data.map(row => ({ ...row })), error: null }).then(resolve, reject);
@@ -102,4 +107,36 @@ test('saved-route list loads geometry and instructions only when opening a route
   await act(async () => button('Cargar ruta').click());
   assert.ok(reads[1].columns.endsWith(',route_metadata'));
   assert.equal(loaded.route_metadata.result.distanceMeters, 123);
+});
+
+test('favorite workflow names and stores a confirmed branch, archives it, and restores without duplicates', async () => {
+  database();
+  const point = { label:'Bodega Aurrera Express, Monterrey',lat:25.721274,lng:-100.325989,plusCode:'75QXPMCF+GJ' };
+  function Harness() { const [selected,setSelected]=useState(point); const [value,setValue]=useState(point.label); return React.createElement(LocationBookProvider,{user},React.createElement(LocationInput,{title:'Destino',color:'orange',value,selected,apiUrl:'/api',placeholder:'',onChange:setValue,onConfirm:setSelected})); }
+  await render(React.createElement(Harness));
+  await act(async()=>button('Guardar sucursal').click());
+  await fill(container.querySelector('[aria-label="Nombre del favorito para Destino"]'),'Express · sucursal 1234');
+  await act(async()=>button('Guardar favorito').click());
+  assert.equal(tables.favorite_locations.length,1); assert.equal(tables.favorite_locations[0].name,'Express · sucursal 1234'); assert.equal(tables.favorite_locations[0].lat,point.lat);
+  await act(async()=>button('Quitar de favoritos').click()); assert.equal(tables.favorite_locations[0].archived,true);
+  await act(async()=>button('Guardar sucursal').click()); await act(async()=>button('Guardar favorito').click());
+  assert.equal(tables.favorite_locations.length,1); assert.equal(tables.favorite_locations[0].archived,false);
+});
+test('recent branch can be reused without another geocoding call and cleared locally', async () => {
+  database(); let networkCalls=0; globalThis.fetch=async()=>{networkCalls++;return Response.json({suggestions:[]});};
+  window.localStorage.setItem('route-planner:recent-locations:v1:owner-one',JSON.stringify([{label:'Sucursal reciente',lat:25.721274,lng:-100.325989}]));
+  function Harness() { const [selected,setSelected]=useState(null);const [value,setValue]=useState('');return React.createElement(LocationBookProvider,{user},React.createElement(LocationInput,{title:'Destino',color:'orange',value,selected,apiUrl:'/api',placeholder:'',onChange:setValue,onConfirm:setSelected})); }
+  await render(React.createElement(Harness)); await act(async()=>button('Recientes y favoritos').click());
+  await act(async()=>button('Sucursal reciente').click()); assert.equal(container.querySelector('.field input').value,'Sucursal reciente'); assert.equal(networkCalls,0);
+  await act(async()=>button('Recientes y favoritos').click()); await act(async()=>button('Borrar recientes').click());
+  assert.equal(window.localStorage.getItem('route-planner:recent-locations:v1:owner-one'),null);
+});
+test('export buttons prepare a downloadable file with the selected format',async t=>{
+  const oldCreate=URL.createObjectURL,oldRevoke=URL.revokeObjectURL,oldClick=window.HTMLAnchorElement.prototype.click;
+  let savedBlob,downloadName;
+  URL.createObjectURL=blob=>{savedBlob=blob;return 'blob:test-route';};URL.revokeObjectURL=()=>{};
+  window.HTMLAnchorElement.prototype.click=function(){downloadName=this.download;};
+  t.after(()=>{URL.createObjectURL=oldCreate;URL.revokeObjectURL=oldRevoke;window.HTMLAnchorElement.prototype.click=oldClick;});
+  await render(React.createElement(RouteExports,{truck:true,route:{distanceMeters:100,durationSeconds:60,sections:[],waypoints:[{type:'origin',label:'Origen',lat:25,lng:-100},{type:'destination',label:'Destino',lat:26,lng:-101}]}}));
+  await act(async()=>button('GPX').click()); assert.match(downloadName,/\.gpx$/);assert.match(await savedBlob.text(),/<rtept lat="25" lon="-100">/);
 });

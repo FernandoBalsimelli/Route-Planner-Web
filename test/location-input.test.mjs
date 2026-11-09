@@ -109,3 +109,22 @@ test('stop controls reorder the complete input and keep boundary controls disabl
   assert.deepEqual([...container.querySelectorAll('input')].map(input => input.value), ['Segunda dirección', 'Primera dirección']);
   assert.equal(container.querySelectorAll('.location-confirmed').length, 2);
 });
+
+test('keyboard selects a branch with arrows and requires explicit confirmation before using it', async () => {
+  let confirmed;
+  function KeyboardHarness() {
+    const [value,setValue]=useState('Bodega Aurrera');const [selected,setSelected]=useState(null);
+    return React.createElement(LocationInput,{title:'Destino',color:'orange',value,selected,apiUrl:'/api',placeholder:'',onChange:setValue,onConfirm:point=>{confirmed=point;setSelected(point);}});
+  }
+  globalThis.fetch=async()=>Response.json({suggestions:[{label:'Sucursal uno',lat:25,lng:-100},{label:'Sucursal dos',lat:25.1,lng:-100.1}]});
+  container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  await act(async()=>root.render(React.createElement(KeyboardHarness)));
+  await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));
+  const input=container.querySelector('input');
+  const key=async value=>act(async()=>input.dispatchEvent(new window.KeyboardEvent('keydown',{key:value,bubbles:true,cancelable:true})));
+  await key('ArrowDown');await key('ArrowDown');
+  assert.equal(container.querySelector('[role="option"][aria-selected="true"]').textContent.includes('Sucursal dos'),true);
+  assert.equal(document.getElementById(input.getAttribute('aria-activedescendant')).getAttribute('role'),'option');
+  await key('Enter');assert.equal(confirmed,undefined);assert.match(container.querySelector('.location-confirm-card').textContent,/Sucursal dos/);
+  await key('Enter');assert.deepEqual(confirmed,{label:'Sucursal dos',lat:25.1,lng:-100.1});assert.equal(input.value,'Sucursal dos');
+});

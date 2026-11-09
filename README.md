@@ -96,3 +96,17 @@ al editar el recorrido para que no aparezcan resultados anteriores.
 Prueba opcional del motor OCR con una foto local:
 `node test/ocr-smoke.mjs /ruta/a/foto.png`. Requiere conexión para el modelo español
 la primera vez; esta prueba Node no sustituye la captura con la cámara de Android.
+
+### Sucursales guardadas y exportación
+
+En cualquier campo, **Recientes y favoritos** permite reutilizar coordenadas ya
+confirmadas. Los últimos 12 puntos se conservan en este dispositivo, separados
+por cuenta, y se pueden borrar. **Guardar sucursal** permite asignar un nombre
+propio al punto confirmado. Los favoritos se sincronizan con Supabase bajo RLS
+de dueño; quitar uno lo archiva y volver a guardarlo lo recupera sin duplicarlo.
+
+Después de calcular o recuperar una ruta, **Exportar recorrido** descarga CSV,
+GPX 1.1 o GeoJSON. CSV conserva las entregas en orden y sus coordenadas. GPX y
+GeoJSON incluyen el trazado real del proveedor cuando existe; no conectan paradas
+con una línea inventada. Las restricciones de camión no se transfieren a otras
+aplicaciones al importar estos archivos.
