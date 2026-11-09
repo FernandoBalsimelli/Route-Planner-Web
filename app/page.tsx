@@ -21,6 +21,7 @@ import { persistRoute, routeSaveData } from '@/lib/route-save';
 import AppIcon from '@/components/AppIcon';
 import ThemeToggle from '@/components/ThemeToggle';
 import TruckGuide from '@/components/TruckGuide';
+import RouteNavigator from '@/components/RouteNavigator';
 
 type Stop = RouteStop;
 const API_URL = '/api/route-planner';
@@ -60,6 +61,9 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<RouteResult | null>(null);
+  const [navigationPosition, setNavigationPosition] = useState<{lat:number;lng:number}|null>(null);
+  const [navigationFollow, setNavigationFollow] = useState(false);
+  useEffect(()=>{setNavigationPosition(null);setNavigationFollow(false);},[result]);
   const [providerStatus, setProviderStatus] = useState<'unknown' | 'ready' | 'missing'>('unknown');
   const [user, setUser] = useState<User | null>(null);
   const [saving, setSaving] = useState(false);
@@ -262,14 +266,14 @@ export default function Home() {
         <aside id="mapa-planificacion" className={`result-panel ${result ? 'has-result' : 'is-planning'}`} aria-label="Mapa y resultado de la ruta">
           <div className="map-card">
             <div className="result-top"><div><span className="live-dot"/><strong>{result ? 'Tu recorrido' : mapSearch?.points.length ? `Sucursales · ${mapSearch.title.toLowerCase()}` : 'Explora tu recorrido'}</strong></div><a href="#puntos-ruta">Ver entregas <AppIcon name="arrow" size={16}/></a></div>
-            {result ? <><div className="metrics"><div><small>Distancia</small><strong>{formatDistance(result.distanceMeters)}</strong></div><div><small>Tiempo estimado</small><strong>{formatDuration(result.durationSeconds)}</strong></div><span className="route-ready"><AppIcon name="check" size={16}/>Calculada</span></div><RouteMap polyline={result.polyline} waypoints={result.waypoints || []}/></> : <RouteMap planning waypoints={previewWaypoints} reference={selectedOrigin || searchArea} candidates={mapSearch?.points} targetTitle={mapSearch?.title} onChooseCandidate={chooseMapCandidate}/>}
+            {result ? <><div className="metrics"><div><small>Distancia</small><strong>{formatDistance(result.distanceMeters)}</strong></div><div><small>Tiempo estimado</small><strong>{formatDuration(result.durationSeconds)}</strong></div><span className="route-ready"><AppIcon name="check" size={16}/>Calculada</span></div><RouteMap polyline={result.polyline} waypoints={result.waypoints || []} livePosition={navigationPosition} followPosition={navigationFollow}/></> : <RouteMap planning waypoints={previewWaypoints} reference={selectedOrigin || searchArea} candidates={mapSearch?.points} targetTitle={mapSearch?.title} onChooseCandidate={chooseMapCandidate}/>}
             <div className="map-caption"><span><i className="legend-dot origin"/>Origen</span><span><i className="legend-dot stop"/>Entregas</span><span><i className="legend-dot destination"/>Destino</span>{Boolean(mapSearch?.points.length) && <span><i className="legend-dot candidate"/>S: sugerencias</span>}</div>
           </div>
           {!result && <div className="map-help"><span className="help-icon"><AppIcon name="plan"/></span><div><strong>{mapSearch?.points.length ? `${mapSearch.points.length} coincidencias en el mapa` : 'Encuentra la sucursal correcta'}</strong><p>{mapSearch?.points.length ? 'S1, S2… siguen el orden del buscador. Toca el marcador y confirma la sucursal.' : 'Empieza con tu ubicación o un origen. Después busca «Bodega Aurrera Express» para priorizar coincidencias cercanas.'}</p></div></div>}
           {mode === 'truck' && <button type="button" className="truck-coverage" onClick={() => openWorkspace('guide')}><AppIcon name="shield"/><span><b>Restricciones cartográficas</b><small>Revisa la cobertura y la normativa antes de salir.</small></span><span aria-hidden="true">↗</span></button>}
           {result && <div className="result-details">
             {result.optimized && <p className="optimized-note"><AppIcon name="check" size={16}/>Orden de entregas optimizado por tiempo de viaje.</p>}
-            <h2>Detalle del recorrido</h2><div className="route-line">{(result.waypoints || []).map((point,index) => <div className="route-point" key={index}><i className={point.type === 'origin' ? 'dot green' : point.type === 'destination' ? 'dot orange' : 'stop-number'}>{point.type === 'stop' ? index : ''}</i><span><b>{point.type === 'origin' ? 'Origen' : point.type === 'destination' ? 'Destino' : `Entrega ${index}`}</b><small>{point.label || `${point.lat}, ${point.lng}`}</small></span></div>)}</div>
+            <RouteNavigator key={user?.id || 'anonymous'} active={workspace === 'planner'} route={result} truck={mode === 'truck'} onPosition={setNavigationPosition} onFollow={setNavigationFollow}/><h2>Detalle del recorrido</h2><div className="route-line">{(result.waypoints || []).map((point,index) => <div className="route-point" key={index}><i className={point.type === 'origin' ? 'dot green' : point.type === 'destination' ? 'dot orange' : 'stop-number'}>{point.type === 'stop' ? index : ''}</i><span><b>{point.type === 'origin' ? 'Origen' : point.type === 'destination' ? 'Destino' : `Entrega ${index}`}</b><small>{point.label || `${point.lat}, ${point.lng}`}</small></span></div>)}</div>
             <details className="instructions"><summary>Indicaciones de conducción</summary>{result.sections.flatMap(section => section.actions || []).filter(action => action.instruction).slice(0, 12).map((action, index) => <p key={index}>{index + 1}. {action.instruction}</p>)}</details>
             {(result.notices || []).length > 0 && <div className="notice-box"><strong>Avisos de ruta</strong>{result.notices?.map((notice,index) => <p key={index}>{notice.title || notice.details || notice.code}</p>)}</div>}
             <div className="save-route-area"><label className="route-save-name">Nombre del recorrido<input maxLength={120} value={routeName} onChange={event => setRouteName(event.target.value)} placeholder="Ej. Express · entregas de la mañana"/></label><button type="button" className="primary-button save-button" disabled={saving} onClick={saveRoute}><AppIcon name="saved"/>{saving ? 'Guardando…' : 'Guardar esta ruta'}</button>{saveMessage && <p className="save-message" role="status">{saveMessage}</p>}</div>

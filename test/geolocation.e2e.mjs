@@ -230,3 +230,77 @@ test('mobile numbered-address search exposes a street fallback without claiming 
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
   } finally { await context.close(); }
 });
+
+async function navigationSetup(){
+ const testUser={id:'00000000-0000-4000-8000-000000000001',aud:'authenticated',role:'authenticated',email:'driver@example.test',app_metadata:{},user_metadata:{},created_at:'2026-01-01T00:00:00Z'};
+ const exp=Math.floor(Date.now()/1000)+3600;
+ const token=[Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url'),Buffer.from(JSON.stringify({sub:testUser.id,aud:'authenticated',exp})).toString('base64url'),'test-signature'].join('.');
+ const session={access_token:token,refresh_token:'synthetic-refresh-token',expires_in:3600,expires_at:exp,token_type:'bearer',user:testUser};
+ const {context,page}=await setup(()=>{
+  window.__gps={started:0,cleared:[],callbacks:[]};
+  Object.defineProperty(navigator,'geolocation',{value:{getCurrentPosition(){},watchPosition(ok,fail){const gps=window.__gps;gps.started++;gps.callbacks.push({ok,fail});return gps.started;},clearWatch(id){window.__gps.cleared.push(id);}}});
+ });
+ await context.addInitScript(({session})=>localStorage.setItem('sb-auth-auth-token',JSON.stringify(session)),{session});
+ await context.route('https://auth.example.test/**',route=>route.fulfill({json:route.request().url().includes('/auth/v1/user')?testUser:[]}));
+ const {navigationRoute}=await import('./fixtures/route-navigation.mjs');
+ let calculations=0;
+ await page.route('**/api/route-planner/**',route=>{
+  if(new URL(route.request().url()).pathname.endsWith('/routes/plan')){calculations++;return route.fulfill({json:{ok:true,route:navigationRoute}});}
+  return route.fulfill({json:{ok:true,suggestions:[]}});
+ });
+ await page.goto(base);
+ await page.getByRole('button',{name:'Camión',exact:true}).click();
+ await page.getByRole('combobox',{name:'Origen',exact:true}).fill('Origen de prueba');
+ await page.getByRole('combobox',{name:'Destino',exact:true}).fill('Destino de prueba');
+ await page.getByRole('button',{name:'Calcular ruta',exact:true}).click();
+ await page.getByRole('heading',{name:'Navegar esta ruta'}).waitFor();
+ return {context,page,calculations:()=>calculations};
+}
+test('mobile navigation follows the stored path, warns on deviation and never requests a replacement route',async()=>{
+ const {context,page,calculations}=await navigationSetup();
+ try{
+  const start=page.getByRole('button',{name:'Iniciar navegación en la app'});
+  assert.equal(await page.evaluate(()=>window.__gps.started),0);assert.ok(await start.isDisabled());
+  await page.getByRole('checkbox',{name:/Revisé los accesos y permisos/}).check();await start.click();
+  assert.equal(await page.evaluate(()=>window.__gps.started),1);
+  await page.evaluate(()=>window.__gps.callbacks[0].ok({coords:{latitude:25,longitude:-99.9995,accuracy:10,speed:5},timestamp:Date.now()}));
+  await page.locator('.next-maneuver').getByText(/Gira a la izquierda/).waitFor();
+  await page.evaluate(()=>window.__gps.callbacks[0].ok({coords:{latitude:25.01,longitude:-99.999,accuracy:10,speed:5},timestamp:Date.now()+1000}));
+  await page.locator('.navigation-status').getByText(/fuera del trazado/).waitFor();
+  assert.equal(await page.locator('.next-maneuver').count(),0);assert.equal(calculations(),1);
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+  await page.getByRole('button',{name:'Detener navegación'}).click();assert.deepEqual(await page.evaluate(()=>window.__gps.cleared),[1]);
+  await page.evaluate(()=>window.__gps.callbacks[0].ok({coords:{latitude:25.001,longitude:-99.998,accuracy:10,speed:5},timestamp:Date.now()+2000}));
+  await page.locator('.navigation-status').getByText('Navegación detenida.').waitFor();
+ }finally{await context.close();}
+});
+test('leaving the planner stops active GPS and does not resume it upon returning',async()=>{
+ const {context,page}=await navigationSetup();
+ try{
+  await page.getByRole('checkbox',{name:/Revisé los accesos y permisos/}).check();await page.getByRole('button',{name:'Iniciar navegación en la app'}).click();
+  const nav=page.getByRole('navigation',{name:'Secciones de Route Planner'});
+  await nav.getByRole('button',{name:'Vehículos',exact:true}).click();
+  assert.deepEqual(await page.evaluate(()=>window.__gps.cleared),[1]);
+  await nav.getByRole('button',{name:'Planificar',exact:true}).click();
+  assert.ok(await page.getByRole('button',{name:'Iniciar navegación en la app'}).isDisabled());assert.equal(await page.evaluate(()=>window.__gps.started),1);
+ }finally{await context.close();}
+});
+test('municipal directory distinguishes source records from missing legal coverage on mobile',async()=>{
+ const {context,page}=await setup(()=>{});
+ try{
+  await page.route('**/api/route-planner/v1/regulations/municipalities**',route=>{
+   const url=new URL(route.request().url());
+   if(url.pathname.endsWith('/19039'))return route.fulfill({json:{name:'Monterrey',status:'reference_only',routingEnforced:false,source:{url:'https://www.monterrey.gob.mx/reglamento.pdf',checkedAt:'2026-11-09T00:00:00Z'},trunkSegments:[{road:'Morones Prieto',segment:'Tramo de referencia, sentido al poniente',page:163,annex:1}],timeRules:[],notices:['Falta validar geometrías y permisos.']}});
+   if(url.pathname.endsWith('/19001'))return route.fulfill({json:{name:'Abasolo',status:'not_loaded',routingEnforced:false,source:null,trunkSegments:[],timeRules:[],notices:['No equivale a circulación libre.']}});
+   return route.fulfill({json:{states:[{id:'19',name:'Nuevo León'}],totalMunicipalities:2478,municipalities:[{id:'19039',name:'Monterrey',state:'19',coverage:'reference_only',routingEnforced:false},{id:'19001',name:'Abasolo',state:'19',coverage:'not_loaded',routingEnforced:false}]}});
+  });
+  await page.goto(base+'/#guia-camion');await page.getByRole('button',{name:'Consultar cobertura municipal'}).click();
+  await page.getByText(/Ningún municipio tiene todavía validación automática completa/).waitFor();
+  await page.getByText('Referencia oficial consultable; no se aplica automáticamente al trazado.').waitFor();
+  await page.getByText('1 tramos de red troncal · Anexo 1').click();await page.getByRole('cell',{name:'Morones Prieto'}).waitFor();
+  await page.getByRole('combobox',{name:'Municipio o demarcación'}).selectOption('19001');
+  await page.getByText('Reglas oficiales aún no incorporadas. No significa circulación libre.').waitFor();
+  assert.equal(await page.getByRole('link',{name:'Abrir fuente oficial ↗'}).count(),0);
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+ }finally{await context.close();}
+});
