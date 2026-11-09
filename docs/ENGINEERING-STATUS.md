@@ -461,3 +461,34 @@ nunca prometer ausencia de inconvenientes de vialidad ni transferencia exacta a
 Google Maps. Pendientes generales: Android físico, pruebas autenticadas reales de
 aislamiento, preferencias/alternativas y enlaces autorizados. La tarea periódica
 sigue siendo necesaria; no declarar completo ni desactivar por cerrar este ciclo.
+
+## Ciclo: municipios cruzados por cada trazado
+
+Fecha: 2026-11-09. Base Web ec41d6b, API dfd0ba97. Se comprobaron primero
+`main`, ramas remotas y despliegues READY; no había un avance concurrente nuevo.
+
+- Se incorporan límites de las 2,478 áreas geoestadísticas municipales desde el
+  servicio vectorial oficial de INEGI. El metadato reporta Marco Geoestadístico
+  de diciembre de 2025. El generador verifica correspondencia exacta con el
+  catálogo y produce un índice local compacto; no consulta INEGI al calcular.
+- Cada polilínea se intersecta con municipios y devuelve orden aproximado, clave,
+  entidad y estado de cobertura. La simplificación usa tolerancia de 0.0005°
+  (aproximadamente 56 m), se muestra al usuario y puede ser incierta en límites.
+  El benchmark sintético de 1,001 puntos tardó cerca de 32 ms en esta ejecución.
+- El resultado de camión muestra «Referencia cargada» o «Reglas pendientes» por
+  municipio. Sigue declarando `not_verified` y `municipalGeometryEnforced=false`;
+  no convierte límites administrativos ni nombres de vialidades en permisos.
+- Se revisó la fuente consolidada de Monterrey: contiene la reforma publicada el
+  24 de abril de 2026 y mantiene artículos 37–43 y anexos 1–3. La contradicción
+  entre artículo 39 (lunes a viernes) y filas de fin de semana de los anexos se
+  conserva como revisión pendiente; no se aplica automáticamente.
+- Validación local: API 30 pruebas y build aprobados; Web 67 pruebas, TypeScript
+  y build aprobados. CI, E2E completo, integración y producción quedan por cerrar
+  en este ciclo antes de registrar commits y despliegues.
+
+### Siguiente punto de reanudación de este ciclo
+
+Comprobar CI y E2E, integrar árboles probados, desplegar API antes de Web y probar
+producción por el proxy. Después georreferenciar por sentido los 38 tramos de
+Monterrey y determinar qué artículos pueden convertirse en restricciones del
+motor sin interpretar indebidamente excepciones, permisos o señalización.
