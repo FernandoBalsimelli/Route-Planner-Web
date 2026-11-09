@@ -129,3 +129,15 @@ sustituyen solo en esa suite para evitar depender de terceros; los servicios
 reales se comprueban por separado en producción. La cámara y el GPS físicos
 siguen requiriendo una prueba en el teléfono. El workflow usa permisos de lectura,
 acciones fijadas por SHA y un runner estándar Ubuntu en este repositorio público.
+
+
+### Espacio de trabajo
+
+Planificar reúne el panel de entregas y el mapa principal. Mis rutas y Vehículos
+son secciones separadas; cambiar entre ellas conserva el borrador de planificación.
+En Android los accesos quedan en la barra inferior. El botón de apariencia
+alterna entre tema claro y oscuro y recuerda la preferencia en este dispositivo.
+
+La sección Guía camión explica los límites reales del motor y enlaza las fuentes
+oficiales. Véase [alcance de camiones](docs/TRUCK-ROUTING.md). No se certifica el
+cumplimiento de normativa federal o municipal a partir de las dimensiones del mapa.

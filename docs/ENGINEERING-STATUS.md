@@ -113,7 +113,7 @@ No se hicieron operaciones sobre otros proyectos ni se contrataron servicios.
 | P1 | Pruebas autenticadas completas de cuenta, rutas, flotas y aislamiento RLS | Parcial; falta fixture de cuenta de prueba |
 | P1 | Rate limiting por cliente detrás del proxy | Revisar separación entre usuarios sin confiar en cabeceras falsificables |
 | P2 | Caché acotada, deduplicación de búsquedas y estados accesibles de teclado | Pendiente |
-| P2 | Mapa como elemento principal, tema claro/oscuro y revisión Android | Mapa principal implementado; tema y Android físico pendientes |
+| P2 | Mapa como elemento principal, tema claro/oscuro y revisión Android | Mapa principal y temas implementados; Android físico pendiente |
 | P2 | Evitar peajes/autopistas, alternativas y preferencias verificadas del proveedor | Pendiente |
 | P3 | Compartir enlaces con autorización y caducidad | Pendiente |
 | P3 | Ejes, tipos de carga, restricciones locales y navegación avanzada | Pendiente |
@@ -319,8 +319,10 @@ restauraría sus avisos de seguridad; se prefiere corregir hacia adelante.
   deployment dpl_4CCnYX8VvjKKm5vxQYk2728oyvvJ; API 56b73a3.
 - Validación local: 48 pruebas Web aprobadas y TypeScript sin errores. Se añaden
   dos E2E para navegación móvil/tema persistente y mapa principal de escritorio.
-  Build de producción aprobado. Resultado del nuevo CI y verificación visual:
-  pendiente al crear commit.
+  Build de producción aprobado. CI del rediseño ca6c746 aprobado: run 42553186583, 48 pruebas y siete E2E
+  móviles/escritorio. Sin vulnerabilidades de producción reportadas por npm.
+  Se unifica también el icono PWA y el color de la barra del navegador.
+  Verificación visual de producción: pendiente de publicar.
 - Pendiente del programa general: prueba autenticada completa en navegador,
   lectura de PDF, preferencias/alternativas, compartir enlaces y validación de
   normativa municipal. No se declara completo el prompt maestro.
