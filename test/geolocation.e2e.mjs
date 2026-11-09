@@ -223,7 +223,7 @@ test('mobile numbered-address search exposes a street fallback without claiming 
     await page.goto(base);
     const query = 'S. Prueba 202, Colonia Ejemplo, 00000 Monterrey, N.L.';
     await page.getByRole('combobox', { name: 'Destino', exact: true }).fill(query);
-    await page.getByRole('option').click();
+    await page.locator('.location-suggestions').getByRole('option', { name: /San Ángel/ }).click();
     await page.getByText(/No se encontró el número 202/).waitFor();
     const external = new URL(await page.getByRole('link', { name: 'Buscar la dirección escrita en Google Maps' }).getAttribute('href'));
     assert.equal(external.searchParams.get('query'), query);
