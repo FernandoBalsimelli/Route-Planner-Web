@@ -3,7 +3,7 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { locateDevice } from '@/lib/geolocation';
-import { resolvePointLabel, type Coordinates, type LocationSelection } from '@/lib/locations';
+import { addressNumberNotice, resolvePointLabel, type Coordinates, type LocationSelection } from '@/lib/locations';
 import LocationBookTools from './LocationBookTools';
 import { useLocationBook } from './LocationBookProvider';
 import { validLocation } from '@/lib/location-book';
@@ -218,17 +218,21 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       >
         <span className="suggestion-pin">{onSuggestions ? `S${index + 1}` : '⌖'}</span>
         <span className="suggestion-copy"><strong>{suggestion.label}</strong><small>{locationKind(suggestion.kind) && `${locationKind(suggestion.kind)} · `}{suggestion.plusCode || `${suggestion.lat.toFixed(6)}, ${suggestion.lng.toFixed(6)}`}</small>{suggestion.distanceMeters != null && <small>{suggestion.distanceMeters < 1000 ? `${suggestion.distanceMeters} m` : `${(suggestion.distanceMeters / 1000).toFixed(1)} km`} del origen · en línea recta</small>}</span>
+        {suggestion.numberMatch && <small className="number-match-label">{suggestion.numberMatch === 'matched' ? `Número ${suggestion.houseNumber} según proveedor` : suggestion.numberMatch === 'different' ? `Otro número: ${suggestion.houseNumber}` : `Aproximado · sin número ${suggestion.requestedHouseNumber}`}</small>}
         <span className="suggestion-arrow">›</span>
       </button>)}
     </div>}
     {searchError && <p className="location-search-error">{searchError} Puedes continuar escribiendo una dirección completa.</p>}
     {pending && <div className="location-confirm-card">
       <div><strong>¿Es este el punto correcto?</strong><p>{pending.label}</p><small>{locationKind(pending.kind) && `${locationKind(pending.kind)} · `}{pending.plusCode || `${pending.lat.toFixed(6)}, ${pending.lng.toFixed(6)}`}</small></div>
+      {addressNumberNotice(pending) && <p className="address-number-notice" role="status">{addressNumberNotice(pending)}</p>}
+      {pending.numberMatch && pending.numberMatch !== 'matched' && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value.trim())}`} target="_blank" rel="noreferrer">Buscar la dirección escrita en Google Maps ↗</a>}
       <a href={`https://www.google.com/maps/search/?api=1&query=${pending.lat},${pending.lng}`} target="_blank" rel="noreferrer">Ver mapa ↗</a>
       <button type="button" className="map-open-button" onClick={() => { setMapSeed(pending); setMapOpen(true); }}>Corroborar aquí en el mapa</button>
       <div className="location-confirm-actions"><button type="button" onClick={() => setPending(null)}>Elegir otro</button><button type="button" onClick={confirmPending}>Confirmar punto</button></div>
     </div>}
     {selected && selected.label === value && !pending && <p className="location-confirmed"><span>✓ Punto confirmado</span><small>{selected.plusCode || `${selected.lat.toFixed(6)}, ${selected.lng.toFixed(6)}`}</small></p>}
+    {selected && selected.label === value && addressNumberNotice(selected) && <p className="address-number-notice">{addressNumberNotice(selected)}</p>}
     {selected?.source === 'geolocation' && selected.label === value && <p className="location-accuracy">{Number.isFinite(selected.accuracyM) ? `Precisión aproximada: ±${Math.ceil(selected.accuracyM!)} m. ` : ''}Revisa que el punto corresponda al acceso que vas a utilizar. <a href={`https://www.google.com/maps/search/?api=1&query=${selected.lat},${selected.lng}`} target="_blank" rel="noreferrer">Ver ubicación ↗</a></p>}
   </div>;
 }

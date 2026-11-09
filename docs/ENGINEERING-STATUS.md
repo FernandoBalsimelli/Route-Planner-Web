@@ -377,3 +377,31 @@ en la copia anterior de trabajo (test/integration y .github/workflows/checks.yml
 este ciclo no los alteró ni los presenta como aprobados. Después continuar con
 preferencias/alternativas del proveedor y el resto del programa. No repetir el
 rediseño, favoritos, exportación ni lector PDF, que ya tienen implementación.
+
+## Ciclo: dirección numerada y límites de navegación externa
+
+- Se reprodujo una consulta numerada en Monterrey en producción: el índice devolvía calles, colonia y otros lugares, sin acreditar
+  el número 202. Sus Plus Codes correspondían a esos puntos aproximados.
+- La API usa búsqueda completa para direcciones con número, conserva el número
+  reportado por el proveedor, consulta el índice alternativo si falta y prioriza
+  coincidencias numéricas antes de deduplicar puntos cercanos. No inventa portales.
+- La interfaz distingue número reportado, otro número y propuesta aproximada.
+  Ofrece corregir en el mapa y buscar el texto original en Google Maps. El cálculo
+  con una dirección escrita no confirmada devuelve 422 si no se encontró su
+  número, en vez de elegir automáticamente el centro de una calle.
+- Google Maps recibe puntos y recalcula; no recibe el trazado ORS, las dimensiones
+  HGV ni permisos. Se refuerza el aviso en la interfaz. No se vende como transferencia
+  exacta agregar puntos intermedios ni exportar GPX.
+- Guía camión enlaza el reglamento oficial de Monterrey, arts. 37–45 y anexos 1–3.
+  La aplicación no verifica automáticamente esos anexos, itinerarios y permisos.
+  No se crea un supuesto mapa de calles legales a partir de nombres sin geometría.
+- Se mantienen los puntos y Plus Codes confirmados, GPS y selector de acceso.
+  No se modifican datos, políticas, credenciales ni proyectos de Gestión.
+- Verificación de este ciclo: pruebas nuevas de API y de interfaz con el caso
+  reportado; pendiente resultado de CI y confirmación de producción.
+- Recuperación previa: Web ec3c939 / dpl_HjKKP66A1Hw17Cf3GBzfYNdUUF2P;
+  API bdd9b8f / dpl_G4cdPmeFmqtgMToTE9tNeN6vC8Ao.
+
+- Las nuevas fixtures usan una dirección ficticia, sin conservar el domicilio
+  reportado. La comparación real con Photon/Komoot quedó bloqueada por revisión
+  automática de permisos; no se reintenta ese envío por otra vía.

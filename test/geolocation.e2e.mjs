@@ -215,3 +215,18 @@ test('scanned PDF is rasterized and read by the real Spanish OCR worker before r
     assert.ok(await page.getByRole('button', { name: 'Añadir 0 entregas confirmadas' }).isDisabled());
   } finally { await context.close(); }
 });
+
+test('mobile numbered-address search exposes a street fallback without claiming an exact house', async () => {
+  const { context, page } = await setup(() => {});
+  try {
+    await page.route('**/api/route-planner/**', route => route.fulfill({ json: { ok: true, suggestions: [{ label: 'San Ángel, Monterrey', lat: 25.603978, lng: -100.275075, kind: 'street', requestedHouseNumber: '202', numberMatch: 'missing', plusCode: '75QXJP3F+HX' }] } }));
+    await page.goto(base);
+    const query = 'S. Prueba 202, Colonia Ejemplo, 00000 Monterrey, N.L.';
+    await page.getByRole('combobox', { name: 'Destino', exact: true }).fill(query);
+    await page.getByRole('option').click();
+    await page.getByText(/No se encontró el número 202/).waitFor();
+    const external = new URL(await page.getByRole('link', { name: 'Buscar la dirección escrita en Google Maps' }).getAttribute('href'));
+    assert.equal(external.searchParams.get('query'), query);
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+  } finally { await context.close(); }
+});

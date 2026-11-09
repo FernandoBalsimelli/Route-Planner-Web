@@ -148,3 +148,21 @@ test('an externally selected origin cancels a pending GPS fix',async()=>{
   await act(async()=>button('Usar mi ubicación').click());await act(async()=>button('Cargar punto externo').click());
   await act(async()=>finish({coords:{latitude:10,longitude:10,accuracy:10}}));assert.equal(container.querySelector('input').value,'Origen elegido en el mapa');
 });
+
+test('missing house number is labelled approximate before and after explicit confirmation', async () => {
+  const requested = 'S. Prueba 202, Colonia Ejemplo, 00000 Monterrey, N.L.';
+  const point = { label: 'San Ángel, Monterrey', lat: 25.603978, lng: -100.275075, kind: 'street', requestedHouseNumber: '202', numberMatch: 'missing', plusCode: '75QXJP3F+HX' };
+  globalThis.fetch = async () => Response.json({ suggestions: [point] });
+  function AddressHarness() { const [value, setValue] = useState(requested), [selected, setSelected] = useState(null); return React.createElement(LocationInput, { title: 'Destino', color: 'orange', value, selected, apiUrl: '/api', placeholder: '', onChange: setValue, onConfirm: setSelected }); }
+  container = document.createElement('div'); document.body.append(container); root = createRoot(container);
+  await act(async () => root.render(React.createElement(AddressHarness)));
+  await act(async () => new Promise(resolve => setTimeout(resolve, 350)));
+  assert.match(container.querySelector('[role="option"]').textContent, /Aproximado.*sin número 202/);
+  await act(async () => container.querySelector('[role="option"]').click());
+  assert.match(container.querySelector('.address-number-notice').textContent, /No se encontró el número 202/);
+  const originalSearch = [...container.querySelectorAll('a')].find(link => link.textContent.includes('dirección escrita'));
+  assert.equal(new URL(originalSearch.href).searchParams.get('query'), requested);
+  await act(async () => button('Confirmar punto').click());
+  assert.match(container.querySelector('.address-number-notice').textContent, /aproximado/);
+  assert.equal(container.querySelector('input').value, point.label);
+});
