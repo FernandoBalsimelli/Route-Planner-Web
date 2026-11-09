@@ -16,11 +16,19 @@ function FitRoute({ points }: { points: LatLngTuple[] }) {
   const map = useMap();
   const previous = useRef('');
   useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      if (map.getContainer().clientWidth) map.invalidateSize({ pan: false });
+    });
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
+  }, [map]);
+  useEffect(() => {
     const signature = JSON.stringify(points);
     if (signature === previous.current) return;
     previous.current = signature;
-    if (points.length > 1) map.fitBounds(L.latLngBounds(points), { padding: [28, 28], maxZoom: 15 });
-    else if (points.length === 1) map.setView(points[0], 14);
+    if (points.length > 1) map.fitBounds(L.latLngBounds(points), { padding: [28, 28], maxZoom: 15, animate: false });
+    else if (points.length === 1) map.setView(points[0], 14, { animate: false });
   }, [map, points]);
   return null;
 }
