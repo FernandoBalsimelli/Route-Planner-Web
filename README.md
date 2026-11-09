@@ -120,3 +120,12 @@ las coincidencias aparecen como S1, S2… en el mismo orden que la lista. Pulsa
 un marcador y «Usar como origen/parada/destino» para confirmar sus coordenadas.
 En móvil, el mapa aparece primero y el buscador incluye un enlace para regresar
 a sus coincidencias. No se dibuja ningún trazado antes de calcular la ruta.
+
+### Comprobaciones automáticas
+
+GitHub Actions ejecuta TypeScript, pruebas de componentes, build y la suite
+Chromium con viewport móvil de 390×844. Los mapas y las fuentes externas se
+sustituyen solo en esa suite para evitar depender de terceros; los servicios
+reales se comprueban por separado en producción. La cámara y el GPS físicos
+siguen requiriendo una prueba en el teléfono. El workflow usa permisos de lectura,
+acciones fijadas por SHA y un runner estándar Ubuntu en este repositorio público.

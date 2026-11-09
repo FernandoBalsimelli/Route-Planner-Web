@@ -278,3 +278,22 @@ restauraría sus avisos de seguridad; se prefiere corregir hacia adelante.
   exclusión de resultados lejanos de la vista inicial y cancelación del GPS.
   Se actualizan los selectores de la suite E2E al rol combobox; su ejecución móvil
   completa sigue pendiente en un host que pueda iniciar Chromium.
+
+## Ciclo: verificación continua y trazabilidad
+
+- Las dos PR de la base comprobada se integraron en main. Se verificó que los
+  árboles resultantes son idénticos a los commits probados antes de publicarlos.
+- Base Web en main: 226e94f / dpl_4CCnYX8VvjKKm5vxQYk2728oyvvJ (READY).
+  Base API en main: 56b73a3 / dpl_F3fPH36gNgdAYMY2S9EXb5gNgRNZ (READY).
+- Se añade CI con Node 26, permisos contents:read y acciones fijadas por SHA.
+  Web incluye viewport móvil Chromium, GPS simulado y selección desde el mapa.
+  API aplica las siete migraciones a Postgres 17 desechable y comprueba RLS,
+  guardado completo, reintentos, favoritos y papelera con dos uid sintéticos.
+- Se recuperan del historial alojado las cuatro migraciones iniciales para que
+  el esquema completo quede en Git. No se vuelven a ejecutar en producción.
+- Se elimina la animación de reajuste del mapa para estabilizar la selección
+  inmediata de marcadores. Mapas/fuentes externos se aíslan solo en las pruebas.
+- Estado de la primera ejecución de CI: pendiente de comprobar; todavía no se
+  considera aprobada por el mero hecho de haber escrito los workflows.
+- Alcance de costo: runners estándar en repositorios públicos; sin runners
+  grandes, artefactos de pago ni credenciales de producción en los jobs.

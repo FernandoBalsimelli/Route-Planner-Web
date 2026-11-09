@@ -23,6 +23,11 @@ after(async () => { await browser?.close(); server?.kill('SIGTERM'); });
 
 async function setup(mockPosition) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  // Third-party tiles/fonts are verified in production separately. Mobile
+  // interaction tests must not depend on those services or consume their quota.
+  await context.route('https://tile.openstreetmap.org/**', route => route.fulfill({ contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jWZkAAAAASUVORK5CYII=', 'base64') }));
+  await context.route('https://fonts.googleapis.com/**', route => route.abort());
+  await context.route('https://fonts.gstatic.com/**', route => route.abort());
   await context.addInitScript(mockPosition);
   const page = await context.newPage();
   return { context, page };
@@ -55,6 +60,29 @@ test('mobile GPS button resolves an address, retains coordinates and shows accur
     assert.equal(await page.locator('.location-confirmed').count(), 1);
     assert.equal(reverseCalls, 1);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'mobile layout has no horizontal overflow');
+  } finally { await context.close(); }
+});
+
+test('mobile map confirms the chosen nearby branch into the correct field', async () => {
+  const { context, page } = await setup(() => {});
+  try {
+    await page.route('**/api/route-planner/**', route => {
+      const query = new URL(route.request().url()).searchParams.get('q');
+      return route.fulfill({ json: { ok: true, suggestions: query === 'Monterrey'
+        ? [{ label: 'Monterrey, México', lat: 25.685163, lng: -100.315238 }]
+        : [{ label: 'Sucursal Express uno', lat: 25.721274, lng: -100.325989 }, { label: 'Sucursal Express dos', lat: 25.703465, lng: -100.253977, plusCode: '75QXPP3W+9C' }] } });
+    });
+    await page.goto(base);
+    await page.getByRole('combobox', { name: 'Origen', exact: true }).fill('Monterrey');
+    await page.getByRole('button', { name: 'S1', exact: true }).click();
+    await page.getByRole('button', { name: 'Usar como Origen', exact: true }).click();
+    await page.getByRole('combobox', { name: 'Destino', exact: true }).fill('Bodega Aurrera Express');
+    await page.getByRole('button', { name: 'S2', exact: true }).click();
+    await page.getByRole('button', { name: 'Usar como Destino', exact: true }).click();
+    assert.equal(await page.getByRole('combobox', { name: 'Destino', exact: true }).inputValue(), 'Sucursal Express dos');
+    const link = new URL(await page.getByRole('link', { name: /Abrir puntos en Google Maps/ }).getAttribute('href'));
+    assert.equal(link.searchParams.get('destination'), '25.703465, -100.253977');
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
   } finally { await context.close(); }
 });
 
