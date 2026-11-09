@@ -397,8 +397,13 @@ rediseño, favoritos, exportación ni lector PDF, que ya tienen implementación.
   No se crea un supuesto mapa de calles legales a partir de nombres sin geometría.
 - Se mantienen los puntos y Plus Codes confirmados, GPS y selector de acceso.
   No se modifican datos, políticas, credenciales ni proyectos de Gestión.
-- Verificación de este ciclo: pruebas nuevas de API y de interfaz con el caso
-  reportado; pendiente resultado de CI y confirmación de producción.
+- Verificación: API CI 42574876174 aprobado (23 pruebas y migraciones/RLS
+  en Postgres desechable); Web CI 42575333319 aprobado (56 pruebas y diez E2E
+  móvil/escritorio, TypeScript, build y auditoría). El primer E2E seleccionaba
+  una opción del vehículo; se acotó al listbox de direcciones y aprobó.
+- Publicación: API main e2ce88c / dpl_C9o2TsjTV31oFvuF2nCWGgvuRddz;
+  Web main f154164 / dpl_CCdQMKi2ofGCJSmPxXGeuoRqgEEv. Los árboles integrados
+  coinciden con los probados. Se mantienen los despliegues de recuperación.
 - Recuperación previa: Web ec3c939 / dpl_HjKKP66A1Hw17Cf3GBzfYNdUUF2P;
   API bdd9b8f / dpl_G4cdPmeFmqtgMToTE9tNeN6vC8Ao.
 
