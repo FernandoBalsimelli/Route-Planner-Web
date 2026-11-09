@@ -348,7 +348,11 @@ restauraría sus avisos de seguridad; se prefiere corregir hacia adelante.
   cancelación, archivo dañado, detección de página escaneada y conservación de
   números. E2E móvil adicional para el worker real, ausencia de cargas del
   documento, direcciones propuestas y confirmación obligatoria.
-- Pendientes de este ciclo: resultado de CI móvil y verificación de despliegue.
+- CI 42568753535 aprobado: 55 pruebas y ocho E2E móvil/escritorio, incluido
+  PDF con texto de dos páginas y worker real. Se añade además un E2E del PDF
+  escaneado con el OCR español real; pendiente su resultado y publicación.
+- La comprobación manual del selector de archivos agotó la espera del navegador;
+  no se presenta esa prueba manual como aprobada.
   Preview local no disponible: el lanzador añade opciones Vite incompatibles
   con Next.js (--host/--strictPort). No se modifica la app para compensarlo.
 - Recuperación: restaurar el deployment anterior; no se cambia API ni base de

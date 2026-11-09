@@ -19,3 +19,20 @@ export function assemblePdf(objects) {
   chunks.push(Buffer.from(`xref\n0 ${objects.length}\n0000000000 65535 f \n${offsets.slice(1).map(offset => `${String(offset).padStart(10, '0')} 00000 n \n`).join('')}trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`));
   return Buffer.concat(chunks);
 }
+
+export async function scannedManifestPdf() {
+  const { createCanvas } = await import('@napi-rs/canvas');
+  const canvas = createCanvas(1400, 700), context = canvas.getContext('2d');
+  context.fillStyle = 'white'; context.fillRect(0, 0, 1400, 700);
+  context.fillStyle = 'black'; context.font = '36px sans-serif';
+  ['MANIFIESTO DE ENTREGAS', 'Bodega Aurrera Express', 'Calle Cedro 312, Chihuahua', 'Bodega Aurrera Express', 'Avenida Universidad 100, Monterrey'].forEach((text, i) => context.fillText(text, 70, 90 + i * 105));
+  const jpeg = canvas.toBuffer('image/jpeg');
+  const stream = 'q 700 0 0 350 0 0 cm /Im1 Do Q';
+  return assemblePdf([null,
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [4 0 R] /Count 1 >>',
+    Buffer.concat([Buffer.from(`<< /Type /XObject /Subtype /Image /Width 1400 /Height 700 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`), jpeg, Buffer.from('\nendstream')]),
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 700 350] /Resources << /XObject << /Im1 3 0 R >> >> /Contents 5 0 R >>',
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+  ]);
+}

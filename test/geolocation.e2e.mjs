@@ -198,3 +198,20 @@ test('mobile manifest reads a real multipage PDF locally and keeps geographic co
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
   } finally { await context.close(); }
 });
+
+test('scanned PDF is rasterized and read by the real Spanish OCR worker before reviewing deliveries', { timeout: 180000 }, async () => {
+  const { context, page } = await setup(() => {});
+  try {
+    const { scannedManifestPdf } = await import('./fixtures/manifest-pdf.mjs');
+    await page.route('**/api/route-planner/**', route => route.fulfill({ json: { ok: true, suggestions: [] } }));
+    await page.goto(base);
+    await page.getByRole('button', { name: 'Escanear o pegar manifiesto' }).click();
+    await page.locator('.manifest-file input').setInputFiles({ name: 'escaneado.pdf', mimeType: 'application/pdf', buffer: await scannedManifestPdf() });
+    await page.getByText(/Páginas leídas: 1 de 1\. OCR en páginas: 1/).waitFor({ timeout: 150000 });
+    const text = await page.getByRole('textbox', { name: 'Texto del manifiesto' }).inputValue();
+    assert.match(text, /Cedro\s+312/i); assert.match(text, /Universidad\s+100/i);
+    await page.getByRole('button', { name: 'Preparar direcciones para revisar' }).click();
+    assert.equal(await page.locator('.manifest-candidate').count(), 2);
+    assert.ok(await page.getByRole('button', { name: 'Añadir 0 entregas confirmadas' }).isDisabled());
+  } finally { await context.close(); }
+});
