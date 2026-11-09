@@ -254,6 +254,11 @@ async function navigationSetup(){
  await page.getByRole('combobox',{name:'Destino',exact:true}).fill('Destino de prueba');
  await page.getByRole('button',{name:'Calcular ruta',exact:true}).click();
  await page.getByRole('heading',{name:'Navegar esta ruta'}).waitFor();
+  await page.getByRole('heading',{name:'Jurisdicciones del recorrido'}).waitFor();
+  await page.getByText('Monterrey',{exact:true}).waitFor();
+  await page.getByText('Guadalupe',{exact:true}).waitFor();
+  await page.getByText('Referencia cargada',{exact:true}).waitFor();
+  await page.getByText('Reglas pendientes',{exact:true}).waitFor();
  return {context,page,calculations:()=>calculations};
 }
 test('mobile navigation follows the stored path, warns on deviation and never requests a replacement route',async()=>{
