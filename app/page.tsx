@@ -8,7 +8,7 @@ import LocationInput, { type LocationSelection } from '@/components/LocationInpu
 import { supabase } from '@/lib/supabase';
 import RouteStops from '@/components/RouteStops';
 import { moveStop, type RouteStop } from '@/lib/route-stops';
-import { googleMapsUrls } from '@/lib/navigation';
+import { MAX_INTERMEDIATE_STOPS } from '@/lib/route-limits';
 import NavigationLinks from '@/components/NavigationLinks';
 import VehicleManager from '@/components/VehicleManager';
 import SavedRoutesPanel, { type SavedRoute } from '@/components/SavedRoutesPanel';
@@ -90,11 +90,10 @@ export default function Home() {
   }, [origin, destination, selectedOrigin, selectedDestination, stops, mode, vehicle, optimizeStops]);
   useEffect(() => () => planningRequest.current?.abort(), []);
   const canPlan = origin.trim().length > 2 && destination.trim().length > 2 && !loading;
-  const mapsUrls = useMemo(() => {
-    const routePoints = result?.waypoints?.length
+  const navigationPoints = useMemo(() => {
+    return result?.waypoints?.length
       ? result.waypoints
       : [selectedOrigin || origin, ...stops.map(s => s.selected || s.value), selectedDestination || destination];
-    return googleMapsUrls(routePoints);
   }, [origin, destination, selectedOrigin, selectedDestination, stops, result]);
 
   useEffect(() => {
@@ -109,7 +108,7 @@ export default function Home() {
   }, [user?.id]);
 
   function changeMode(nextMode: 'delivery' | 'truck') { setMode(nextMode); setResult(null); setSelectedVehicleProfileId(''); if (nextMode === 'truck') setOptimizeStops(false); }
-  function addStop() { if (stops.length >= 8) return; setStops(items => [...items, { id: crypto.randomUUID(), value: '', selected: null }]); setResult(null); }
+  function addStop() { if (stops.length >= MAX_INTERMEDIATE_STOPS) return; setStops(items => [...items, { id: crypto.randomUUID(), value: '', selected: null }]); setResult(null); }
   function updateStop(id: string, value: string) { setStops(items => items.map(s => s.id === id ? { ...s, value, selected: null } : s)); setResult(null); }
   function removeStop(id: string) { setStops(items => items.filter(s => s.id !== id)); setResult(null); }
   function reorderStop(id: string, direction: -1 | 1) { setStops(items => moveStop(items, id, direction)); setOptimizeStops(false); setResult(null); setStopOrderMessage('Orden actualizado. Calcula de nuevo para usar este orden; la optimización automática está desactivada.'); }
@@ -136,7 +135,7 @@ export default function Home() {
 
   function importDeliveries(points: LocationSelection[], useLastAsDestination: boolean) {
     const additions = useLastAsDestination ? points.slice(0, -1) : points;
-    if (stops.length + additions.length > 8) return;
+    if (stops.length + additions.length > MAX_INTERMEDIATE_STOPS) return;
     setStops(items => [...items, ...additions.map(point => ({ id: crypto.randomUUID(), value: point.label, selected: point }))]);
     if (useLastAsDestination && points.length) { const last = points[points.length - 1]; setDestination(last.label); setSelectedDestination(last); }
     setOptimizeStops(false); setResult(null); setStopOrderMessage(`${points.length} entregas confirmadas añadidas desde el manifiesto. Se conserva su orden.`);
@@ -252,8 +251,8 @@ export default function Home() {
           <div className="route-vehicle-selector"><label>Vehículo para este recorrido<select value={selectedVehicleProfileId} onChange={event => loadVehicleProfile(event.target.value)}><option value="">{mode === 'truck' ? 'Camión · medidas manuales' : 'Seleccionar vehículo (opcional)'}</option>{vehicleProfiles.map(profile => <option value={profile.id} key={profile.id}>{profile.name} · {profile.vehicle_type === 'truck' ? 'Camión' : 'Reparto'}</option>)}</select></label><button type="button" className="text-button" onClick={() => openWorkspace('vehicles')}>Administrar mis vehículos <span aria-hidden="true">↗</span></button>{vehicleProfileMessage && <p role="status">{vehicleProfileMessage}</p>}</div>
           <div className="delivery-points">
             <LocationInput title="Origen" color="green" allowCurrentLocation onSuggestions={points => setMapSearch({ target: 'origin', title: 'Origen', points })} mapReference={searchArea} value={origin} placeholder="¿Dónde empieza tu recorrido?" apiUrl={API_URL} selected={selectedOrigin} onChange={value => { setOrigin(value); setSelectedOrigin(null); setResult(null); }} onConfirm={location => { setSelectedOrigin(location); setSearchArea(location); setResult(null); }}/>
-            <div className="stops-head"><span>ENTREGAS <b>{stops.length}/8</b></span><button type="button" className="text-button" onClick={addStop} disabled={stops.length >= 8}>＋ Agregar parada</button></div>
-            <ManifestImport apiUrl={API_URL} reference={selectedOrigin || searchArea} remaining={8 - stops.length} hasDestination={Boolean(destination.trim())} onImport={importDeliveries}/>
+            <div className="stops-head"><span>ENTREGAS <b>{stops.length}/{MAX_INTERMEDIATE_STOPS}</b></span><button type="button" className="text-button" onClick={addStop} disabled={stops.length >= MAX_INTERMEDIATE_STOPS}>＋ Agregar parada</button></div>
+            <ManifestImport apiUrl={API_URL} reference={selectedOrigin || searchArea} remaining={MAX_INTERMEDIATE_STOPS - stops.length} hasDestination={Boolean(destination.trim())} onImport={importDeliveries}/>
             <RouteStops onSuggestions={(id, title, points) => setMapSearch({ target: id, title, points })} stops={stops} apiUrl={API_URL} mapReference={selectedOrigin || searchArea} onChange={updateStop} onConfirm={(id, location) => { setStops(items => items.map(item => item.id === id ? { ...item, value: location.label, selected: location } : item)); setResult(null); }} onMove={reorderStop} onRemove={removeStop}/>
             {stopOrderMessage && <p className="stop-order-message" role="status">{stopOrderMessage}</p>}
             <LocationInput onSuggestions={points => setMapSearch({ target: 'destination', title: 'Destino', points })} title="Destino" color="orange" mapReference={selectedOrigin || searchArea} value={destination} placeholder="¿Dónde termina tu recorrido?" apiUrl={API_URL} selected={selectedDestination} onChange={value => { setDestination(value); setSelectedDestination(null); setResult(null); }} onConfirm={location => { setSelectedDestination(location); setResult(null); }}/>
@@ -262,7 +261,7 @@ export default function Home() {
           {mode === 'truck' && <details className="vehicle-panel" open><summary><AppIcon name="truck" size={18}/><span>Medidas del camión cargado</span></summary><div className="vehicle-fields">{([['height','Altura (m)','0.5','10'],['width','Ancho (m)','0.5','5'],['length','Largo (m)','1','30'],['grossWeight','Peso bruto (t)','0.1','100'],['axleWeight','Peso por eje (t)','0.1','30']] as const).map(([key,title,min,max]) => <label key={key}>{title}<input type="number" min={min} max={max} step="0.1" value={vehicle[key]} onChange={event => { setVehicle(values => ({...values,[key]:event.target.value})); setResult(null); }}/></label>)}</div><p className="hint">Los valores iniciales son un ejemplo. Usa los de tu unidad.</p><button type="button" className="text-button" onClick={() => openWorkspace('guide')}>Qué restricciones considera esta ruta ↗</button></details>}
           <div className="plan-actions"><button type="button" className="primary-button" disabled={!canPlan} onClick={planRoute}>{loading ? 'Calculando ruta…' : 'Calcular ruta'}<AppIcon name="arrow"/></button>{!user && <small>Inicia sesión para calcular y guardar tus recorridos.</small>}</div>
           {error && <div className="error-box" role="alert"><strong>No se pudo calcular</strong><p>{error}</p>{providerStatus === 'missing' && <small>El servicio de rutas requiere configuración del administrador.</small>}</div>}
-          {!result && <NavigationLinks urls={mapsUrls} truck={mode === 'truck'}/>}
+          {!result && <NavigationLinks points={navigationPoints} truck={mode === 'truck'}/>}
         </div>
         <aside id="mapa-planificacion" className={`result-panel ${result ? 'has-result' : 'is-planning'}`} aria-label="Mapa y resultado de la ruta">
           <div className="map-card">
@@ -278,7 +277,7 @@ export default function Home() {
             <details className="instructions"><summary>Indicaciones de conducción</summary>{result.sections.flatMap(section => section.actions || []).filter(action => action.instruction).slice(0, 12).map((action, index) => <p key={index}>{index + 1}. {action.instruction}</p>)}</details>
             {(result.notices || []).length > 0 && <div className="notice-box"><strong>Avisos de ruta</strong>{result.notices?.map((notice,index) => <p key={index}>{notice.title || notice.details || notice.code}</p>)}</div>}
             <div className="save-route-area"><label className="route-save-name">Nombre del recorrido<input maxLength={120} value={routeName} onChange={event => setRouteName(event.target.value)} placeholder="Ej. Express · entregas de la mañana"/></label><button type="button" className="primary-button save-button" disabled={saving} onClick={saveRoute}><AppIcon name="saved"/>{saving ? 'Guardando…' : 'Guardar esta ruta'}</button>{saveMessage && <p className="save-message" role="status">{saveMessage}</p>}</div>
-            <NavigationLinks urls={mapsUrls} truck={mode === 'truck'}/><RouteExports route={result} truck={mode === 'truck'}/>
+            <NavigationLinks points={navigationPoints} truck={mode === 'truck'}/><RouteExports route={result} truck={mode === 'truck'}/>
           </div>}
         </aside>
       </div>

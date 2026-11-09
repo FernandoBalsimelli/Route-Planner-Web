@@ -88,7 +88,7 @@ al editar el recorrido para que no aparezcan resultados anteriores.
   texto pegado. OCR en español mediante Tesseract.js, cargado al pedirlo y ejecutado
   en el dispositivo. La foto no se envía al servidor; las consultas de direcciones
   sí llegan al geocodificador. Se revisa una entrega a la vez. Solo se importan
-  puntos elegidos y confirmados. Hasta 8 paradas y un destino por recorrido.
+  puntos elegidos y confirmados. Hasta 48 paradas intermedias, más origen y destino (50 puntos del proveedor).
   También admite PDF; revisa las tablas complejas y cada dirección antes de confirmar.
 - **Eliminar** mueve una ruta guardada a la papelera. **Deshacer** o **Recuperar**
   la devuelve con sus paradas. No se borran físicamente registros existentes.
@@ -153,3 +153,21 @@ cada ubicación antes de importar. No se sube ni guarda el documento.
 El lector se descarga bajo demanda. `predev` y `prebuild` preparan sus archivos
 públicos de la misma versión fijada en package-lock.json. No se requieren nuevas
 variables de entorno, migraciones ni proveedores de pago.
+
+
+### Más entregas y Google Maps
+
+Se admiten 48 paradas intermedias, además del origen y destino: el máximo de
+50 puntos de OpenRouteService Directions. El mismo límite se aplica a la
+importación, cálculo y guardado completo. El lector del manifiesto ya no recorta
+silenciosamente la revisión a treinta direcciones.
+
+«Continuar en Google Maps» permite hasta nueve paradas intermedias por enlace
+para la aplicación o escritorio y tres para navegador móvil. Si no caben todos
+los puntos, se generan tramos numerados; cada uno empieza en el último punto del
+anterior. También se respeta el límite de 2,048 caracteres de URL sin descartar
+puntos. Después de optimizar se usa el orden calculado, y antes el orden manual.
+Google puede recalcular las calles y no recibe las restricciones del camión.
+
+Fuentes: [ORS](https://giscience.github.io/openrouteservice/hosted-api-restrictions) y
+[Google Maps URLs](https://developers.google.com/maps/documentation/urls/get-started).

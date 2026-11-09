@@ -15,5 +15,5 @@ export function manifestCandidates(text: string): string[] {
     else { flush(); block = line; hasAddress = isAddress; }
   }
   flush();
-  return [...new Set(candidates)].slice(0, 30);
+  return [...new Set(candidates)];
 }

@@ -500,3 +500,32 @@ Fecha: 2026-11-09. Base Web ec41d6b, API dfd0ba97. Se comprobaron primero
 Georreferenciar por sentido los 38 tramos de
 Monterrey y determinar qué artículos pueden convertirse en restricciones del
 motor sin interpretar indebidamente excepciones, permisos o señalización.
+
+
+## Ciclo: ampliar entregas y conservar el orden en Google Maps
+
+Solicitud posterior del propietario, 2026-11-09. Se verificaron primero main y
+producción vigentes (Web c16c3ac, API 32e8a497); se conservan todos los avances
+municipales, navegación GPS y PDF. El borrador de pruebas Auth previo queda en
+la rama test/authenticated-flow, sin incorporarlo ni sobrescribir CI vigente.
+
+- Se elimina el límite artificial de ocho: 48 paradas intermedias más ambos
+  extremos, en línea con los 50 puntos de Directions. Se ajustan formulario,
+  importación, API y RPC atómica de guardado con una migración reversible.
+- El manifiesto conserva todas las propuestas del texto acotado, sin truncar
+  silenciosamente a treinta. Solo se importan puntos confirmados y con cupo.
+- Google Maps ofrece máximo de nueve intermedias y compatibilidad de tres para
+  navegador móvil. Los tramos comparten el extremo y mantienen todo el orden,
+  incluidos recorridos de cincuenta puntos y direcciones largas por URL.
+- Se conserva el aviso de que Google recalcula y no transmite restricciones
+  del camión. No se promete transferencia del trazado ni paradas ilimitadas.
+- Pruebas nuevas: API de cincuenta puntos/rechazo de cincuenta y uno; SQL de
+  48 paradas, reintento, orden y rechazo sin escritura parcial; enlaces en
+  ambos modos, longitud URL, guardado y manifiesto extenso; móvil con doce
+  entregas y cambio de capacidad de Google.
+- Validación local: API 32 pruebas y build; Web 73 pruebas, TypeScript y build
+  aprobados. Migración 20261109171027 aplicada en Route Planner conservando
+  privilegios. CI y despliegue pendientes al crear este commit.
+- Recuperación anterior: Web dpl_A1eWvcovWY94jV4nAjrdW6S9vNs7 y API
+  dpl_AeaEHucyAEh4icPdHU8MQt4NsG8B. La migración solo cambia el máximo de la
+  función invoker existente, sin eliminar datos ni ampliar privilegios.
