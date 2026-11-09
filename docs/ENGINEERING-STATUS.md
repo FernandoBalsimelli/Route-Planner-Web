@@ -428,4 +428,36 @@ separadas; no se alteró el trabajo de integración autenticada de la copia ante
   programa municipal nacional y no se desactiva la tarea de continuidad.
 - Alcance, reproducción de fuentes, contratos y siguiente trabajo documentados
   en MEXICO-COVERAGE.md. No se reintenta la consulta privada bloqueada a Photon.
-- Validación/publicación: pendiente de registrar CI y despliegues al cerrar release.
+- Verificación aprobada: API CI 42579427363 (28 pruebas, migraciones y RLS en
+  Postgres desechable, auditoría sin avisos); Web CI 42579430457 (64 pruebas,
+  TypeScript, build, 13 E2E sin omisiones y auditoría sin avisos). Los E2E nuevos
+  prueban seguimiento/desvío sin recálculo, salida de sección y consulta municipal.
+  El navegador local no pudo crear sockets; los E2E sí se ejecutaron en CI.
+- Integradas API PR #4, main dfd0ba97 y Web PR #5, main a2e9f3b4. Los árboles
+  integrados coinciden exactamente con los probados.
+- Producción READY API dpl_2JuLhYpEBh6eAw6dP4pYaNZvmvuT y Web
+  dpl_33io4jAbSRksQdeufrZEvEni35kw, con sus dominios estables asignados.
+  HTTP 200 en Web, salud API directa y por proxy, catálogo 32/2478, Monterrey
+  38/19 y municipio sin reglas con estado not_loaded. No se ejecutó un cálculo
+  autenticado real ni ensayo de navegación física; sus pruebas usan fixtures.
+- Rollback conservado: API dpl_C9o2TsjTV31oFvuF2nCWGgvuRddz (e2ce88c)
+  y Web dpl_CCdQMKi2ofGCJSmPxXGeuoRqgEEv (f154164).
+- La tarea existente «Completar Route Planner» se encontró pausada. Se reactivó
+  conservando su intervalo de cinco horas y añadiendo estas solicitudes posteriores;
+  no se creó otra tarea ni se declaró finalizado el programa.
+- No hay migraciones de producción, cambios a Gestión ni contrataciones.
+  Este registro posterior a publicación solo actualiza documentación.
+
+### Punto de reanudación vigente
+
+Leer primero MEXICO-COVERAGE.md y este último ciclo; verificar ramas principales,
+despliegues y tarea activa antes de editar. No repetir navegación, directorio,
+lector PDF, rediseño, favoritos ni exportaciones ya publicados. Siguiente trabajo:
+validar vigencia/interpretación y georreferenciar restricciones de Monterrey por
+sentido; identificar municipios cruzados y luego aplicar reglas comprobadas al
+motor. El catálogo de 2,478 municipios todavía no equivale a reglas incorporadas.
+Seguir con fuentes oficiales del resto de México y posteriormente otros países;
+nunca prometer ausencia de inconvenientes de vialidad ni transferencia exacta a
+Google Maps. Pendientes generales: Android físico, pruebas autenticadas reales de
+aislamiento, preferencias/alternativas y enlaces autorizados. La tarea periódica
+sigue siendo necesaria; no declarar completo ni desactivar por cerrar este ciclo.
