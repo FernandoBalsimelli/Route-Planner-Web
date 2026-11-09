@@ -326,3 +326,40 @@ restauraría sus avisos de seguridad; se prefiere corregir hacia adelante.
 - Pendiente del programa general: prueba autenticada completa en navegador,
   lectura de PDF, preferencias/alternativas, compartir enlaces y validación de
   normativa municipal. No se declara completo el prompt maestro.
+
+## Ciclo: lectura local de manifiestos PDF
+
+- Base comprobada: main 32f816d; producción Web dpl_3kiPnsKRZiVGWQSNpa5uE639AoxT.
+  Se revisó el avance de la otra conversación; el rediseño, exportaciones y
+  favoritos ya estaban implementados y no se volvieron a introducir.
+- Se añade PDF.js 6.5.438 fijado y cargado solo al elegir un PDF. El worker,
+  fuentes y decodificadores se publican desde la misma Web mediante prebuild /
+  predev, con versión coincidente y licencia. No hay servicio OCR de pago.
+- Extrae texto respetando páginas, líneas y fragmentos contiguos de números.
+  Las páginas sin texto se renderizan localmente y pasan por el OCR español
+  existente; también se puede forzar OCR para PDFs con capas de texto incompletas.
+- Hasta 20 MB, diez páginas seleccionadas y 30.000 caracteres por lectura.
+  No se omiten silenciosamente páginas ni texto excedente; se pide dividir el
+  rango. Límite global de tres minutos, cancelación y limpieza de worker/canvas.
+- Se conservan controles separados para foto/cámara y PDF, para no mezclar
+  filtros de archivo que pueden ocultar la opción de cámara en Android.
+- El archivo no se sube ni se guarda. Las direcciones solo llegan al proveedor
+  al revisarlas en el buscador; cada sucursal aún exige confirmación explícita.
+  Leer otro archivo o editar el texto invalida candidatos preparados anteriores.
+- Pruebas añadidas: PDF sintético real de dos páginas, rango elegido, límites,
+  cancelación, archivo dañado, detección de página escaneada y conservación de
+  números. E2E móvil adicional para el worker real, ausencia de cargas del
+  documento, direcciones propuestas y confirmación obligatoria.
+- CI 42568753535 aprobado: 55 pruebas y ocho E2E móvil/escritorio, incluido
+  PDF con texto de dos páginas y worker real. Se añade además un E2E del PDF
+  escaneado con el OCR español real; pendiente su resultado y publicación.
+- La comprobación manual del selector de archivos agotó la espera del navegador;
+  no se presenta esa prueba manual como aprobada.
+  Preview local no disponible: el lanzador añade opciones Vite incompatibles
+  con Next.js (--host/--strictPort). No se modifica la app para compensarlo.
+- Recuperación: restaurar el deployment anterior; no se cambia API ni base de
+  datos, no se toca Gestión y no se contratan recursos.
+- Siguen pendientes del programa general: preferencias/alternativas, enlaces
+  compartidos autorizados, verificación municipal y validación de sensores,
+  cámara y manifiestos reales de Android. El prompt completo original no fue
+  recuperable en las búsquedas; no se declara terminado ni se desactiva la tarea.

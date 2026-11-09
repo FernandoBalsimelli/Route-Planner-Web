@@ -172,3 +172,46 @@ test('desktop gives the map the main area and preserves its size after changing 
     assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
   } finally { await context.close(); }
 });
+
+test('mobile manifest reads a real multipage PDF locally and keeps geographic confirmation mandatory', async () => {
+  const { context, page } = await setup(() => {});
+  try {
+    const { manifestPdf } = await import('./fixtures/manifest-pdf.mjs');
+    const documentBytes = manifestPdf();
+    const unexpectedUploads = [];
+    page.on('request', request => {
+      if (request.method() === 'POST' && !new URL(request.url()).pathname.startsWith('/api/route-planner/')) unexpectedUploads.push(request.url());
+    });
+    await page.route('**/api/route-planner/**', route => route.fulfill({ json: { ok: true, suggestions: [] } }));
+    await page.goto(base);
+    await page.getByRole('button', { name: 'Escanear o pegar manifiesto' }).click();
+    await page.locator('.manifest-pdf-file input').setInputFiles({ name: 'entregas.pdf', mimeType: 'application/pdf', buffer: documentBytes });
+    await page.getByText(/Páginas leídas: 1, 2 de 2/).waitFor({ timeout: 30000 });
+    const text = await page.getByRole('textbox', { name: 'Texto del manifiesto' }).inputValue();
+    assert.ok(text.indexOf('Calle Cedro 312') < text.indexOf('Avenida Universidad 100'));
+    await page.getByRole('button', { name: 'Preparar direcciones para revisar' }).click();
+    assert.equal(await page.locator('.manifest-candidate').count(), 2);
+    assert.ok(await page.getByRole('button', { name: 'Añadir 0 entregas confirmadas' }).isDisabled());
+    assert.deepEqual(unexpectedUploads, [], 'document bytes stay on the device');
+    await page.getByRole('textbox', { name: 'Texto del manifiesto' }).fill('Calle Corregida 55, Chihuahua');
+    assert.equal(await page.locator('.manifest-candidate').count(), 0, 'editing the source invalidates prepared candidates');
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+  } finally { await context.close(); }
+});
+
+test('scanned PDF is rasterized and read by the real Spanish OCR worker before reviewing deliveries', { timeout: 180000 }, async () => {
+  const { context, page } = await setup(() => {});
+  try {
+    const { scannedManifestPdf } = await import('./fixtures/manifest-pdf.mjs');
+    await page.route('**/api/route-planner/**', route => route.fulfill({ json: { ok: true, suggestions: [] } }));
+    await page.goto(base);
+    await page.getByRole('button', { name: 'Escanear o pegar manifiesto' }).click();
+    await page.locator('.manifest-pdf-file input').setInputFiles({ name: 'escaneado.pdf', mimeType: 'application/pdf', buffer: await scannedManifestPdf() });
+    await page.getByText(/Páginas leídas: 1 de 1\. OCR en páginas: 1/).waitFor({ timeout: 150000 });
+    const text = await page.getByRole('textbox', { name: 'Texto del manifiesto' }).inputValue();
+    assert.match(text, /Cedro\s+312/i); assert.match(text, /Universidad\s+100/i);
+    await page.getByRole('button', { name: 'Preparar direcciones para revisar' }).click();
+    assert.equal(await page.locator('.manifest-candidate').count(), 2);
+    assert.ok(await page.getByRole('button', { name: 'Añadir 0 entregas confirmadas' }).isDisabled());
+  } finally { await context.close(); }
+});

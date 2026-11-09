@@ -89,7 +89,7 @@ al editar el recorrido para que no aparezcan resultados anteriores.
   en el dispositivo. La foto no se envía al servidor; las consultas de direcciones
   sí llegan al geocodificador. Se revisa una entrega a la vez. Solo se importan
   puntos elegidos y confirmados. Hasta 8 paradas y un destino por recorrido.
-  PDF y lectura de tablas complejas quedan pendientes; se puede pegar su texto.
+  También admite PDF; revisa las tablas complejas y cada dirección antes de confirmar.
 - **Eliminar** mueve una ruta guardada a la papelera. **Deshacer** o **Recuperar**
   la devuelve con sus paradas. No se borran físicamente registros existentes.
 
@@ -141,3 +141,15 @@ alterna entre tema claro y oscuro y recuerda la preferencia en este dispositivo.
 La sección Guía camión explica los límites reales del motor y enlaza las fuentes
 oficiales. Véase [alcance de camiones](docs/TRUCK-ROUTING.md). No se certifica el
 cumplimiento de normativa federal o municipal a partir de las dimensiones del mapa.
+
+### Manifiestos en PDF
+
+«Escanear o pegar manifiesto» admite también PDFs de hasta 20 MB. Se extrae el
+texto en el dispositivo; las páginas escaneadas se leen con OCR local en español.
+En «Páginas del PDF» se puede elegir un rango de hasta diez páginas y forzar OCR
+si el documento tiene una capa de texto incompleta. Revisa las tablas, números y
+cada ubicación antes de importar. No se sube ni guarda el documento.
+
+El lector se descarga bajo demanda. `predev` y `prebuild` preparan sus archivos
+públicos de la misma versión fijada en package-lock.json. No se requieren nuevas
+variables de entorno, migraciones ni proveedores de pago.
