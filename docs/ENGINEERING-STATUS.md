@@ -482,13 +482,21 @@ Fecha: 2026-11-09. Base Web ec41d6b, API dfd0ba97. Se comprobaron primero
   24 de abril de 2026 y mantiene artículos 37–43 y anexos 1–3. La contradicción
   entre artículo 39 (lunes a viernes) y filas de fin de semana de los anexos se
   conserva como revisión pendiente; no se aplica automáticamente.
-- Validación local: API 30 pruebas y build aprobados; Web 67 pruebas, TypeScript
-  y build aprobados. CI, E2E completo, integración y producción quedan por cerrar
-  en este ciclo antes de registrar commits y despliegues.
+- Validación final: API CI 42602482170 aprobó 30 pruebas, build, migraciones/RLS
+  en Postgres desechable y auditoría; Web CI 42602416228 aprobó 67 pruebas,
+  TypeScript, build, 13 E2E sin omisiones y auditoría. Cero vulnerabilidades.
+- Integradas API PR #5, main 32e8a497, árbol 839542ab; Web PR #6, main
+  48b585c8, árbol 7ae2e76d. Los árboles integrados coinciden con los probados.
+- Producción READY: API dpl_AeaEHucyAEh4icPdHU8MQt4NsG8B y Web
+  dpl_A1eWvcovWY94jV4nAjrdW6S9vNs7. Salud, catálogo 2,478 y referencia Monterrey
+  38/19 respondieron 200 por el proxy; el metadato consolidado muestra 2026-04-24.
+  No hubo errores de runtime agregados en la hora revisada. No se ejecutó un
+  cálculo con una cuenta real ni una prueba física de camión/Android.
+- Rollback conservado: API dpl_2JuLhYpEBh6eAw6dP4pYaNZvmvuT y Web
+  dpl_33io4jAbSRksQdeufrZEvEni35kw. Sin migraciones de producción ni cambios a Gestión.
 
 ### Siguiente punto de reanudación de este ciclo
 
-Comprobar CI y E2E, integrar árboles probados, desplegar API antes de Web y probar
-producción por el proxy. Después georreferenciar por sentido los 38 tramos de
+Georreferenciar por sentido los 38 tramos de
 Monterrey y determinar qué artículos pueden convertirse en restricciones del
 motor sin interpretar indebidamente excepciones, permisos o señalización.
