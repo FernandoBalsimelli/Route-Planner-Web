@@ -341,6 +341,8 @@ restauraría sus avisos de seguridad; se prefiere corregir hacia adelante.
 - Hasta 20 MB, diez páginas seleccionadas y 30.000 caracteres por lectura.
   No se omiten silenciosamente páginas ni texto excedente; se pide dividir el
   rango. Límite global de tres minutos, cancelación y limpieza de worker/canvas.
+- Se conservan controles separados para foto/cámara y PDF, para no mezclar
+  filtros de archivo que pueden ocultar la opción de cámara en Android.
 - El archivo no se sube ni se guarda. Las direcciones solo llegan al proveedor
   al revisarlas en el buscador; cada sucursal aún exige confirmación explícita.
   Leer otro archivo o editar el texto invalida candidatos preparados anteriores.

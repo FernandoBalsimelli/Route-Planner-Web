@@ -185,7 +185,7 @@ test('mobile manifest reads a real multipage PDF locally and keeps geographic co
     await page.route('**/api/route-planner/**', route => route.fulfill({ json: { ok: true, suggestions: [] } }));
     await page.goto(base);
     await page.getByRole('button', { name: 'Escanear o pegar manifiesto' }).click();
-    await page.locator('.manifest-file input').setInputFiles({ name: 'entregas.pdf', mimeType: 'application/pdf', buffer: documentBytes });
+    await page.locator('.manifest-pdf-file input').setInputFiles({ name: 'entregas.pdf', mimeType: 'application/pdf', buffer: documentBytes });
     await page.getByText(/Páginas leídas: 1, 2 de 2/).waitFor({ timeout: 30000 });
     const text = await page.getByRole('textbox', { name: 'Texto del manifiesto' }).inputValue();
     assert.ok(text.indexOf('Calle Cedro 312') < text.indexOf('Avenida Universidad 100'));
@@ -206,7 +206,7 @@ test('scanned PDF is rasterized and read by the real Spanish OCR worker before r
     await page.route('**/api/route-planner/**', route => route.fulfill({ json: { ok: true, suggestions: [] } }));
     await page.goto(base);
     await page.getByRole('button', { name: 'Escanear o pegar manifiesto' }).click();
-    await page.locator('.manifest-file input').setInputFiles({ name: 'escaneado.pdf', mimeType: 'application/pdf', buffer: await scannedManifestPdf() });
+    await page.locator('.manifest-pdf-file input').setInputFiles({ name: 'escaneado.pdf', mimeType: 'application/pdf', buffer: await scannedManifestPdf() });
     await page.getByText(/Páginas leídas: 1 de 1\. OCR en páginas: 1/).waitFor({ timeout: 150000 });
     const text = await page.getByRole('textbox', { name: 'Texto del manifiesto' }).inputValue();
     assert.match(text, /Cedro\s+312/i); assert.match(text, /Universidad\s+100/i);

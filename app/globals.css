@@ -16,3 +16,5 @@
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 
 .manifest-pdf-options{margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-soft)}.manifest-pdf-options summary{font-size:12px;font-weight:600;cursor:pointer;min-height:32px;line-height:32px}.manifest-pdf-options p{font-size:11px;line-height:1.6;color:var(--muted)}.manifest-page-range{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}.manifest-page-range label{font-size:11px;min-width:0}.manifest-page-range input{width:100%;min-height:44px;font-size:16px}.manifest-pdf-options button{min-height:44px;width:100%;margin-top:10px;font-size:12px}
+
+.manifest-document-choices{display:grid;gap:12px;margin:12px 0}.manifest-document-choices label{display:grid;gap:8px;font-size:12px}.manifest-document-choices input{width:100%;min-height:44px}
