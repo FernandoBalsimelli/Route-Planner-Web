@@ -16,6 +16,14 @@ function FitRoute({ points }: { points: LatLngTuple[] }) {
   const map = useMap();
   const previous = useRef('');
   useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      if (map.getContainer().clientWidth) map.invalidateSize({ pan: false });
+    });
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
+  }, [map]);
+  useEffect(() => {
     const signature = JSON.stringify(points);
     if (signature === previous.current) return;
     previous.current = signature;

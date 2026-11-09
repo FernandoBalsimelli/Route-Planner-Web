@@ -293,7 +293,34 @@ restauraría sus avisos de seguridad; se prefiere corregir hacia adelante.
   el esquema completo quede en Git. No se vuelven a ejecutar en producción.
 - Se elimina la animación de reajuste del mapa para estabilizar la selección
   inmediata de marcadores. Mapas/fuentes externos se aíslan solo en las pruebas.
-- Estado de la primera ejecución de CI: pendiente de comprobar; todavía no se
-  considera aprobada por el mero hecho de haber escrito los workflows.
+- Primera ejecución de CI aprobada: Web run 42551716541 (48 pruebas y cinco
+  E2E móviles); API run 42551690160 (18 pruebas y las siete migraciones con
+  RLS en Postgres 17 desechable). Todos los pasos terminaron en success.
 - Alcance de costo: runners estándar en repositorios públicos; sin runners
   grandes, artefactos de pago ni credenciales de producción en los jobs.
+
+
+## Ciclo: interfaz de trabajo y cobertura para camiones
+
+- Se sustituye la portada informativa por un espacio de trabajo: mapa principal,
+  panel de entregas, navegación Planificar/Mis rutas/Vehículos/Guía camión y
+  navegación inferior en móvil. Se conserva el borrador al cambiar de sección.
+- Sistema visual coherente con colores, tipografía del dispositivo, tarjetas,
+  estados de confirmación y controles táctiles. Sin fuentes remotas ni imágenes
+  decorativas. Tema claro/oscuro con preferencia local y foco visible.
+- El mapa conserva su selección y ajusta su tamaño al volver de otra sección.
+  Los enlaces desde cuenta, buscador y vehículos llevan al espacio correcto.
+- Guía dentro de la app: parámetros realmente enviados, límites de la cobertura
+  OSM/ORS, norma federal vigente y comprobaciones municipales no implementadas.
+  No se inventa una lista de calles evitadas ni una certificación de legalidad.
+- Corrección de texto: el optimizador de reparto busca tiempo de viaje; no se
+  presenta como optimización por distancia. El motor no cambia en este ciclo.
+- Base de recuperación de producción antes de este ciclo: Web 226e94f y
+  deployment dpl_4CCnYX8VvjKKm5vxQYk2728oyvvJ; API 56b73a3.
+- Validación local: 48 pruebas Web aprobadas y TypeScript sin errores. Se añaden
+  dos E2E para navegación móvil/tema persistente y mapa principal de escritorio.
+  Build de producción aprobado. Resultado del nuevo CI y verificación visual:
+  pendiente al crear commit.
+- Pendiente del programa general: prueba autenticada completa en navegador,
+  lectura de PDF, preferencias/alternativas, compartir enlaces y validación de
+  normativa municipal. No se declara completo el prompt maestro.
