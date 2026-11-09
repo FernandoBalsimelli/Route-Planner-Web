@@ -350,9 +350,15 @@ restauraría sus avisos de seguridad; se prefiere corregir hacia adelante.
   cancelación, archivo dañado, detección de página escaneada y conservación de
   números. E2E móvil adicional para el worker real, ausencia de cargas del
   documento, direcciones propuestas y confirmación obligatoria.
-- CI 42568753535 aprobado: 55 pruebas y ocho E2E móvil/escritorio, incluido
-  PDF con texto de dos páginas y worker real. Se añade además un E2E del PDF
-  escaneado con el OCR español real; pendiente su resultado y publicación.
+- CI final 42572681513 aprobado sobre 0c474912: 55 pruebas y nueve E2E
+  móvil/escritorio, TypeScript, build y auditoría de producción sin avisos.
+  Incluye PDF de dos páginas y PDF escaneado con OCR español real; este último
+  reconoció Cedro 312 y Universidad 100 en 2,65 segundos de prueba sintética.
+  Ese resultado no garantiza exactitud en fotos o manifiestos reales.
+- PR #3 integrada en main ec3c939. Su árbol c3f2f874 coincide con el probado.
+  Producción READY: dpl_HjKKP66A1Hw17Cf3GBzfYNdUUF2P, servido en el dominio
+  estable https://route-planner-web-sand.vercel.app. Se conservaron las versiones
+  anteriores. El registro posterior a la publicación solo modifica esta documentación.
 - La comprobación manual del selector de archivos agotó la espera del navegador;
   no se presenta esa prueba manual como aprobada.
   Preview local no disponible: el lanzador añade opciones Vite incompatibles
@@ -363,3 +369,11 @@ restauraría sus avisos de seguridad; se prefiere corregir hacia adelante.
   compartidos autorizados, verificación municipal y validación de sensores,
   cámara y manifiestos reales de Android. El prompt completo original no fue
   recuperable en las búsquedas; no se declara terminado ni se desactiva la tarea.
+
+### Siguiente punto de reanudación
+
+Revisar primero los cambios no publicados de integración autenticada que siguen
+en la copia anterior de trabajo (test/integration y .github/workflows/checks.yml);
+este ciclo no los alteró ni los presenta como aprobados. Después continuar con
+preferencias/alternativas del proveedor y el resto del programa. No repetir el
+rediseño, favoritos, exportación ni lector PDF, que ya tienen implementación.
