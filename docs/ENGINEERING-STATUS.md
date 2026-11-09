@@ -165,7 +165,7 @@ restauraría sus avisos de seguridad; se prefiere corregir hacia adelante.
   lectura, hay cancelación y no se conserva la imagen. No se automatiza una
   confirmación geográfica a partir de OCR: cada entrega exige selección explícita.
   La revisión secuencial evita disparar 30 geocodificaciones simultáneas.
-- Verificación: 29 pruebas Web y 18 API, TypeScript, compilación de producción y
+- Verificación: 30 pruebas Web y 18 API, TypeScript, compilación de producción y
   auditoría de dependencias. Pruebas de componentes ejercitan alta/edición de
   unidad, papelera/recuperación, sesgo geográfico y rechazo de entregas sin confirmar.
 - OCR real: una imagen sintética con dos entregas fue leída con el modelo español;
@@ -181,3 +181,19 @@ restauraría sus avisos de seguridad; se prefiere corregir hacia adelante.
 - Recuperación previa a este ciclo: Web eb4b26c / dpl_4ZZ9VtWEQvgBtwJfzZJGjyeUnNTu;
   API af3d346 / dpl_5DpVxmL7RP4wL3j896aSyonCVNVS. El despliegue de API incorpora
   4012769, con prioridad por ciudad explícita y 18 pruebas aprobadas.
+
+### Verificación de producción del ciclo
+
+- Navegador real: foto sintética seleccionada mediante el control de archivos,
+  OCR en español ejecutado en Web Worker y texto extraído visible. Se prepararon
+  dos entregas, se corrigió el texto de prueba para consultar una sucursal real,
+  se eligió una Bodega Aurrera Express de Monterrey y se importó como destino.
+  El mapa mostró su marcador en 25.721274, -100.325989, con Plus Code preservado.
+- Búsqueda real con origen Monterrey: sucursales ordenadas por distancia, desde
+  aproximadamente 4.2 km. La consulta «Bodega Aurrera Chihuahua» devolvió una
+  sucursal de la ciudad Chihuahua y desactivó la prioridad del origen Monterrey.
+- Se redujo la descarga de rutas guardadas: el listado obtiene resúmenes; la
+  geometría, instrucciones y restricciones completas se solicitan al cargar una
+  ruta concreta. La consulta PostgREST usa el alias mode:route_metadata->>mode.
+- Logs consultados del nuevo despliegue API: sin registros de nivel error/fatal
+  en la ventana revisada. La validación de cámara Android sigue pendiente.

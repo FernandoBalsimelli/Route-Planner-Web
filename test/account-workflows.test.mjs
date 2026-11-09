@@ -14,14 +14,14 @@ const { default: SavedRoutesPanel } = await import('../components/SavedRoutesPan
 const { default: ManifestImport } = await import('../components/ManifestImport.tsx');
 const { default: LocationInput } = await import('../components/LocationInput.tsx');
 const savedFrom = supabase.from, savedFetch = globalThis.fetch;
-let root, container, tables, writes;
+let root, container, tables, writes, reads;
 const user = { id: 'owner-one', email: 'owner@example.test' };
 function database() {
-  tables = { profiles: [{ id: user.id, display_name: 'Operador' }], fleets: [], vehicles: [], saved_routes: [{ id: 'route-one', name: 'Entrega anterior', owner_id: user.id, status: 'planned', created_at: '2026-11-08', origin: { label: 'Origen' }, destination: { label: 'Destino' } }] }; writes = [];
+  tables = { profiles: [{ id: user.id, display_name: 'Operador' }], fleets: [], vehicles: [], saved_routes: [{ id: 'route-one', name: 'Entrega anterior', owner_id: user.id, status: 'planned', created_at: '2026-11-08', origin: { label: 'Origen' }, destination: { label: 'Destino' } }] }; writes = []; reads = [];
   supabase.from = table => {
     let filters = [], mode = 'read', values, singular = false;
     const query = {
-      select() { return query; }, order() { return query; }, limit() { return query; },
+      select(columns) { reads.push({ table, columns }); return query; }, order() { return query; }, limit() { return query; },
       eq(key, value) { filters.push(row => row[key] === value); return query; },
       neq(key, value) { filters.push(row => row[key] !== value); return query; },
       insert(value) { mode = 'insert'; values = value; return query; },
@@ -92,4 +92,14 @@ test('nearby input forwards the reference and lets the operator disable proximit
   await act(async () => container.querySelector('.nearby-toggle input').click());
   await act(async () => new Promise(resolve => setTimeout(resolve, 360)));
   assert.equal(urls[1].searchParams.has('lat'), false);
+});
+
+test('saved-route list loads geometry and instructions only when opening a route', async () => {
+  database(); let loaded;
+  tables.saved_routes[0].route_metadata = { mode: 'truck', result: { distanceMeters: 123, durationSeconds: 90, sections: [] } };
+  await render(React.createElement(SavedRoutesPanel, { user, revision: 0, onLoad: async route => { loaded = route; } }));
+  assert.ok(reads[0].columns.includes('mode:route_metadata->>mode'));
+  await act(async () => button('Cargar ruta').click());
+  assert.ok(reads[1].columns.endsWith(',route_metadata'));
+  assert.equal(loaded.route_metadata.result.distanceMeters, 123);
 });
