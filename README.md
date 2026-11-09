@@ -141,3 +141,11 @@ alterna entre tema claro y oscuro y recuerda la preferencia en este dispositivo.
 La sección Guía camión explica los límites reales del motor y enlaza las fuentes
 oficiales. Véase [alcance de camiones](docs/TRUCK-ROUTING.md). No se certifica el
 cumplimiento de normativa federal o municipal a partir de las dimensiones del mapa.
+
+
+El job `authenticated-integration` ejecuta una pila Supabase local desechable,
+la API real (revisión fijada del repositorio API) y el proxy Next con dos cuentas
+sintéticas. Valida el ciclo de vehículos/rutas/favoritos y RLS por REST. Solo ORS
+se sustituye por una fixture de cartografía, sin consumir cuotas externas. No
+utiliza el Supabase alojado ni credenciales del propietario. Para reproducirlo
+se necesita Docker y se debe iniciar la pila de `test/integration`.

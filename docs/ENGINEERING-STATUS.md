@@ -322,7 +322,28 @@ restauraría sus avisos de seguridad; se prefiere corregir hacia adelante.
   Build de producción aprobado. CI del rediseño ca6c746 aprobado: run 42553186583, 48 pruebas y siete E2E
   móviles/escritorio. Sin vulnerabilidades de producción reportadas por npm.
   Se unifica también el icono PWA y el color de la barra del navegador.
-  Verificación visual de producción: pendiente de publicar.
+  Producción verificada con proveedores reales: seis sucursales Express cercanas
+  a Monterrey, confirmación de la segunda en el mapa con coordenadas exactas,
+  borrador intacto al navegar, guía y tema oscuro. Coordenadas y Plus Codes
+  globales/compuestos devuelven 200. Sin errores de función en la ventana revisada.
+- Web main 32f816d / dpl_3kiPnsKRZiVGWQSNpa5uE639AoxT (READY).
+  API main bdd9b8f / dpl_G4cdPmeFmqtgMToTE9tNeN6vC8Ao (READY).
+  Ambos árboles son idénticos a los commits comprobados antes del merge.
 - Pendiente del programa general: prueba autenticada completa en navegador,
   lectura de PDF, preferencias/alternativas, compartir enlaces y validación de
   normativa municipal. No se declara completo el prompt maestro.
+
+
+## Ciclo: flujo autenticado con una base desechable
+
+- Se añade un job independiente con Supabase CLI 3.0.0 local, Auth, PostgREST y
+  las siete migraciones reales. No se vincula a un proyecto alojado ni utiliza
+  claves privadas de producción. Se rechazan URLs distintas de loopback.
+- El navegador móvil crea dos cuentas sintéticas y prueba unidad/flota, selección
+  del vehículo, cuatro puntos, orden manual, cálculo HGV, guardado, favoritos,
+  papelera, restauración, carga y cálculo de reparto optimizado.
+- Se usa el proxy Next y la API Fastify reales; solo la respuesta de cartografía
+  externa se sustituye por una fixture. Sus distancias no son datos de operación.
+- Se comprueban los parámetros HGV enviados y que otro usuario no pueda leer
+  recursos ni falsificar su propietario a través de REST/RLS.
+- Estado: implementado; ejecución en CI pendiente. No se declara aprobado todavía.

@@ -30,3 +30,37 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - run: npm audit --omit=dev
+  authenticated-integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: FernandoBalsimelli/Route-Planner-API
+          ref: bdd9b8fc1a119ddd8c3c7c8737f6467580060e3a
+          path: _ci/api
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '26'
+          cache: npm
+      - run: npm ci
+      - run: npm ci --prefix _ci/api
+      - name: Start disposable Supabase Auth and REST
+        run: |
+          mkdir -p test/integration/supabase/migrations
+          cp _ci/api/supabase/migrations/*.sql test/integration/supabase/migrations/
+          node test/integration/start-stack.mjs
+          node test/integration/prepare-env.mjs
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Verify real local sessions, route lifecycle and account isolation
+        run: node --test test/integration/authenticated.e2e.mjs
+      - name: Stop disposable stack
+        if: always()
+        run: npx --yes supabase@3.0.0 --workdir test/integration stop
