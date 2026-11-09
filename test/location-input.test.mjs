@@ -128,3 +128,23 @@ test('keyboard selects a branch with arrows and requires explicit confirmation b
   await key('Enter');assert.equal(confirmed,undefined);assert.match(container.querySelector('.location-confirm-card').textContent,/Sucursal dos/);
   await key('Enter');assert.deepEqual(confirmed,{label:'Sucursal dos',lat:25.1,lng:-100.1});assert.equal(input.value,'Sucursal dos');
 });
+
+test('only the focused field publishes its search results to the shared map',async()=>{
+  const published=[];
+  globalThis.fetch=async()=>Response.json({suggestions:[{label:'Sucursal cercana',lat:25.72,lng:-100.32}]});
+  function MapHarness(){const [value,setValue]=useState('Bodega Aurrera');return React.createElement(LocationInput,{title:'Destino',color:'orange',value,apiUrl:'/api',placeholder:'',onChange:setValue,onConfirm(){},onSuggestions:points=>published.push(points)});}
+  container=document.createElement('div');document.body.append(container);root=createRoot(container);await act(async()=>root.render(React.createElement(MapHarness)));
+  const input=container.querySelector('input');await act(async()=>input.focus());await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));
+  assert.equal(published.at(-1)[0].label,'Sucursal cercana');const previousCount=published.length;
+  await act(async()=>{input.blur();Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,'Otra búsqueda');input.dispatchEvent(new window.Event('input',{bubbles:true}));});
+  await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));assert.equal(published.length,previousCount);
+});
+test('an externally selected origin cancels a pending GPS fix',async()=>{
+  let finish;
+  Object.defineProperty(navigator,'geolocation',{configurable:true,value:{getCurrentPosition(ok){finish=ok;}}});
+  globalThis.fetch=async()=>Response.json({suggestions:[]});
+  function ExternalHarness(){const [value,setValue]=useState('');const [selected,setSelected]=useState(null);return React.createElement(React.Fragment,null,React.createElement(LocationInput,{title:'Origen',color:'green',value,selected,apiUrl:'/api',allowCurrentLocation:true,placeholder:'',onChange:setValue,onConfirm:setSelected}),React.createElement('button',{onClick(){setValue('Origen elegido en el mapa');setSelected({label:'Origen elegido en el mapa',lat:25.72,lng:-100.32});}},'Cargar punto externo'));}
+  container=document.createElement('div');document.body.append(container);root=createRoot(container);await act(async()=>root.render(React.createElement(ExternalHarness)));
+  await act(async()=>button('Usar mi ubicación').click());await act(async()=>button('Cargar punto externo').click());
+  await act(async()=>finish({coords:{latitude:10,longitude:10,accuracy:10}}));assert.equal(container.querySelector('input').value,'Origen elegido en el mapa');
+});

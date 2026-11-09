@@ -146,7 +146,7 @@ test('planner retries a failed save with the same key and sends route and stops 
   const renderingErrors=[];t.mock.method(console,'error',(...args)=>renderingErrors.push(args.map(String).join(' ')));
   const {registerHooks}=await import('node:module');
   // Map rendering has its own integration tests; isolate this persistence flow.
-  const hooks=registerHooks({load(url,context,next){if(url.endsWith('/components/RouteMap.tsx'))return {format:'module',source:'export default function RouteMap(){return null}',shortCircuit:true};return next(url,context);}});
+  const hooks=registerHooks({load(url,context,next){if(url.endsWith('/components/RouteMap.tsx'))return {format:'module',source:"export default function RouteMap(props){return props.candidates?.length ? React.createElement('button',{onClick:()=>props.onChooseCandidate(props.candidates[0])},'Usar primera coincidencia en mapa') : null}",shortCircuit:true};return next(url,context);}});
   const oldUser=supabase.auth.getUser,oldSession=supabase.auth.getSession,oldAuthState=supabase.auth.onAuthStateChange,oldRpc=supabase.rpc;
   globalThis.React=React;
   supabase.auth.getUser=async()=>({data:{user},error:null});
@@ -165,4 +165,20 @@ test('planner retries a failed save with the same key and sends route and stops 
   assert.equal(calls.length,2);assert.equal(calls[0].name,'save_route_with_stops');assert.equal(calls[0].args.p_request_id,calls[1].args.p_request_id);
   assert.equal(calls[1].args.p_stops[0].label,'Sucursal uno');assert.equal(calls[1].args.p_route.name,'Express · ruta de prueba');
   assert.deepEqual(renderingErrors,[]);
+});
+
+test('shared map confirms suggestions into the focused field with exact navigation coordinates',async t=>{
+  database();globalThis.React=React;
+  const oldUser=supabase.auth.getUser,oldAuthState=supabase.auth.onAuthStateChange;
+  supabase.auth.getUser=async()=>({data:{user:null},error:null});supabase.auth.onAuthStateChange=()=>({data:{subscription:{unsubscribe(){}}}});
+  t.after(()=>{supabase.auth.getUser=oldUser;supabase.auth.onAuthStateChange=oldAuthState;});
+  globalThis.fetch=async(url)=>Response.json({suggestions:new URL(url,window.location.href).searchParams.get('q')==='Monterrey'?[{label:'Monterrey, México',lat:25.685163,lng:-100.315238}]:[{label:'Bodega Aurrera Express, Monterrey',lat:25.721274,lng:-100.325989}]});
+  const {default:Home}=await import('../app/page.tsx');await render(React.createElement(Home));
+  const inputs=container.querySelectorAll('.route-form .field input');
+  await act(async()=>inputs[0].focus());await fill(inputs[0],'Monterrey');await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));
+  await act(async()=>button('Usar primera coincidencia en mapa').click());assert.equal(inputs[0].value,'Monterrey, México');
+  await act(async()=>inputs[1].focus());await fill(inputs[1],'Bodega Aurrera Express');await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));
+  await act(async()=>button('Usar primera coincidencia en mapa').click());assert.equal(inputs[1].value,'Bodega Aurrera Express, Monterrey');
+  const mapsLink=[...container.querySelectorAll('a')].find(link=>link.href.startsWith('https://www.google.com/maps/dir/'));
+  const params=new URL(mapsLink.href).searchParams;assert.equal(params.get('origin'),'25.685163, -100.315238');assert.equal(params.get('destination'),'25.721274, -100.325989');
 });

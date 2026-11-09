@@ -50,7 +50,7 @@ test('mobile GPS button resolves an address, retains coordinates and shows accur
     assert.equal(await button.count(), 1);
     await button.click();
     await page.getByText('Ubicación actual establecida como origen.').waitFor();
-    assert.equal(await page.getByRole('textbox', { name: 'ORIGEN', exact: true }).inputValue(), 'Dirección de prueba en Chihuahua');
+    assert.equal(await page.getByRole('combobox', { name: 'Origen', exact: true }).inputValue(), 'Dirección de prueba en Chihuahua');
     assert.match(await page.locator('.location-accuracy').innerText(), /±17 m/);
     assert.equal(await page.locator('.location-confirmed').count(), 1);
     assert.equal(reverseCalls, 1);
@@ -63,10 +63,10 @@ test('permission denial keeps the typed origin and allows a retry', async () => 
   try {
     await page.route('**/api/route-planner/**', route => route.fulfill({ json: { ok: true, suggestions: [] } }));
     await page.goto(base);
-    await page.getByRole('textbox', { name: 'ORIGEN', exact: true }).fill('Mi origen escrito');
+    await page.getByRole('combobox', { name: 'Origen', exact: true }).fill('Mi origen escrito');
     await page.getByRole('button', { name: 'Usar mi ubicación actual' }).click();
     await page.getByText(/No se permitió el acceso/).waitFor();
-    assert.equal(await page.getByRole('textbox', { name: 'ORIGEN', exact: true }).inputValue(), 'Mi origen escrito');
+    assert.equal(await page.getByRole('combobox', { name: 'Origen', exact: true }).inputValue(), 'Mi origen escrito');
     assert.ok(await page.getByRole('button', { name: 'Usar mi ubicación actual' }).isEnabled());
   } finally { await context.close(); }
 });
@@ -78,7 +78,7 @@ test('address service failure still confirms the device coordinates', async () =
     await page.goto(base);
     await page.getByRole('button', { name: 'Usar mi ubicación actual' }).click();
     await page.getByText(/Origen establecido con coordenadas/).waitFor();
-    assert.match(await page.getByRole('textbox', { name: 'ORIGEN', exact: true }).inputValue(), /Mi ubicación/);
+    assert.match(await page.getByRole('combobox', { name: 'Origen', exact: true }).inputValue(), /Mi ubicación/);
     assert.equal(await page.locator('.location-confirmed').count(), 1);
   } finally { await context.close(); }
 });
@@ -89,9 +89,9 @@ test('typing after a GPS request cancels its late result', async () => {
     await page.route('**/api/route-planner/**', route => route.fulfill({ json: { ok: true, suggestions: [] } }));
     await page.goto(base);
     await page.getByRole('button', { name: 'Usar mi ubicación actual' }).click();
-    await page.getByRole('textbox', { name: 'ORIGEN', exact: true }).fill('Conservar este origen');
+    await page.getByRole('combobox', { name: 'Origen', exact: true }).fill('Conservar este origen');
     await page.waitForTimeout(900);
-    assert.equal(await page.getByRole('textbox', { name: 'ORIGEN', exact: true }).inputValue(), 'Conservar este origen');
+    assert.equal(await page.getByRole('combobox', { name: 'Origen', exact: true }).inputValue(), 'Conservar este origen');
     assert.equal(await page.locator('.location-confirmed').count(), 0);
   } finally { await context.close(); }
 });

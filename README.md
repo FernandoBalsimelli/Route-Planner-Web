@@ -114,3 +114,9 @@ aplicaciones al importar estos archivos.
 El guardado del recorrido y de todas sus entregas utiliza una sola transacción
 en Supabase. Si se interrumpe la conexión, reintentar el mismo contenido no crea
 otra ruta. Puedes asignar un nombre operativo antes de guardarla.
+
+El mapa principal está disponible desde el inicio. Al enfocar un campo y buscar,
+las coincidencias aparecen como S1, S2… en el mismo orden que la lista. Pulsa
+un marcador y «Usar como origen/parada/destino» para confirmar sus coordenadas.
+En móvil, el mapa aparece primero y el buscador incluye un enlace para regresar
+a sus coincidencias. No se dibuja ningún trazado antes de calcular la ruta.

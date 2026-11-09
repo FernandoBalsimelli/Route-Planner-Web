@@ -2,12 +2,15 @@ import assert from 'node:assert/strict';
 import { after, afterEach, test } from 'node:test';
 import { JSDOM } from 'jsdom';
 import React, { act } from 'react';
+import {registerHooks} from 'node:module';
 
 const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'https://route-planner.example.test' });
 Object.defineProperties(globalThis, {
   window: { value: dom.window, configurable: true }, document: { value: dom.window.document, configurable: true },
-  navigator: { value: dom.window.navigator, configurable: true }, React: { value: React, configurable: true },
+  navigator: { value: dom.window.navigator, configurable: true }, Element: { value: dom.window.Element, configurable: true }, HTMLElement: { value: dom.window.HTMLElement, configurable: true }, React: { value: React, configurable: true },
 });
+dom.window.SVGSVGElement.prototype.createSVGRect = () => ({});
+const cssHook=registerHooks({load(url,context,next){return url.endsWith('.css')?{format:'module',source:'export default {};',shortCircuit:true}:next(url,context);}});
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const savedBroadcastChannel = globalThis.BroadcastChannel;
 globalThis.BroadcastChannel = undefined;
@@ -22,7 +25,7 @@ const { default: Home } = await import('../app/page.tsx');
 const savedFetch = globalThis.fetch;
 let root, container;
 afterEach(async () => { await act(async () => root?.unmount()); container?.remove(); globalThis.fetch = savedFetch; });
-after(async () => { await supabase.auth.stopAutoRefresh(); globalThis.BroadcastChannel = savedBroadcastChannel; dom.window.close(); });
+after(async () => { await supabase.auth.stopAutoRefresh(); globalThis.BroadcastChannel = savedBroadcastChannel; cssHook.deregister(); dom.window.close(); });
 
 function button(text) { return [...container.querySelectorAll('button')].find(node => node.textContent.includes(text)); }
 async function fill(input, value) {

@@ -6,6 +6,7 @@ import { locateDevice } from '@/lib/geolocation';
 import { resolvePointLabel, type Coordinates, type LocationSelection } from '@/lib/locations';
 import LocationBookTools from './LocationBookTools';
 import { useLocationBook } from './LocationBookProvider';
+import { validLocation } from '@/lib/location-book';
 
 export type { LocationSelection } from '@/lib/locations';
 const MapLocationPicker = dynamic(() => import('./MapLocationPicker'), { ssr: false, loading: () => <p role="status">Cargando mapa…</p> });
@@ -25,13 +26,16 @@ type Props = {
   mapReference?: Coordinates | null;
   onChange: (value: string) => void;
   onConfirm: (location: LocationSelection) => void;
+  onSuggestions?: (locations: LocationSelection[]) => void;
 };
 
-export default function LocationInput({ title, color, value, placeholder, apiUrl, selected, allowCurrentLocation = false, mapReference, onChange, onConfirm }: Props) {
+export default function LocationInput({ title, color, value, placeholder, apiUrl, selected, allowCurrentLocation = false, mapReference, onChange, onConfirm, onSuggestions }: Props) {
   const book = useLocationBook();
   const [bookOpen, setBookOpen] = useState(false);
   const listId = useId();
   const [activeIndex, setActiveIndex] = useState(-1);
+  const focused = useRef(false);
+  const suggestionsCallback = useRef(onSuggestions); suggestionsCallback.current = onSuggestions;
   const [suggestions, setSuggestions] = useState<LocationSelection[]>([]);
   const [pending, setPending] = useState<LocationSelection | null>(null);
   const [loading, setLoading] = useState(false);
@@ -91,6 +95,8 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
   useEffect(() => {
     if (mapOpen || bookOpen) { setSuggestions([]); setPending(null); setLoading(false); return; }
     if (selected && selected.label === value) {
+      geoRequest.current++; reverseController.current?.abort(); setGeoBusy(false);
+      if (focused.current) suggestionsCallback.current?.([]);
       setSuggestions([]);
       setPending(null);
       setSearchError('');
@@ -98,6 +104,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       return;
     }
     if (value.trim().length < 2) {
+      if (focused.current) suggestionsCallback.current?.([]);
       setSuggestions([]);
       setPending(null);
       setSearchError('');
@@ -105,6 +112,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       return;
     }
     setSuggestions([]);
+    if (focused.current) suggestionsCallback.current?.([]);
     setActiveIndex(-1);
     setPending(null);
     setSearchError('');
@@ -120,8 +128,10 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
         const payload = await response.json();
         if (controller.signal.aborted) return;
         if (!response.ok) throw new Error(payload.message || 'No se pudieron cargar las sugerencias.');
-        setSuggestions(Array.isArray(payload.suggestions) ? payload.suggestions : []);
-        setSearchNotice(payload.warning === 'NO_NEARBY_MATCHES' ? 'No encontramos coincidencias a menos de 50 km del punto de referencia. Revisa la ciudad y la distancia de estos resultados.' : !payload.suggestions?.length ? 'Sin coincidencias. Añade calle, colonia o ciudad, o elige el punto en el mapa.' : '');
+        const locations = Array.isArray(payload.suggestions) ? payload.suggestions.filter(validLocation) : [];
+        setSuggestions(locations);
+        if (focused.current) suggestionsCallback.current?.(locations);
+        setSearchNotice(payload.warning === 'NO_NEARBY_MATCHES' ? 'No encontramos coincidencias a menos de 50 km del punto de referencia. Revisa la ciudad y la distancia de estos resultados.' : !locations.length ? 'Sin coincidencias. Añade calle, colonia o ciudad, o elige el punto en el mapa.' : '');
       } catch (error) {
         if (controller.signal.aborted) return;
         setSuggestions([]);
@@ -152,6 +162,9 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       <span><i className={color === 'number' ? 'stop-number' : `dot ${color}`}>{color === 'number' ? title.match(/\d+/)?.[0] : ''}</i> {color === 'number' ? title : title.toUpperCase()}</span>
       <input
         role="combobox"
+        aria-label={title}
+        onFocus={() => { focused.current = true; suggestionsCallback.current?.(suggestions); }}
+        onBlur={() => { focused.current = false; }}
         maxLength={180}
         value={value}
         onChange={event => { cancelLocation(); setMapOpen(false); onChange(event.target.value); setPending(null); }}
@@ -190,6 +203,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       {geoStatus && <p className="location-search-status" role="status" aria-live="polite">{geoStatus}</p>}
     </div>}
     {loading && <p className="location-search-status">Buscando direcciones y lugares…</p>}
+    {onSuggestions && suggestions.length > 0 && !pending && <a className="suggestions-map-link" href="#mapa-planificacion" onClick={() => suggestionsCallback.current?.(suggestions)}>Ver estas coincidencias en el mapa ↑</a>}
     {!loading && searchNotice && !selected && !pending && <p className="location-search-status" role="status">{searchNotice}</p>}
     {suggestions.length > 0 && !pending && <div className="location-suggestions" id={listId} role="listbox" aria-label={`Sugerencias para ${title}`}>
       {suggestions.map((suggestion, index) => <button
@@ -202,7 +216,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
         key={`${suggestion.lat}-${suggestion.lng}-${index}`}
         onClick={() => setPending(suggestion)}
       >
-        <span className="suggestion-pin">⌖</span>
+        <span className="suggestion-pin">{onSuggestions ? `S${index + 1}` : '⌖'}</span>
         <span className="suggestion-copy"><strong>{suggestion.label}</strong><small>{locationKind(suggestion.kind) && `${locationKind(suggestion.kind)} · `}{suggestion.plusCode || `${suggestion.lat.toFixed(6)}, ${suggestion.lng.toFixed(6)}`}</small>{suggestion.distanceMeters != null && <small>{suggestion.distanceMeters < 1000 ? `${suggestion.distanceMeters} m` : `${(suggestion.distanceMeters / 1000).toFixed(1)} km`} del origen · en línea recta</small>}</span>
         <span className="suggestion-arrow">›</span>
       </button>)}

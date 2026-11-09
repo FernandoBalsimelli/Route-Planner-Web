@@ -113,7 +113,7 @@ No se hicieron operaciones sobre otros proyectos ni se contrataron servicios.
 | P1 | Pruebas autenticadas completas de cuenta, rutas, flotas y aislamiento RLS | Parcial; falta fixture de cuenta de prueba |
 | P1 | Rate limiting por cliente detrás del proxy | Revisar separación entre usuarios sin confiar en cabeceras falsificables |
 | P2 | Caché acotada, deduplicación de búsquedas y estados accesibles de teclado | Pendiente |
-| P2 | Mapa como elemento principal, tema claro/oscuro y revisión Android | Pendiente |
+| P2 | Mapa como elemento principal, tema claro/oscuro y revisión Android | Mapa principal implementado; tema y Android físico pendientes |
 | P2 | Evitar peajes/autopistas, alternativas y preferencias verificadas del proveedor | Pendiente |
 | P3 | Compartir enlaces con autorización y caducidad | Pendiente |
 | P3 | Ejes, tipos de carga, restricciones locales y navegación avanzada | Pendiente |
@@ -257,3 +257,24 @@ restauraría sus avisos de seguridad; se prefiere corregir hacia adelante.
   anteriores. Revertir el frontend no requiere eliminar columnas ni registros.
 - Navegador de producción del ciclo anterior: selección por flechas/Enter y
   reutilización de un reciente confirmadas, con coordenadas y Plus Code intactos.
+
+## Ciclo: mapa principal de sucursales
+
+- El mapa aparece antes del cálculo y muestra los puntos confirmados. La vista
+  móvil lo coloca primero, y la cabecera se reduce para dar prioridad al trabajo.
+- Solo el campo enfocado publica sus coincidencias al mapa. Los marcadores
+  S1…S8 corresponden al orden del buscador. Su popup permite confirmar el punto
+  como origen, parada concreta o destino sin volver a geocodificarlo.
+- Un enlace desde los resultados lleva al mapa en móvil. Elegir un marcador
+  devuelve el foco al campo y conserva coordenadas y Plus Code. Al calcular se
+  desplaza la vista al resultado; antes no se dibujan líneas de carretera.
+- La vista inicial prioriza el entorno del primer resultado para evitar que un
+  homónimo de otro país aleje todas las sucursales. La lista conserva todas las
+  propuestas y el usuario puede desplazar/acercar/alejar el mapa.
+- No se reajusta la vista cuando llegan arrays nuevos con las mismas coordenadas.
+  Una selección externa cancela una lectura GPS pendiente para que no la sustituya.
+- Verificación: 48 pruebas Web, incluidas confirmación real del popup Leaflet,
+  asignación al campo activo, coordenadas exactas en el enlace de navegación,
+  exclusión de resultados lejanos de la vista inicial y cancelación del GPS.
+  Se actualizan los selectores de la suite E2E al rol combobox; su ejecución móvil
+  completa sigue pendiente en un host que pueda iniciar Chromium.
