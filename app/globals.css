@@ -48,3 +48,8 @@
 .source-documents li{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--surface-soft);overflow-wrap:anywhere}
 .source-documents li p{margin:5px 0}
 .source-documents li a{display:inline-block;min-height:44px;padding:10px 0}
+
+.vehicle-operating-fields{min-width:0;margin:14px 0;padding:12px;border:1px solid var(--line);border-radius:12px}
+.vehicle-operating-fields legend{font-size:12px;font-weight:650;padding:0 6px}
+.vehicle-operating-fields .vehicle-fields{margin:0}
+.vehicle-operating-fields .hint{margin-top:10px}

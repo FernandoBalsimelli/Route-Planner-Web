@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { RouteResult } from './routes';
 import { MAX_ROUTE_POINTS, MAX_INTERMEDIATE_STOPS } from './route-limits';
 import { validLocation } from './location-book';
-type SaveDetails = { name: string; vehicleId: string | null; mode: 'delivery' | 'truck'; vehicle: { heightM: number; widthM: number; lengthM: number; grossWeightT: number; axleWeightT: number } | null };
+type SaveDetails = { name: string; vehicleId: string | null; mode: 'delivery' | 'truck'; vehicle: { heightM: number; widthM: number; lengthM: number; grossWeightT: number; axleWeightT: number; axleCount?: number; configuration?: string; payloadCapacityT?: number } | null };
 export function routeSaveData(route: RouteResult, details: SaveDetails) {
   const points = route.waypoints || [];
   if (points.length < 2 || points.length > MAX_ROUTE_POINTS) throw new Error(`El cálculo debe contener origen, destino y hasta ${MAX_INTERMEDIATE_STOPS} paradas intermedias para guardarse.`);

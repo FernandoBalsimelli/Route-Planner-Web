@@ -35,3 +35,10 @@ test('saving retains the exact preferences snapshot in route metadata', () => {
   const preferences = { avoidTolls: true, avoidHighways: false };
   assert.deepEqual(routeSaveData({ ...result, preferences }, details).p_route.route_metadata.result.preferences, preferences);
 });
+
+
+test('route history preserves the configuration, axles and capacity used in that calculation', () => {
+  const vehicle = { ...details.vehicle, axleCount: 5, configuration: 'T3-S2', payloadCapacityT: 30.125 };
+  const payload = routeSaveData(result, { ...details, vehicle });
+  assert.deepEqual(payload.p_route.route_metadata.vehicle, vehicle);
+});

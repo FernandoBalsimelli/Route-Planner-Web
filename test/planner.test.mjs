@@ -99,3 +99,35 @@ test('road preferences disable incompatible optimization and abort stale calcula
   assert.equal(container.querySelector('.metrics'), null);
   assert.equal(container.querySelector('.error-box'), null);
 });
+
+
+test('truck configuration fills axles, reaches the API, cancels stale calculations and validates before network access', async () => {
+  let complete, plannedBody, signal, calls = 0;
+  globalThis.fetch = async (url, options) => {
+    if (url.endsWith('/v1/routes/plan')) {
+      calls++; plannedBody = JSON.parse(options.body); signal = options.signal;
+      return new Promise(resolve => { complete = resolve; });
+    }
+    return Response.json({ ok: true, suggestions: [] });
+  };
+  container = document.createElement('div'); document.body.append(container); root = createRoot(container);
+  await act(async () => root.render(React.createElement(Home)));
+  await act(async () => button('Camión').click());
+  for (const [index, input] of [...container.querySelectorAll('.route-form .field input')].entries()) await fill(input, `Punto de prueba ${index}`);
+  const configuration = container.querySelector('[aria-label="Configuración vehicular"]');
+  await act(async () => { configuration.value = 'T3-S2'; configuration.dispatchEvent(new window.Event('change', { bubbles: true })); });
+  const [axes, capacity] = container.querySelectorAll('.vehicle-operating-fields input');
+  assert.equal(axes.value, '5'); assert.equal(axes.readOnly, true);
+  await fill(capacity, '30.125');
+  await act(async () => button('Calcular ruta').click());
+  assert.equal(plannedBody.vehicle.axleCount, 5); assert.equal(plannedBody.vehicle.configuration, 'T3-S2'); assert.equal(plannedBody.vehicle.payloadCapacityT, 30.125);
+  await fill(capacity, '32'); assert.equal(signal.aborted, true);
+  await act(async () => complete(Response.json({ ok: true, route: { distanceMeters: 12345, durationSeconds: 300, sections: [] } })));
+  assert.equal(container.querySelector('.metrics'), null);
+  await fill(capacity, '3.4999');
+  await act(async () => button('Calcular ruta').click());
+  assert.equal(calls, 1); assert.match(container.querySelector('.error-box').textContent, /máximo de tres decimales/);
+  assert.doesNotMatch(container.querySelector('.error-box').textContent, /conectar/);
+  await act(async () => { configuration.value = ''; configuration.dispatchEvent(new window.Event('change', { bubbles: true })); });
+  assert.equal(axes.readOnly, false); assert.equal(axes.value, '5');
+});

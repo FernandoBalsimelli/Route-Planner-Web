@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
-export type SavedRoute = { id: string; name: string; created_at: string; mode?: 'delivery' | 'truck'; status?: string; vehicle_id?: string | null; origin: { label?: string; lat?: number; lng?: number } | null; destination: { label?: string; lat?: number; lng?: number } | null; route_metadata?: { mode?: 'delivery' | 'truck'; vehicle?: { heightM?: number; widthM?: number; lengthM?: number; grossWeightT?: number; axleWeightT?: number } | null; result?: import('@/lib/routes').RouteResult } | null };
+export type SavedRoute = { id: string; name: string; created_at: string; mode?: 'delivery' | 'truck'; status?: string; vehicle_id?: string | null; origin: { label?: string; lat?: number; lng?: number } | null; destination: { label?: string; lat?: number; lng?: number } | null; route_metadata?: { mode?: 'delivery' | 'truck'; vehicle?: { heightM?: number; widthM?: number; lengthM?: number; grossWeightT?: number; axleWeightT?: number; axleCount?: number; configuration?: string; payloadCapacityT?: number } | null; result?: import('@/lib/routes').RouteResult } | null };
 // Fetch large geometry/instructions only when the operator opens that route.
 const COLUMNS = 'id,name,created_at,status,vehicle_id,origin,destination,mode:route_metadata->>mode';
 export default function SavedRoutesPanel({ user, revision, onLoad }: { user: User | null; revision: number; onLoad: (route: SavedRoute) => Promise<void> }) {
