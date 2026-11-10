@@ -1162,3 +1162,127 @@ configuración sin usar capacidad nominal como peso real; alternativas de rutas,
 enlaces compartidos autorizados y pruebas autenticadas reales de producción y
 en carretera. Los próximos cambios deben volver a consultar main y los alias.
 No restaurar el límite de ocho entregas ni eliminar la continuidad programada.
+
+## Ciclo cerrado · 10-11-2026 · Datos del camión en la consulta municipal
+
+### Diagnóstico, causa y cambios
+
+Se consultó main más reciente: Web f46e3fd, API 0550ad5. Se leyeron este informe
+y MEXICO-COVERAGE antes de editar. Producción seguía READY en Web 2ca303c y
+API d7ebfd5. La diferencia de main de API era exclusivamente el reporte periódico
+de fuentes; se conservó. No hubo avances ajenos de código que sobrescribir.
+
+La consulta municipal mostraba referencias pero no las contrastaba con la unidad
+actual del planificador. Ahora recibe configuración/ejes, capacidad nominal,
+peso bruto y medidas. Compara únicamente los campos estructurados de la fuente:
+Puebla (capacidad, cuadro de configuración y longitud) y criterio de ejes del
+artículo 39 de Monterrey. Presenta coincidencias/diferencias de datos, sin
+clasificar una operación o ruta como autorizada. No oculta las disposiciones
+cuando un dato no coincide ni evalúa si la ruta cruza una zona o calle.
+
+Se distinguen capacidad nominal, peso bruto cargado y ancho de la carga. Este
+último queda pendiente; no se sustituye por ancho del vehículo. El cuadro de una
+configuración no se traslada a otra. Configuraciones/ejes contradictorios y datos
+inválidos permanecen desconocidos. El caso exacto de 3.5 t no recibe ventana.
+Al cambiar a Reparto se retira el contexto del camión, sin conservar exenciones.
+
+Se encontró además un caso límite en la validación previa de capacidad: la
+tolerancia de coma flotante podía aceptar precisión adicional extremadamente
+próxima a un umbral. Se valida ahora que el número ya sea representable con tres
+decimales; se rechaza precisión extra sin redondear el valor para decidir un lado.
+También se evita reiniciar la consulta municipal por cambios de identidad del
+objeto solicitado: el efecto depende de ID y número de solicitud, conservando
+la cancelación de respuestas obsoletas al cambiar jurisdicción.
+
+### Fuentes y alcance
+
+Se contrastaron fuentes oficiales el 10-11-2026. Gaceta de Puebla respondió 200,
+HTML SHA-256 1a67a805c0445f99285181b27afadb12dac2d69a5ab3d8b815fa18b695c24aa6.
+La descarga directa del PDF de Monterrey respondió 403 en este entorno; el
+servicio de consulta documental recuperó su texto de 177 páginas. No se inventa
+un hash nuevo ni se modifica su fecha de comprobación en la API. La diferencia
+de hash HTML no acredita reforma. Siguen pendientes publicación/entrada en vigor,
+actos posteriores, permisos, días, excepciones, sentidos y geometrías.
+
+Documentación: MUNICIPAL-VEHICLE-REVIEW.md, MEXICO-COVERAGE.md. La investigación
+complementaria TRUCK-PROVIDER-OPTIONS.md contrasta ORS alojado/autohospedado,
+Valhalla (truck, número de ejes y licencia MIT) y límites de Maps URLs con fuentes
+primarias actuales. Es evaluación técnica, no un respaldo integrado o capacidad
+municipal completa. No se aprovisionó infraestructura ni se contrató un servicio.
+
+Permanecen 14 municipios con referencias parciales y cero con validación legal
+automática completa. No se agregan municipios, calles ni geometrías de exclusión
+al cálculo. Directions y los enlaces consecutivos de Google no cambian; los
+puntos guía siguen sin fijar la polilínea ni transmitir restricciones HGV.
+
+### Archivos y verificación
+
+Archivos de producto: app/page.tsx y globals.css; MunicipalCoverage, TruckGuide y
+VehicleReferenceComparison; lib/municipal-vehicle-review.ts y vehicle-operating.ts.
+Pruebas: municipal-vehicle-review, municipal-review, vehicle-operating,
+geolocation.e2e e integración autenticada. Workflow fija API 0550ad5, incluida la
+versión definitiva de sus nueve migraciones. El diff completo está en PR #15.
+
+- Local: typecheck y build Web aprobados, 101 pruebas aprobadas, auditoría de
+  dependencias de producción sin vulnerabilidades conocidas. API sin cambios:
+  comprobación de sintaxis/build y sus 60 pruebas aprobadas.
+- Chromium local no arrancó (socket/ptrace Operation not permitted). Este intento
+  no se cuenta como navegador aprobado ni se eludieron permisos del entorno.
+- CI Web 42920574227 aprobado en head 23a1679: TypeScript, compilación, 101 pruebas,
+  22 casos de navegador móvil/escritorio, dos flujos autenticados y auditorías.
+  La ejecución anterior se sustituyó al reforzar la precisión, sin publicar
+  código antes de comprobar el head final.
+- Nuevos casos: fronteras de capacidad y precisión adicional próxima al umbral;
+  datos desconocidos/contradictorios; configuración y ancho de carga; consulta por
+  jurisdicción sin reinicio al cambiar datos; móvil 360/390 px sin desbordamiento,
+  capacidad independiente del peso, cambio a Reparto y criterio de ejes 4/5.
+- Integración con Auth/REST de Supabase local reales: una ruta recuperada usa su
+  perfil histórico en la guía de Puebla, después de editar el vehículo guardado.
+  Conserva los otros flujos de cuenta, RLS, papelera, preferencias y 48 entregas.
+  ORS es un fixture determinista y el monitor se aísla en ese caso; no es un
+  cálculo autenticado de producción ni una prueba Android física/en carretera.
+- Producción vía proxy: salud, coordenadas, Plus Codes completo/compuesto y ocho
+  coincidencias cercanas de Aurrera Express respondieron 200. Validate aceptó dos
+  extremos y 48 intermedias; rechazó 49. Puebla devolvió cinco reglas y Monterrey
+  19 filas de horarios. Son verificaciones públicas de entrada/referencia, no
+  rutas calculadas con una sesión real en el proveedor externo.
+- Navegador real en el alias público: C2/3.5 t dejó ambas condiciones sin ventana;
+  peso bruto 12 t se comparó por separado y ancho de carga siguió desconocido.
+  Cambiar a Reparto retiró esos datos; T3-S2/5 ejes en Monterrey mostró que no
+  coincide sólo el criterio de ejes y conservó las advertencias de ámbito.
+  No se crearon cuentas alojadas ni se modificaron vehículos del usuario.
+- Vercel: sin errores/fatales runtime agregados en los 30 minutos revisados de
+  Web y API. Es evidencia de esa ventana, no garantía permanente de ausencia.
+
+### Publicación y recuperación
+
+Web PR #15: https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/15.
+Commits 42e1cd8 y 23a1679; merge y código publicado:
+2dfa34a72844fb9e7e22042645d5b94c67cc332b.
+Despliegue dpl_5Cc571NruusJTef3Td1egdxY4eTy, alias comprobado READY y asociado a
+ese commit: https://route-planner-web-sand.vercel.app/.
+API continúa en d7ebfd5dd1db2eb113c3ea5ff1761cfc191aac9c,
+dpl_EBZeeib4sbBYxN5rm9TqM7KqwRYx: https://route-planner-api.vercel.app/.
+
+Rollback Web: dpl_37przBY8daiJuu8AjufZgFStqtJ9, commit 2ca303c. No se requiere
+rollback de API ni Supabase: no hubo cambios de esquemas, RLS, funciones o datos
+alojados. Sólo se modificó el repositorio y despliegue Web autorizados; API se
+consultó y actualizó localmente al reporte existente, sin commits nuevos de esta
+intervención. Gestión y otros proyectos no se consultaron ni se modificaron.
+Sin gastos activados ni credenciales expuestas. Ramas y commits conservados.
+El cierre documental posterior no cambia el código publicado y verificado.
+
+### Próxima prioridad
+
+Completado: comparación numérica contextual con alcance explícito, precisión de
+capacidad reforzada y aislamiento del modo de reparto, con pruebas y publicación.
+Parcial: revisión municipal, sólo referencias y comparación de algunos datos.
+Pendientes: vigencia/excepciones/permisos y geometrías/sentidos verificables para
+incorporar reglas al ruteo; alternativas de recorrido; enlaces compartidos con
+permisos; cálculos autenticados de producción y navegación Android física. La
+evaluación de motores alternativos todavía necesita infraestructura autorizada y
+pruebas de restricciones conocidas; no se presenta como integración realizada.
+
+Reanudar leyendo main y ambos alias, conservar el reporte automático de API y el
+límite real del proveedor sin restaurar ocho entregas. El programa maestro no
+está completo; no se elimina la continuidad por cerrar este ciclo.
