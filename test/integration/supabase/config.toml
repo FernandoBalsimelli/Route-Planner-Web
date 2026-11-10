@@ -42,6 +42,6 @@ enable_anonymous_sign_ins = false
 minimum_password_length = 8
 
 [auth.email]
-enable_signup = true
+enabled = true
 # Test accounts only: local Auth returns a session without sending real emails.
 enable_confirmations = false

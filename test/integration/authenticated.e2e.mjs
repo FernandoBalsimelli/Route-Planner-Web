@@ -32,9 +32,13 @@ async function createAccount(page, username) {
   await page.locator('.account-tabs').getByRole('button', { name: 'Crear cuenta', exact: true }).click();
   await page.getByLabel('Correo', { exact: true }).fill(`${username}@example.test`);
   await page.getByLabel('Contraseña', { exact: true }).fill(password);
-  await page.locator('.account-submit').click();
-  await page.getByText('Cuenta creada. Ya puedes guardar tus rutas.', { exact: true }).waitFor();
-  await page.locator('.account-button').click();
+  const signup=page.waitForResponse(response=>response.url().includes('/auth/v1/signup')&&response.request().method()==='POST');
+  await page.locator('form .account-submit').click();
+  const response=await signup;assert.equal(response.status(),200,'local Auth must accept the browser signup');
+  const payload=await response.json(),createdId=payload.user?.id||payload.id;assert.equal(typeof createdId,'string');
+  await page.locator('.account-button').filter({hasText:username}).waitFor();
+  if(await page.getByRole('dialog',{name:'Cuenta de Route Planner'}).isVisible())await page.locator('.account-button').click();
+  return createdId;
 }
 async function point(page, title, value) {
   await page.getByRole('combobox', { name: title, exact: true }).fill(value);
@@ -61,8 +65,10 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
   const page = await context.newPage();
   try {
     await page.goto(base);
-    await createAccount(page, 'e2e-owner-one');
-    const first = await session('e2e-owner-one');
+    const createdId=await createAccount(page, 'e2e-owner-one');
+    const first = await session('e2e-owner-one');assert.equal(first.uid,createdId);
+    let profiles=[];for(let i=0;i<20;i++){profiles=await rows(first.client,'profiles');if(profiles.some(row=>row.id===first.uid))break;await new Promise(resolve=>setTimeout(resolve,100));}
+    assert.ok(profiles.some(row=>row.id===first.uid),'browser signup must prepare its own persistent profile');
     await nav(page).getByRole('button', { name: 'Vehículos', exact: true }).click();
     await page.getByRole('button', { name: 'Agregar vehículo' }).click();
     await page.getByLabel('Nombre o número de unidad', { exact: true }).fill('Unidad E2E 12');
