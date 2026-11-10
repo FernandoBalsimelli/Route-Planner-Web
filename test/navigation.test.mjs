@@ -70,3 +70,27 @@ test('encoded long addresses split before Google URL length is exceeded without 
 test('an unrepresentable pair asks for confirmation instead of emitting an oversized link',()=>{
   assert.throws(()=>googleMapsSegments(['漢'.repeat(180),'字'.repeat(180)]),/Confirma estos puntos/);
 });
+
+
+for (const limit of [3, 9]) test(`road preferences accompany every Google segment including long addresses (${limit})`, () => {
+  const points = Array.from({ length: 50 }, (_, i) => `Entrega ${i} · ${'Árbol '.repeat(12)}Chihuahua`);
+  const segments = googleMapsSegments(points, limit, { avoidTolls: true, avoidHighways: true });
+  const visited = [];
+  for (const [index, segment] of segments.entries()) {
+    assert.ok(segment.url.length <= 2048);
+    const params = new URL(segment.url).searchParams;
+    assert.equal(params.get('avoid'), 'tolls,highways');
+    const part = [params.get('origin'), ...(params.get('waypoints')?.split('|') || []), params.get('destination')];
+    if (index) assert.equal(part[0], visited.at(-1));
+    visited.push(...part.slice(index ? 1 : 0));
+  }
+  assert.deepEqual(visited, points);
+  assert.equal(new URL(googleMapsUrls(['A', 'B'])[0]).searchParams.has('avoid'), false);
+});
+
+
+test('legacy or malformed saved preferences never enable unrecorded exclusions', async () => {
+  const { readRoutePreferences } = await import('../lib/route-preferences.ts');
+  for (const value of [undefined, null, {}, { avoidTolls: 'true', avoidHighways: 1 }]) assert.deepEqual(readRoutePreferences(value), { avoidTolls: false, avoidHighways: false });
+  assert.deepEqual(readRoutePreferences({ avoidTolls: true }), { avoidTolls: true, avoidHighways: false });
+});

@@ -29,3 +29,9 @@ test('saving preserves 48 deliveries and rejects totals above the provider limit
   assert.equal(data.p_stops.length,48);assert.equal(data.p_stops.at(-1).label,'Delivery 48');
   assert.throws(()=>routeSaveData({...result,waypoints:[result.waypoints[0],...stops,stops[0],result.waypoints.at(-1)]},details),/48 paradas/);
 });
+
+
+test('saving retains the exact preferences snapshot in route metadata', () => {
+  const preferences = { avoidTolls: true, avoidHighways: false };
+  assert.deepEqual(routeSaveData({ ...result, preferences }, details).p_route.route_metadata.result.preferences, preferences);
+});

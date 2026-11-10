@@ -372,3 +372,40 @@ test('mobile branch confirmation preserves street and coordinates after showing 
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
  }finally{await context.close();}
 });
+
+
+test('mobile road preferences reach all Google links and preserve delivery order', async () => {
+  const { context, page } = await setup(() => {});
+  try {
+    await page.route('**/api/route-planner/**', route => route.fulfill({ json: { ok: true, suggestions: [] } }));
+    await page.goto(base);
+    await page.getByRole('combobox', { name: 'Origen', exact: true }).fill('28.63, -106.06');
+    await page.getByRole('combobox', { name: 'Destino', exact: true }).fill('28.64, -106.07');
+    for (let i = 1; i <= 12; i++) {
+      await page.getByRole('button', { name: 'Agregar parada' }).click();
+      await page.getByRole('combobox', { name: `PARADA ${i}`, exact: true }).fill(`28.63${i}, -106.06`);
+    }
+    const optimization = page.getByRole('checkbox', { name: /Optimizar orden de paradas/ });
+    await optimization.check();
+    await page.getByRole('checkbox', { name: 'Evitar casetas de peaje', exact: true }).check();
+    await page.getByRole('checkbox', { name: 'Evitar autopistas', exact: true }).check();
+    assert.equal(await optimization.isChecked(), false);
+    assert.equal(await optimization.isDisabled(), true);
+    await page.getByRole('combobox', { name: 'Paradas intermedias por enlace', exact: true }).selectOption('3');
+    const hrefs = await page.locator('.navigation-segments a').evaluateAll(nodes => nodes.map(node => node.href));
+    assert.equal(hrefs.length, 4);
+    const visited = [];
+    for (const [index, href] of hrefs.entries()) {
+      const params = new URL(href).searchParams;
+      assert.equal(params.get('avoid'), 'tolls,highways');
+      assert.ok(href.length <= 2048);
+      const part = [params.get('origin'), ...(params.get('waypoints')?.split('|') || []), params.get('destination')];
+      if (index) assert.equal(part[0], visited.at(-1));
+      visited.push(...part.slice(index ? 1 : 0));
+    }
+    assert.equal(visited.length, 14);
+    assert.equal(visited[0], '28.63, -106.06');
+    assert.equal(visited.at(-1), '28.64, -106.07');
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+  } finally { await context.close(); }
+});

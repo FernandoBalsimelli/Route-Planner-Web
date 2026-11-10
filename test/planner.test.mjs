@@ -68,3 +68,34 @@ test('manual order disables optimization, reaches the API in order, and stale ca
   assert.equal(container.querySelector('.error-box'), null);
   assert.equal(destination.value, 'Destino cambiado');
 });
+
+
+test('road preferences disable incompatible optimization and abort stale calculations when changed', async () => {
+  let complete, plannedBody, signal;
+  globalThis.fetch = async (url, options) => {
+    if (url.endsWith('/v1/routes/plan')) {
+      plannedBody = JSON.parse(options.body); signal = options.signal;
+      return new Promise(resolve => { complete = resolve; });
+    }
+    return Response.json({ ok: true, suggestions: [] });
+  };
+  container = document.createElement('div'); document.body.append(container); root = createRoot(container);
+  await act(async () => root.render(React.createElement(Home)));
+  for (let i = 0; i < 2; i++) await act(async () => button('Agregar parada').click());
+  for (const [index, input] of [...container.querySelectorAll('.route-form .field input')].entries()) await fill(input, `Punto de prueba ${index}`);
+  const optimize = container.querySelector('.optimize-toggle input');
+  await act(async () => optimize.click());
+  assert.equal(optimize.checked, true);
+  const [tolls, highways] = container.querySelectorAll('.road-preferences input');
+  await act(async () => tolls.click());
+  assert.equal(optimize.checked, false);
+  assert.equal(optimize.disabled, true);
+  await act(async () => button('Calcular ruta').click());
+  assert.deepEqual(plannedBody.preferences, { avoidTolls: true, avoidHighways: false });
+  assert.equal(plannedBody.optimize, false);
+  await act(async () => highways.click());
+  assert.equal(signal.aborted, true);
+  await act(async () => complete(Response.json({ ok: true, route: { distanceMeters: 12345, durationSeconds: 300, sections: [] } })));
+  assert.equal(container.querySelector('.metrics'), null);
+  assert.equal(container.querySelector('.error-box'), null);
+});
