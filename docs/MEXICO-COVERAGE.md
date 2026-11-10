@@ -204,3 +204,42 @@ directorio en esa jurisdicción, conserva el resto del plan y muestra el estado
 técnico de su fuente sin tener que desplegar el detalle. Al cambiar de municipio
 se cancelan respuestas obsoletas; no se muestra otra fuente como si fuera local.
 Un municipio sin referencia conserva su aviso y ninguna certificación de acceso.
+
+
+## Evidencia separada por documento · 10 de noviembre de 2026
+
+El monitor anterior agrupaba descarga principal y enlaces en un único try/catch:
+un fallo vinculado descartaba la comprobación nueva del principal. Ahora conserva
+por documento URL, tipo, hash inicial/actual, intento, última descarga correcta,
+cambio técnico y error. Se consultan los enlaces declarados aunque falle el
+principal. Un bundle SPA no descubierto se marca pendiente, no como cambiado.
+No se eliminan respuestas correctas por otro documento no disponible.
+
+La API añade documents, availability (available/partial/unavailable), changeDetected,
+changeKinds, relatedSetChanged y fechas de comprobación individuales al contrato
+existente; mantiene los estados antiguos para compatibilidad. lastSuccessAt es
+la última comprobación completa satisfactoria; primaryLastSuccessAt corresponde
+sólo al principal. Reportes anteriores conservan sus hashes y quedan sin desglose
+hasta la siguiente ejecución, sin inventar una descarga nueva.
+
+La UI muestra simultáneamente cambio y fallo; cada documento enlaza su propia
+fuente y última descarga. Un reporte global reciente no vuelve reciente una
+fuente individual antigua. Los enlaces públicos del desglose se restringen a
+los declarados y al bundle de la misma fuente; errores de red se redactan.
+
+No se extraen ni activan nuevas reglas en este ciclo: siguen 14 municipios con
+referencias parciales y cero con validación legal automática completa. Los hashes
+de HTML pueden variar por formularios, menús u otras publicaciones; el monitor
+no los convierte en reformas. Faltan geometrías/sentidos y revisión legal de
+vigencia, excepciones y permisos. El fallo se demuestra con respuestas simuladas
+controladas y se contrasta con descargas oficiales reales por separado.
+
+Contraste real del 10 de noviembre: en Puebla se recuperaron el principal y
+COREMUN mientras la ficha vinculada de OJP respondió 503; ahora se conserva la
+evidencia nueva y el fallo exacto. En Juárez cambió la página vinculada de Gaceta,
+no el hash del documento principal. Son comprobaciones técnicas de esa ventana,
+no declaraciones de reformas ni de disponibilidad futura.
+
+Una respuesta remota retrasada de CDN no sustituye el reporte incorporado más
+reciente. Se conserva la comprobación con fecha más reciente y se comparten
+consultas simultáneas, manteniendo el límite de caché y tiempos de espera.

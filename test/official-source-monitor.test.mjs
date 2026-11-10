@@ -23,3 +23,14 @@ test('source changes and stale checks remain visible while technical details are
  globalThis.fetch=async()=>Response.json({intervalHours:6,checkedAt:'2026-11-09T00:00:00Z',stale:true,notice:'Revisión pendiente',sources:[{id:'one',title:'Fuente',status:'unchanged'}]});
  await render('one');assert.match(container.querySelector('.source-monitor-alert').textContent,/Reporte atrasado/);assert.equal(container.querySelector('details').open,false);
 });
+
+
+test('a principal change and linked outage are both visible with exact document history',async()=>{
+ globalThis.fetch=async()=>Response.json({intervalHours:6,checkedAt:'2026-11-10T12:00:00Z',stale:false,notice:'No certifica vigencia.',sources:[{id:'one',title:'Fuente seleccionada',url:'https://official.gob.mx/rules',status:'unavailable',availability:'partial',changeDetected:true,documentBreakdownAvailable:true,documents:[{kind:'primary',url:'https://official.gob.mx/rules',status:'changed',checkedAt:'2026-11-10T12:00:00Z',lastSuccessAt:'2026-11-10T12:00:00Z'},{kind:'related',url:'https://official.gob.mx/gazette',status:'unavailable',checkedAt:'2026-11-10T12:00:00Z',lastSuccessAt:'2026-11-09T12:00:00Z',error:'HTTP_503'}]}]});
+ await render('one');const alerts=[...container.querySelectorAll('.source-monitor-alert')].map(node=>node.textContent).join(' ');assert.match(alerts,/Cambio detectado/);assert.match(alerts,/no se pudieron comprobar/);assert.equal(container.querySelector('details').open,false);
+ const documents=[...container.querySelectorAll('.source-documents li')];assert.equal(documents.length,2);assert.match(documents[0].textContent,/Documento principal.*Cambio detectado/);assert.match(documents[1].textContent,/vinculado.*No se pudo comprobar.*HTTP_503/);assert.equal(documents[1].querySelector('a').href,'https://official.gob.mx/gazette');assert.match(container.textContent,/no prueban una reforma jurídica/);
+});
+test('fresh global report cannot hide stale selected evidence and legacy detail is explicit',async()=>{
+ globalThis.fetch=async()=>Response.json({intervalHours:6,checkedAt:'2026-11-10T12:00:00Z',stale:false,sources:[{id:'one',title:'Fuente anterior',status:'unchanged',stale:true}]});
+ await render('one');assert.match(container.querySelector('.source-monitor-alert').textContent,/Reporte atrasado/);assert.match(container.textContent,/no incluye desglose por documento/);assert.equal(container.querySelector('.source-documents'),null);
+});

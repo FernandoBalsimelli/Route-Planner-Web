@@ -431,3 +431,22 @@ test('mobile route opens the exact municipality and shows changed-source review 
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
  }finally{await context.close();}
 });
+
+
+test('mobile source review retains a verified principal alongside a failed linked document',async()=>{
+ const {context,page}=await setup(()=>{});
+ try{
+  await page.route('**/api/route-planner/**',route=>{
+   const path=new URL(route.request().url()).pathname;
+   if(path.endsWith('/source-status'))return route.fulfill({json:{intervalHours:6,checkedAt:'2026-11-10T12:00:00Z',stale:false,notice:'No certifica vigencia.',sources:[{id:'monterrey-transito',title:'Fuente de prueba',url:'https://official.gob.mx/rules',status:'unavailable',availability:'partial',changeDetected:true,documentBreakdownAvailable:true,documents:[{kind:'primary',url:'https://official.gob.mx/rules',status:'changed',checkedAt:'2026-11-10T12:00:00Z',lastSuccessAt:'2026-11-10T12:00:00Z'},{kind:'related',url:'https://official.gob.mx/gazette',status:'unavailable',checkedAt:'2026-11-10T12:00:00Z',lastSuccessAt:'2026-11-09T12:00:00Z',error:'HTTP_503'}]}]}});
+   return route.fulfill({json:{states:[{id:'19',name:'Nuevo León'}],municipalities:[],totalMunicipalities:2478,municipalitiesWithPartialReference:14}});
+  });
+  await page.goto(base+'/#guia-camion');await page.getByRole('button',{name:'Consultar cobertura municipal',exact:true}).click();
+  await page.locator('.source-monitor-alert').filter({hasText:'Cambio detectado'}).waitFor();await page.locator('.source-monitor-alert').filter({hasText:'no se pudieron comprobar'}).waitFor();
+  assert.equal(await page.locator('.official-source-monitor details').evaluate(node=>node.open),false);
+  await page.getByText('Seguimiento de fuentes oficiales',{exact:true}).click();
+  const docs=page.locator('.source-documents li');assert.equal(await docs.count(),2);
+  await docs.nth(0).getByText('Documento principal',{exact:true}).waitFor();await docs.nth(1).getByText('HTTP_503',{exact:true}).waitFor();
+  assert.equal(await docs.nth(1).getByRole('link').getAttribute('href'),'https://official.gob.mx/gazette');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+ }finally{await context.close();}
+});
