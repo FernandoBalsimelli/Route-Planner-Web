@@ -474,3 +474,57 @@ test('mobile truck operating profile derives axles, allows unidentified units an
     assert.equal(await config.count(), 0);
   } finally { await context.close(); }
 });
+
+test('mobile municipal review uses planner capacity, preserves an unresolved threshold and clears truck data in reparto', async () => {
+  const { context, page } = await setup(() => {}, { width: 360, height: 800 });
+  try {
+    await page.route('**/api/route-planner/**', route => {
+      const path=new URL(route.request().url()).pathname;
+      if(path.endsWith('/source-status'))return route.fulfill({json:{sources:[],intervalHours:6,stale:false}});
+      if(path.endsWith('/21114'))return route.fulfill({json:{name:'Puebla',status:'reference_only',source:{id:'puebla-carga',url:'https://official.gob.mx/puebla',checkedAt:'2026-11-10T00:00:00Z'},notices:['Referencia sintética para probar la interfaz.'],trunkSegments:[],timeRules:[],rules:[{id:'lower',title:'Comparador menor',description:'Maniobras por corroborar.',citation:'Fixture de comparación',vehicleConditions:{payloadCapacityT:{lt:3.5}}},{id:'higher',title:'Comparador mayor',description:'Maniobras por corroborar.',citation:'Fixture de comparación',vehicleConditions:{payloadCapacityT:{gt:3.5}}},{id:'dimensions',title:'Cuadro C2',description:'Zona por corroborar.',citation:'Fixture de comparación',vehicleConfigurations:['C2'],limits:{grossWeightT:13,loadWidthM:2.6}}]}});
+      return route.fulfill({json:{states:[{id:'21',name:'Puebla'}],municipalities:[{id:'21114',name:'Puebla',coverage:'reference_only'}],totalMunicipalities:2478,municipalitiesWithPartialReference:14}});
+    });
+    await page.goto(base);await page.getByRole('button',{name:'Camión',exact:true}).click();
+    await page.getByLabel('Configuración vehicular',{exact:true}).selectOption('C2');
+    await page.getByLabel('Capacidad máxima de carga (t)',{exact:true}).fill('3.5');
+    await page.getByLabel('Peso bruto (t)',{exact:true}).fill('12');
+    const nav=page.getByRole('navigation',{name:'Secciones de Route Planner'});
+    await nav.getByRole('button',{name:'Guía camión',exact:true}).click();
+    await page.getByRole('button',{name:'Consultar cobertura municipal',exact:true}).click();
+    await page.getByLabel('Entidad federativa',{exact:true}).selectOption('21');
+    await page.getByLabel('Municipio o demarcación',{exact:true}).selectOption('21114');
+    await page.getByRole('heading',{name:'Puebla',exact:true}).waitFor();
+    assert.equal(await page.locator('[data-comparison="boundary"]').count(),2);
+    assert.match(await page.locator('[data-comparison="within"]').innerText(),/Peso bruto cargado: 12 t/);
+    assert.match(await page.locator('[data-comparison="unknown"]').innerText(),/Ancho de la carga: sin dato válido/);
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+    await nav.getByRole('button',{name:'Planificar',exact:true}).click();await page.getByRole('button',{name:'Reparto',exact:true}).click();
+    await nav.getByRole('button',{name:'Guía camión',exact:true}).click();
+    assert.equal(await page.locator('[data-comparison="boundary"]').count(),0);
+    await page.getByText(/Selecciona Camión en el planificador/).waitFor();
+  } finally { await context.close(); }
+});
+
+test('mobile axle review is limited to the selected municipality and keeps unknown or larger units under review', async () => {
+  const { context, page } = await setup(() => {});
+  try {
+    await page.route('**/api/route-planner/**', route => {
+      const path=new URL(route.request().url()).pathname;
+      if(path.endsWith('/source-status'))return route.fulfill({json:{sources:[],intervalHours:6,stale:false}});
+      if(path.endsWith('/19039'))return route.fulfill({json:{name:'Monterrey',status:'reference_only',source:{id:'monterrey-transito',url:'https://official.gob.mx/monterrey',checkedAt:'2026-11-10T00:00:00Z'},notices:[],trunkSegments:[],timeRules:[{maximumAxlesExempt:4}],rules:[]}});
+      return route.fulfill({json:{states:[{id:'19',name:'Nuevo León'}],municipalities:[{id:'19039',name:'Monterrey',coverage:'reference_only'}],totalMunicipalities:2478,municipalitiesWithPartialReference:14}});
+    });
+    await page.goto(base);await page.getByRole('button',{name:'Camión',exact:true}).click();
+    await page.getByLabel('Configuración vehicular',{exact:true}).selectOption('T3-S2');
+    const nav=page.getByRole('navigation',{name:'Secciones de Route Planner'});
+    await nav.getByRole('button',{name:'Guía camión',exact:true}).click();await page.getByRole('button',{name:'Consultar cobertura municipal',exact:true}).click();
+    await page.getByLabel('Entidad federativa',{exact:true}).selectOption('19');await page.getByLabel('Municipio o demarcación',{exact:true}).selectOption('19039');
+    const review=page.locator('[aria-label="Comparación de ejes con artículo 39"]');
+    await review.getByText(/Número total de ejes: 5 ejes/).waitFor();
+    assert.equal(await review.locator('[data-comparison="differs"]').count(),1);
+    assert.match(await review.innerText(),/No acredita acceso a otras vías/);
+    await nav.getByRole('button',{name:'Planificar',exact:true}).click();await page.getByLabel('Configuración vehicular',{exact:true}).selectOption('T2-S2');
+    await nav.getByRole('button',{name:'Guía camión',exact:true}).click();assert.match(await review.locator('[data-comparison="matches"]').innerText(),/4 ejes/);
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+  } finally { await context.close(); }
+});

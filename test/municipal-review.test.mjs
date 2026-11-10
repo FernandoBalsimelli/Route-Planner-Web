@@ -28,3 +28,17 @@ test('switching jurisdiction aborts the old reference and does not display anoth
  await act(async()=>finishOld(Response.json(reference('19039','Monterrey','monterrey-transito'))));
  assert.equal(container.querySelector('h3').textContent,'Puebla');assert.match(container.textContent,/No hay una fuente incorporada para este municipio/);assert.equal(container.querySelector('.official-source-monitor'),null);
 });
+
+test('vehicle review preserves jurisdiction, unknown capacity, exact boundary and configuration scope',async()=>{
+ const source=reference('21114','Puebla','puebla-carga');
+ source.rules=[{id:'capacity',title:'Capacidad de prueba',description:'Ámbito y permiso por comprobar.',citation:'Fuente sintética',vehicleConditions:{payloadCapacityT:{lt:3.5}}},{id:'dimensions',title:'Dimensiones C2',description:'Zona delimitada pendiente.',citation:'Fuente sintética',vehicleConfigurations:['C2'],limits:{grossWeightT:13,widthM:2.6,loadWidthM:2.6}}];
+ globalThis.fetch=async(url)=>url.includes('?')?catalog():url.endsWith('/source-status')?Response.json({sources:[],intervalHours:6}):Response.json(source);
+ await render({id:'21114',request:1});
+ assert.match(container.querySelector('.vehicle-review-context').textContent,/Selecciona Camión/);
+ assert.match(container.querySelector('.vehicle-reference-comparison').textContent,/sin dato válido/);
+ await act(async()=>root.render(React.createElement(Coverage,{requestedMunicipality:{id:'21114',request:1},vehicle:{payloadCapacityT:3.5,grossWeightT:38,configuration:'T3-S2',axleCount:5}})));
+ assert.match(container.querySelector('[data-comparison="boundary"]').textContent,/no se asigna una ventana/);
+ assert.match(container.textContent,/no se evalúa tu configuración T3-S2/);
+ assert.equal(container.querySelector('h3').textContent,'Puebla');
+ assert.match(container.querySelector('.vehicle-review-context').textContent,/Coincidir con un dato no autoriza/);
+});

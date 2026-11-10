@@ -53,3 +53,10 @@
 .vehicle-operating-fields legend{font-size:12px;font-weight:650;padding:0 6px}
 .vehicle-operating-fields .vehicle-fields{margin:0}
 .vehicle-operating-fields .hint{margin-top:10px}
+
+.vehicle-review-context { margin-block: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: 12px; }
+.vehicle-review-context h4 { margin: 0 0 .5rem; }
+.vehicle-review-context p { margin-block: .4rem; }
+.vehicle-reference-comparison { border-left: 3px solid var(--primary); padding: .35rem .8rem; margin-block: .8rem; overflow-wrap: anywhere; }
+.vehicle-reference-comparison p { margin-block: .45rem; font-size: .9rem; }
+.vehicle-reference-comparison [data-comparison="above"], .vehicle-reference-comparison [data-comparison="boundary"] { font-weight: 700; }
