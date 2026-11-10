@@ -678,4 +678,30 @@ deduplicación por dirección, caché compartida de consultas en curso, validaci
 de coordenadas y confirmación de acceso. Alcance y límites en
 API/docs/GEOCODING.md. La cobertura municipal nacional y Google exacto/legal
 siguen pendientes; este ciclo no altera sus estados ni cambia reglas legales.
-Validación/publicación pendientes de cerrar en el informe de este ciclo.
+Validación cerrada: API 48 pruebas y CI 42780756573 con ocho migraciones/RLS
+en Postgres desechable; Web 79 pruebas, TypeScript, build y 16 E2E móviles
+en CI 42780760990. Auditorías sin vulnerabilidades conocidas.
+
+Producción READY comprobada: API PR #8, f5c36390dbeffa34d8cc8a01a1c05b9121005a1a,
+dpl_KFWWLr4B8t7oThu5pDeVxyfk5FGH; Web PR #9,
+261c8c7428b2f054b69d06f56577f6713dedd4f5,
+dpl_7yofWu6n5oWzKT64Jdr6NECq2biW. Los alias conservan las URLs públicas
+anteriores. Sin cambios en Supabase, privilegios, claves, planes o Gestión.
+Rollback: API dpl_5hchiEtfQuAtHYu16ue6Rrw9F67L, Web
+dpl_ABriiPZmhs6qdnPqqcgBqzUvzVHg.
+
+Comprobación real por el proxy: Express en Monterrey devolvió ocho puntos,
+todos con calle, a 4.9–8.8 km del origen público de prueba; antes devolvía
+cinco sin esas calles. La búsqueda genérica en Chihuahua devolvió cuatro
+puntos a 3.4–11.8 km, sin rellenar con otras ciudades. Express en Chihuahua
+sigue sin coincidencias locales del índice y muestra NO_NEARBY_MATCHES;
+no se afirma ausencia real de sucursales ni cobertura exhaustiva.
+
+Navegador real de producción: origen por coordenadas, ocho sugerencias de
+Express ordenadas y representadas en el mapa, aviso de acceso antes de confirmar,
+etiqueta y Plus Code conservados. El enlace Google usa las coordenadas exactas
+de la sucursal elegida. No se ejecutó navegación en carretera ni cálculo
+autenticado contra ORS real. La normativa nacional y la transferencia exacta
+a Google continúan sin resolver. Próxima labor: portar sobre main actual las
+pruebas locales de Auth/REST y aislamiento de cuentas; no fusionar el producto
+antiguo de test/authenticated-flow. Este cierre sólo modifica documentación.
