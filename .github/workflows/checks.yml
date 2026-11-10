@@ -45,7 +45,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           repository: FernandoBalsimelli/Route-Planner-API
-          ref: 5db4df5f9ffc120a40318e19d693599a3b2cb8a1
+          ref: cd6f2d31049c52a353c84f5f2d8247a8e61c9203
           path: _ci/api
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6

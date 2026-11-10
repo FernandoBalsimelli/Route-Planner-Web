@@ -1,6 +1,6 @@
 # Route Planner — estado de ingeniería
 
-Fecha de revisión: 2026-11-08. Alcance: exclusivamente Route Planner.
+Fecha de revisión: 2026-11-10. Alcance: exclusivamente Route Planner.
 
 ## Recursos verificados
 
@@ -765,3 +765,72 @@ API fijada al cambiar sus contratos/migraciones. La automatización sigue activa
 con próximo inicio a las 06:57 de America/Chihuahua del 10 de noviembre y
 recurrencia de cinco horas; antes de continuar, consultar main y este informe
 para no sobrescribir avances publicados.
+
+
+## Preferencias de carretera publicadas · 10 de noviembre de 2026
+
+Se consultaron main y los alias vigentes antes de editar. Bases: Web f63d0fb
+(documentación; código c1634ca) y API f5c3639. No había avances concurrentes nuevos.
+
+Problema: no existían preferencias aplicables para peajes/autopistas. El
+optimizador VROOM actual no recibe esas exclusiones; ofrecerlas simultáneamente
+como optimización compatible habría sido incorrecto. Se incorporan controles
+accesibles, booleanos estrictos en API, options.avoid_features para ambos perfiles
+combinados con medidas HGV y una instantánea route.preferences. Se guarda y se
+recupera con la RPC existente; rutas antiguas no reciben exclusiones inferidas.
+Editar preferencias cancela respuestas pendientes. Se conserva el orden cuando
+se solicitan exclusiones; la API rechaza la optimización incompatible antes de
+consultar proveedores y nunca reintenta una ruta fallida quitando preferencias.
+
+Todos los enlaces Google consecutivos reciben avoid=tolls,highways cuando
+corresponde, incluyendo su longitud en el máximo real de URL. Es una solicitud
+al motor de Google, no una polilínea bloqueada ni transmisión de atributos HGV.
+Las exclusiones no verifican normas ni precios de casetas. Evitar autopistas
+puede llevar a calles urbanas con más restricciones; la interfaz lo explica.
+
+Verificación aprobada: API CI 42820915743, 52 pruebas, build, ocho migraciones/RLS
+en Postgres desechable y auditoría sin vulnerabilidades. Web CI 42821186167,
+84 pruebas, TypeScript/build, 17 E2E móviles y dos integraciones de Auth/REST/RPC
+locales reales. Incluyen preferencias combinadas con dimensiones, guardado,
+papelera/restauración, 48 entregas y rechazo de 49. ORS sigue siendo sintético
+en CI; no se presenta como cálculo autenticado de producción ni Android real.
+
+Producción READY y alias comprobados: API PR #9, commit
+5db4df5f9ffc120a40318e19d693599a3b2cb8a1, dpl_CkiG1JpvUt5q3t55ood9LrLkDYrA;
+Web PR #11, commit b5c43bde560bb8aa68a0b6ad3a0edd712b96a94a,
+dpl_5KUwGbLm4ZqwroiWyDrNgJDKjzHx. Sus árboles coinciden con los probados.
+Producción por proxy: preferencias válidas 200; tipos inválidos y combinación
+incompatible 400; coordenadas y Plus Code completo 200. Navegador real público:
+casillas activadas, aviso visible y enlace con avoid=tolls,highways, manteniendo
+los dos puntos públicos exactos. No se usaron cuentas o ubicaciones privadas.
+
+Archivos API: index.js, test/routing.test.js, test/runtime.test.js y
+ROAD-PREFERENCES.md. Web: page.tsx, globals.css, RoutePreferences, NavigationLinks,
+TruckGuide, lib/routes, navigation y route-preferences, pruebas planner,
+navigation, route-save, geolocation.e2e y authenticated.e2e, workflow y documentación.
+No hubo migraciones alojadas, cambios de planes/credenciales ni modificaciones a
+Gestión u otros proyectos. Rollback: Web dpl_3Rbb7unX1Gp1NS4DX5Jd76KRXG7e;
+API dpl_KFWWLr4B8t7oThu5pDeVxyfk5FGH. Sin errores runtime API en la ventana revisada.
+
+## Puebla y revisión municipal desde el recorrido · ciclo en verificación
+
+La búsqueda de fuentes oficiales encontró RES. 2021/49 que deroga parte de los
+horarios de los lineamientos de 2020 de Puebla. Se agrega referencia parcial
+INEGI 21114, condiciones por capacidad de carga (diferente de peso bruto), zonas
+históricas, autorizaciones y comparadores sin inventar días o geometrías. La
+vigencia actual, el caso exacto 3.5 t, excepciones y acuerdos posteriores siguen
+pendientes; no se activa ninguna exclusión municipal. Son 14 referencias parciales,
+seis fuentes vigiladas y cero municipios con validación automática completa.
+
+API PR #10 integrada en cd6f2d3; CI 42822440606 aprobó 53 pruebas, build,
+migraciones/RLS y auditoría. El HTML oficial pudo descargarse y conserva hash;
+el PDF OJP dio 503. La comprobación técnica detectó cambio en Juárez, e
+indisponibilidad de CDMX/Puebla en parte de sus documentos. Un hash cambiado
+no prueba una reforma jurídica: obliga a revisar. No se ocultan esos fallos.
+Detalle y pendientes reproducibles en MEXICO-COVERAGE.md y national-references.
+
+La Web prepara acceso «Revisar» por municipio del recorrido, apertura directa
+sin preselección regional general, cancelación de referencias anteriores y aviso
+de cambio/antigüedad/indisponibilidad visible sin expandir detalles. Pendientes
+hasta cerrar CI, publicación y comprobación de este segundo ciclo. No se declara
+terminado el prompt maestro ni se desactiva la continuidad del trabajo.

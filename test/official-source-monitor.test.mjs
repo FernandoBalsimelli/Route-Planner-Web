@@ -17,3 +17,9 @@ test('technical source changes, outages and legal review remain distinct and sel
 test('malformed source reports display a recoverable failure without crashing the municipal directory',async()=>{
  globalThis.fetch=async()=>Response.json({ok:true,suggestions:[]});await render();assert.match(container.textContent,/Seguimiento temporalmente no disponible/);assert.equal(container.querySelectorAll('article').length,0);
 });
+
+
+test('source changes and stale checks remain visible while technical details are collapsed',async()=>{
+ globalThis.fetch=async()=>Response.json({intervalHours:6,checkedAt:'2026-11-09T00:00:00Z',stale:true,notice:'Revisión pendiente',sources:[{id:'one',title:'Fuente',status:'unchanged'}]});
+ await render('one');assert.match(container.querySelector('.source-monitor-alert').textContent,/Reporte atrasado/);assert.equal(container.querySelector('details').open,false);
+});
