@@ -95,6 +95,8 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
     await page.getByRole('button', { name: 'Agregar parada' }).click();
     await point(page, 'PARADA 2', '28.65, -106.08');
     await page.getByRole('button', { name: 'Bajar parada 1', exact: true }).click();
+    await page.getByRole('checkbox', { name: 'Evitar casetas de peaje', exact: true }).check();
+    await page.getByRole('checkbox', { name: 'Evitar autopistas', exact: true }).check();
     const planResponse = page.waitForResponse(response => response.url().endsWith('/v1/routes/plan'));
     await page.getByRole('button', { name: 'Calcular ruta', exact: true }).click();
     const response = await planResponse;
@@ -105,6 +107,8 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
     await page.getByText('3.4 km', { exact: true }).waitFor();
     const requests = readFileSync(capture, 'utf8').trim().split('\n').map(JSON.parse);
     assert.match(requests[0].path, /driving-hgv/);
+    assert.deepEqual(requests[0].body.options.avoid_features, ['tollways', 'highways']);
+    assert.deepEqual(planned.preferences, { avoidTolls: true, avoidHighways: true });
     assert.deepEqual(requests[0].body.options.profile_params.restrictions, { height: 4.1, width: 2.5, length: 18, weight: 38, axleload: 9 });
     await page.getByLabel('Nombre del recorrido', { exact: true }).fill('Entregas E2E Express');
     await page.getByRole('button', { name: 'Guardar esta ruta', exact: true }).click();
@@ -113,6 +117,7 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
     assert.equal(saved.owner_id, first.uid);
     assert.equal(saved.vehicle_id, (await rows(first.client, 'vehicles'))[0].id);
     assert.equal(saved.route_metadata.mode, 'truck');
+    assert.deepEqual(saved.route_metadata.result.preferences, { avoidTolls: true, avoidHighways: true });
     assert.equal((await rows(first.client, 'route_stops')).length, 2);
     const destination = page.locator('.location-field').filter({ has: page.getByRole('combobox', { name: 'Destino', exact: true }) });
     await destination.getByRole('button', { name: 'Guardar sucursal' }).click();
@@ -133,6 +138,11 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
     await page.getByText('3.4 km', { exact: true }).waitFor();
     assert.equal(await page.getByRole('combobox', { name: 'PARADA 1', exact: true }).inputValue(), planned.waypoints[1].label);
     assert.equal(await page.getByRole('spinbutton', { name: 'Peso bruto (t)', exact: true }).inputValue(), '38');
+    assert.equal(await page.getByRole('checkbox', { name: 'Evitar casetas de peaje', exact: true }).isChecked(), true);
+    assert.equal(await page.getByRole('checkbox', { name: 'Evitar autopistas', exact: true }).isChecked(), true);
+    for (const href of await page.locator('.navigation-segments a').evaluateAll(nodes => nodes.map(node => node.href))) assert.equal(new URL(href).searchParams.get('avoid'), 'tolls,highways');
+    await page.getByRole('checkbox', { name: 'Evitar casetas de peaje', exact: true }).uncheck();
+    await page.getByRole('checkbox', { name: 'Evitar autopistas', exact: true }).uncheck();
     // Reparto exercises the genuine API optimization request with a deterministic external fixture.
     await page.getByRole('button', { name: 'Reparto', exact: true }).click();
     await page.getByRole('checkbox', { name: /Optimizar orden de paradas/ }).check();
@@ -174,14 +184,16 @@ test('real local session plans and saves 48 deliveries atomically, retries witho
  const {data:auth,error}=await client.auth.getSession();assert.equal(error,null);const token=auth.session.access_token;
  const origin={label:'Patio sintético',lat:28.63,lng:-106.06},destination={label:'Destino sintético',lat:28.64,lng:-106.07};
  const stops=Array.from({length:48},(_,i)=>({label:`Entrega sintética ${i+1}`,lat:28.6301+i/100000,lng:-106.0601}));
- const payload={origin,destination,stops,mode:'truck',vehicle:{heightM:4.1,widthM:2.5,lengthM:18,grossWeightT:38,axleWeightT:9}};
+ const payload={origin,destination,stops,mode:'truck',preferences:{avoidTolls:true,avoidHighways:true},vehicle:{heightM:4.1,widthM:2.5,lengthM:18,grossWeightT:38,axleWeightT:9}};
  const plan=async body=>fetch(base+'/api/route-planner/v1/routes/plan',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify(body)});
  const response=await plan(payload);assert.equal(response.status,200);const result=(await response.json()).route;assert.equal(result.waypoints.length,50);assert.deepEqual(result.waypoints.slice(1,-1).map(point=>point.label),stops.map(point=>point.label));
  const requestId=crypto.randomUUID(),route={name:'48 entregas reales en REST local',origin,destination,route_metadata:{mode:'truck',vehicle:payload.vehicle,result}};
  const save=async request=>client.rpc('save_route_with_stops',request);
  const saved=await save({p_request_id:requestId,p_route:route,p_stops:stops});assert.equal(saved.error,null);assert.equal(typeof saved.data,'string');
  const retried=await save({p_request_id:requestId,p_route:route,p_stops:stops});assert.equal(retried.error,null);assert.equal(retried.data,saved.data);
- const rowsResult=await client.from('route_stops').select('*').eq('route_id',saved.data).order('sequence');assert.equal(rowsResult.error,null);assert.equal(rowsResult.data.length,48);assert.ok(rowsResult.data.every(point=>point.owner_id===uid));assert.deepEqual(rowsResult.data.map(point=>point.location.label),stops.map(point=>point.label));
+ const rowsResult=await client.from('route_stops').select('*').eq('route_id',saved.data).order('sequence');assert.equal(rowsResult.error,null);assert.equal(rowsResult.data.length,48);
+ const savedRoute=await client.from('saved_routes').select('route_metadata').eq('id',saved.data).single();assert.equal(savedRoute.error,null);assert.deepEqual(savedRoute.data.route_metadata.result.preferences,payload.preferences);
+ assert.ok(rowsResult.data.every(point=>point.owner_id===uid));assert.deepEqual(rowsResult.data.map(point=>point.location.label),stops.map(point=>point.label));
  const tooMany=[...stops,{label:'Entrega 49 rechazada',lat:28.64,lng:-106.07}];
  assert.equal((await plan({...payload,stops:tooMany})).status,400);
  const rejected=await save({p_request_id:crypto.randomUUID(),p_route:{...route,name:'No debe persistir 49 entregas'},p_stops:tooMany});assert.ok(rejected.error);

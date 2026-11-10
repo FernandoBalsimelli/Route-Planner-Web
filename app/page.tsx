@@ -23,6 +23,8 @@ import ThemeToggle from '@/components/ThemeToggle';
 import TruckGuide from '@/components/TruckGuide';
 import RouteNavigator from '@/components/RouteNavigator';
 import RouteCoverageReport from '@/components/RouteCoverageReport';
+import RoutePreferences from '@/components/RoutePreferences';
+import { DEFAULT_ROUTE_PREFERENCES, readRoutePreferences, hasRoadPreferences, roadPreferencesLabel, type RoutePreferences as RoadPreferences } from '@/lib/route-preferences';
 
 type Stop = RouteStop;
 const API_URL = '/api/route-planner';
@@ -56,6 +58,7 @@ export default function Home() {
   const [selectedOrigin, setSelectedOrigin] = useState<LocationSelection | null>(null);
   const [selectedDestination, setSelectedDestination] = useState<LocationSelection | null>(null);
   const [stops, setStops] = useState<Stop[]>([]);
+  const [preferences, setPreferences] = useState<RoadPreferences>(DEFAULT_ROUTE_PREFERENCES);
   const [optimizeStops, setOptimizeStops] = useState(false);
   const [stopOrderMessage, setStopOrderMessage] = useState('');
   const [vehicle, setVehicle] = useState({ height: '4.0', width: '2.5', length: '18', grossWeight: '40', axleWeight: '10' });
@@ -87,7 +90,7 @@ export default function Home() {
   useEffect(() => {
     planningRequest.current?.abort();
     setLoading(false);
-  }, [origin, destination, selectedOrigin, selectedDestination, stops, mode, vehicle, optimizeStops]);
+  }, [origin, destination, selectedOrigin, selectedDestination, stops, mode, vehicle, optimizeStops, preferences]);
   useEffect(() => () => planningRequest.current?.abort(), []);
   const canPlan = origin.trim().length > 2 && destination.trim().length > 2 && !loading;
   const navigationPoints = useMemo(() => {
@@ -106,6 +109,12 @@ export default function Home() {
     });
     return () => { cancelled = true; };
   }, [user?.id]);
+
+  function changePreferences(next: RoadPreferences) {
+    planningRequest.current?.abort();
+    setPreferences(next); setResult(null); setError('');
+    if (hasRoadPreferences(next)) setOptimizeStops(false);
+  }
 
   function changeMode(nextMode: 'delivery' | 'truck') { setMode(nextMode); setResult(null); setSelectedVehicleProfileId(''); if (nextMode === 'truck') setOptimizeStops(false); }
   function addStop() { if (stops.length >= MAX_INTERMEDIATE_STOPS) return; setStops(items => [...items, { id: crypto.randomUUID(), value: '', selected: null }]); setResult(null); }
@@ -164,6 +173,7 @@ export default function Home() {
     setSelectedVehicleProfileId(route.vehicle_id || '');
     setRouteName(route.name);
     if (route.origin?.lat != null && route.origin?.lng != null) setSearchArea({ label: label(route.origin), lat: route.origin.lat, lng: route.origin.lng });
+    setPreferences(readRoutePreferences(route.route_metadata?.result?.preferences));
     setResult(route.route_metadata?.result || null);
     setOptimizeStops(Boolean(route.route_metadata?.result?.optimized));
     setError('');
@@ -193,7 +203,7 @@ export default function Home() {
         response = await fetch(`${API_URL}/v1/routes/plan`, {
           signal: controller.signal,
           method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${sessionData.session.access_token}` },
-          body: JSON.stringify({ origin: selectedOrigin || origin.trim(), destination: selectedDestination || destination.trim(), stops: stops.filter(s => s.value.trim()).map(s => s.selected || s.value.trim()), mode, optimize: optimizeStops && mode === 'delivery', vehicle: mode === 'truck' ? { heightM: Number(vehicle.height), widthM: Number(vehicle.width), lengthM: Number(vehicle.length), grossWeightT: Number(vehicle.grossWeight), axleWeightT: Number(vehicle.axleWeight) } : undefined }),
+          body: JSON.stringify({ origin: selectedOrigin || origin.trim(), destination: selectedDestination || destination.trim(), stops: stops.filter(s => s.value.trim()).map(s => s.selected || s.value.trim()), mode, preferences, optimize: optimizeStops && mode === 'delivery' && !hasRoadPreferences(preferences), vehicle: mode === 'truck' ? { heightM: Number(vehicle.height), widthM: Number(vehicle.width), lengthM: Number(vehicle.length), grossWeightT: Number(vehicle.grossWeight), axleWeightT: Number(vehicle.axleWeight) } : undefined }),
         });
       } catch {
         throw new Error('No se pudo conectar con Route Planner API. La conexión fue interrumpida antes de recibir respuesta.');
@@ -257,11 +267,12 @@ export default function Home() {
             {stopOrderMessage && <p className="stop-order-message" role="status">{stopOrderMessage}</p>}
             <LocationInput onSuggestions={points => setMapSearch({ target: 'destination', title: 'Destino', points })} title="Destino" color="orange" mapReference={selectedOrigin || searchArea} value={destination} placeholder="¿Dónde termina tu recorrido?" apiUrl={API_URL} selected={selectedDestination} onChange={value => { setDestination(value); setSelectedDestination(null); setResult(null); }} onConfirm={location => { setSelectedDestination(location); setResult(null); }}/>
           </div>
-          <label className="optimize-toggle"><input type="checkbox" checked={optimizeStops} onChange={e => { setOptimizeStops(e.target.checked); setStopOrderMessage(''); setResult(null); }} disabled={mode === 'truck' || stops.filter(stop => stop.value.trim()).length < 2}/><span><b>Optimizar orden de paradas</b><small>{mode === 'truck' ? 'Camión: se conserva el orden y se envían tus medidas al proveedor.' : 'Con dos o más entregas, busca el orden con menor tiempo de viaje.'}</small></span></label>
+          <RoutePreferences value={preferences} truck={mode === 'truck'} onChange={changePreferences}/>
+          <label className="optimize-toggle"><input type="checkbox" checked={optimizeStops} onChange={e => { setOptimizeStops(e.target.checked); setStopOrderMessage(''); setResult(null); }} disabled={mode === 'truck' || hasRoadPreferences(preferences) || stops.filter(stop => stop.value.trim()).length < 2}/><span><b>Optimizar orden de paradas</b><small>{mode === 'truck' ? 'Camión: se conserva el orden y se envían tus medidas al proveedor.' : hasRoadPreferences(preferences) ? 'Orden actual: la optimización no aplica las preferencias de carretera.' : 'Con dos o más entregas, busca el orden con menor tiempo de viaje.'}</small></span></label>
           {mode === 'truck' && <details className="vehicle-panel" open><summary><AppIcon name="truck" size={18}/><span>Medidas del camión cargado</span></summary><div className="vehicle-fields">{([['height','Altura (m)','0.5','10'],['width','Ancho (m)','0.5','5'],['length','Largo (m)','1','30'],['grossWeight','Peso bruto (t)','0.1','100'],['axleWeight','Peso por eje (t)','0.1','30']] as const).map(([key,title,min,max]) => <label key={key}>{title}<input type="number" min={min} max={max} step="0.1" value={vehicle[key]} onChange={event => { setVehicle(values => ({...values,[key]:event.target.value})); setResult(null); }}/></label>)}</div><p className="hint">Los valores iniciales son un ejemplo. Usa los de tu unidad.</p><button type="button" className="text-button" onClick={() => openWorkspace('guide')}>Qué restricciones considera esta ruta ↗</button></details>}
           <div className="plan-actions"><button type="button" className="primary-button" disabled={!canPlan} onClick={planRoute}>{loading ? 'Calculando ruta…' : 'Calcular ruta'}<AppIcon name="arrow"/></button>{!user && <small>Inicia sesión para calcular y guardar tus recorridos.</small>}</div>
           {error && <div className="error-box" role="alert"><strong>No se pudo calcular</strong><p>{error}</p>{providerStatus === 'missing' && <small>El servicio de rutas requiere configuración del administrador.</small>}</div>}
-          {!result && <NavigationLinks points={navigationPoints} route={result} truck={mode === 'truck'}/>}
+          {!result && <NavigationLinks points={navigationPoints} route={result} preferences={preferences} truck={mode === 'truck'}/>}
         </div>
         <aside id="mapa-planificacion" className={`result-panel ${result ? 'has-result' : 'is-planning'}`} aria-label="Mapa y resultado de la ruta">
           <div className="map-card">
@@ -272,12 +283,13 @@ export default function Home() {
           {!result && <div className="map-help"><span className="help-icon"><AppIcon name="plan"/></span><div><strong>{mapSearch?.points.length ? `${mapSearch.points.length} coincidencias en el mapa` : 'Encuentra la sucursal correcta'}</strong><p>{mapSearch?.points.length ? 'S1, S2… siguen el orden del buscador. Toca el marcador y confirma la sucursal.' : 'Empieza con tu ubicación o un origen. Después busca «Bodega Aurrera Express» para priorizar coincidencias cercanas.'}</p></div></div>}
           {mode === 'truck' && <button type="button" className="truck-coverage" onClick={() => openWorkspace('guide')}><AppIcon name="shield"/><span><b>Restricciones cartográficas</b><small>Revisa la cobertura y la normativa antes de salir.</small></span><span aria-hidden="true">↗</span></button>}
           {result && <div className="result-details">
+            {result.preferences && hasRoadPreferences(result.preferences) && <p className="optimized-note">Preferencias del cálculo: {roadPreferencesLabel(result.preferences)}. Según los datos del proveedor.</p>}
             {result.optimized && <p className="optimized-note"><AppIcon name="check" size={16}/>Orden de entregas optimizado por tiempo de viaje.</p>}
             <RouteNavigator key={user?.id || 'anonymous'} active={workspace === 'planner'} route={result} truck={mode === 'truck'} onPosition={setNavigationPosition} onFollow={setNavigationFollow}/>{mode==='truck'&&<RouteCoverageReport coverage={result.regulatoryCoverage} onOpenGuide={()=>openWorkspace('guide')}/>}<h2>Detalle del recorrido</h2><div className="route-line">{(result.waypoints || []).map((point,index) => <div className="route-point" key={index}><i className={point.type === 'origin' ? 'dot green' : point.type === 'destination' ? 'dot orange' : 'stop-number'}>{point.type === 'stop' ? index : ''}</i><span><b>{point.type === 'origin' ? 'Origen' : point.type === 'destination' ? 'Destino' : `Entrega ${index}`}</b><small>{point.label || `${point.lat}, ${point.lng}`}</small></span></div>)}</div>
             <details className="instructions"><summary>Indicaciones de conducción</summary>{result.sections.flatMap(section => section.actions || []).filter(action => action.instruction).slice(0, 12).map((action, index) => <p key={index}>{index + 1}. {action.instruction}</p>)}</details>
             {(result.notices || []).length > 0 && <div className="notice-box"><strong>Avisos de ruta</strong>{result.notices?.map((notice,index) => <p key={index}>{notice.title || notice.details || notice.code}</p>)}</div>}
             <div className="save-route-area"><label className="route-save-name">Nombre del recorrido<input maxLength={120} value={routeName} onChange={event => setRouteName(event.target.value)} placeholder="Ej. Express · entregas de la mañana"/></label><button type="button" className="primary-button save-button" disabled={saving} onClick={saveRoute}><AppIcon name="saved"/>{saving ? 'Guardando…' : 'Guardar esta ruta'}</button>{saveMessage && <p className="save-message" role="status">{saveMessage}</p>}</div>
-            <NavigationLinks points={navigationPoints} route={result} truck={mode === 'truck'}/><RouteExports route={result} truck={mode === 'truck'}/>
+            <NavigationLinks points={navigationPoints} route={result} preferences={preferences} truck={mode === 'truck'}/><RouteExports route={result} truck={mode === 'truck'}/>
           </div>}
         </aside>
       </div>
