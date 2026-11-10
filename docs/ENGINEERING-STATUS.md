@@ -2,6 +2,11 @@
 
 Fecha de revisión: 2026-11-10. Alcance: exclusivamente Route Planner.
 
+Estado vigente: preferencias de carretera y revisión municipal publicadas; Web
+5b2de70 y API cd6f2d3. Referencias parciales para 14 municipios; cero con validación
+legal automática completa. Últimos resultados, rollback y próxima prioridad en
+el cierre del 10 de noviembre al final. Las entradas anteriores son historial.
+
 ## Recursos verificados
 
 | Recurso | Identificador |
@@ -812,7 +817,7 @@ No hubo migraciones alojadas, cambios de planes/credenciales ni modificaciones a
 Gestión u otros proyectos. Rollback: Web dpl_3Rbb7unX1Gp1NS4DX5Jd76KRXG7e;
 API dpl_KFWWLr4B8t7oThu5pDeVxyfk5FGH. Sin errores runtime API en la ventana revisada.
 
-## Puebla y revisión municipal desde el recorrido · ciclo en verificación
+## Puebla y revisión municipal desde el recorrido · publicado y comprobado
 
 La búsqueda de fuentes oficiales encontró RES. 2021/49 que deroga parte de los
 horarios de los lineamientos de 2020 de Puebla. Se agrega referencia parcial
@@ -829,8 +834,88 @@ indisponibilidad de CDMX/Puebla en parte de sus documentos. Un hash cambiado
 no prueba una reforma jurídica: obliga a revisar. No se ocultan esos fallos.
 Detalle y pendientes reproducibles en MEXICO-COVERAGE.md y national-references.
 
-La Web prepara acceso «Revisar» por municipio del recorrido, apertura directa
+La Web incorpora acceso «Revisar» por municipio del recorrido, apertura directa
 sin preselección regional general, cancelación de referencias anteriores y aviso
-de cambio/antigüedad/indisponibilidad visible sin expandir detalles. Pendientes
-hasta cerrar CI, publicación y comprobación de este segundo ciclo. No se declara
-terminado el prompt maestro ni se desactiva la continuidad del trabajo.
+de cambio/antigüedad/indisponibilidad visible sin expandir detalles. El ciclo se
+publicó y comprobó con los resultados siguientes. No se declara terminado el
+prompt maestro ni se desactiva la continuidad del trabajo.
+
+
+### Cierre comprobado de ambos ciclos · 10 de noviembre de 2026
+
+| Servicio | Commit de código servido | Despliegue de producción READY |
+| --- | --- | --- |
+| Web | 5b2de706fc663a62cd6bc555d3f62db1518d2f40 | dpl_2gZJ3tTX26emaAh3xUQeQaNpdgLa |
+| API | cd6f2d31049c52a353c84f5f2d8247a8e61c9203 | dpl_FtzuVDJMQM4XQoUtuKAMJsYxAN2Y |
+
+URLs verificadas: https://route-planner-web-sand.vercel.app/ y
+https://route-planner-api.vercel.app/. Web PR #12 y API PR #10 integradas; los
+árboles de cada merge coinciden exactamente con los comprobados en sus ramas.
+API/main avanzó después con 09118ad, únicamente con el reporte técnico de fuentes;
+la API lee ese reporte público con caché de 15 minutos. Este cierre documental
+posterior no cambia el código de producción ni requiere otro despliegue.
+
+CI final Web 42824045152: 88 pruebas, TypeScript, build, 18 E2E móviles y dos
+integraciones locales genuinas de Auth/REST/RPC. Sin pruebas omitidas ni
+vulnerabilidades conocidas en la auditoría ejecutada. API CI 42822440606:
+53 pruebas, build, ocho migraciones y RLS en Postgres 17 desechable, auditoría
+aprobada. La primera ejecución Web 42823366746 detectó que el selector municipal
+no podía localizarse por su nombre accesible exacto; se añadieron aria-label
+explícitos en ambos selectores y se repitió todo CI sin debilitar el test.
+
+Comprobaciones públicas después de publicar:
+- Bodega Aurrera Express con foco público de Monterrey: ocho coincidencias con
+  calle; todas cercanas, máxima distancia geodésica aproximada 8,768 m.
+- Coordenadas y Plus Codes completos/compuestos: 200; el código corto se recuperó
+  como 75QXPMCF+GJ. Validación de 48 entregas con preferencia: 200; de 49: 400.
+- Referencia Puebla por proxy: 200, cinco registros de referencia, sin aplicación
+  al motor. Seguimiento: seis fuentes y reporte reciente, con cambios o fallos
+  visibles según la última comprobación, sin convertirlos en vigencia jurídica.
+- Navegador real de producción: selector general empieza sin favorito geográfico,
+  lista alfabética, selección de Puebla, ámbitos y condiciones consultables;
+  aviso de cambio técnico visible sin desplegar detalles. El salto desde la
+  ruta a su municipio y la conservación del borrador se verificaron en CI con
+  sesión/ruta sintéticas; no se presenta ese salto como cálculo ORS real.
+- Google Maps Web real abrió el enlace generado por la app y mostró activadas
+  ambas casillas Avoid highways y Avoid tolls. Esto acredita la recepción de las
+  preferencias, no navegación HGV, legalidad ni conservación de la polilínea.
+- Vercel no reportó errores runtime agregados en la ventana de 30 minutos
+  consultada para ambos proyectos. No equivale a monitoreo permanente.
+- Supabase Route Planner pakhlscjbjvwnheeyjxd: ACTIVE_HEALTHY, Postgres
+  17.11.0.018. Sin avisos de RLS en el reporte de seguridad consultado; persiste
+  el aviso conocido de protección contra contraseñas filtradas desactivada.
+  No se activaron servicios ni se cambiaron datos/configuración alojada.
+
+Archivos del segundo ciclo: API data/mx/national-references.json, source-status.json,
+test/municipal-regulations.test.js y docs/MEXICO-COVERAGE.md. Web page.tsx,
+globals.css, MunicipalCoverage, OfficialSourceMonitor, RouteCoverageReport,
+TruckGuide, pruebas municipal-review, official-source-monitor,
+route-coverage-report y geolocation.e2e, workflow y ambos informes. La API fijada
+en el job de integración ahora es cd6f2d3. Actualizarla al cambiar contratos.
+
+Rollback del segundo ciclo: Web dpl_5KUwGbLm4ZqwroiWyDrNgJDKjzHx (b5c43bd),
+API dpl_CkiG1JpvUt5q3t55ood9LrLkDYrA (5db4df5). Se conserva también el rollback
+anterior a ambos ciclos indicado arriba. No hubo migración alojada nueva ni
+borrado de datos. Gestión y demás proyectos no se consultaron ni modificaron;
+solo se operaron los IDs autorizados de Route Planner, sin activar gastos.
+
+### Punto de reanudación vigente
+
+Primero consultar main, este cierre, MEXICO-COVERAGE y los alias actuales.
+Completados: preferencias, conservación/guardado y enlaces Google; acceso directo
+municipal y alertas visibles; referencia parcial de Puebla. Parcial: cobertura
+nacional, seguimiento de documentos y navegación con restricciones cartográficas.
+Pendientes: geometrías y sentidos legales, vigencia/excepciones/permisos por
+jurisdicción, configuración de ejes/carga, alternativas y enlaces compartidos
+con autorización. ORS autenticado de producción y Android físico/en carretera
+siguen sin verificación nueva; requieren evidencia propia, no fixtures.
+
+Prioridad siguiente: revisar documentos vinculados y geometrías de los municipios
+cruzados, incluida la interpretación de Monterrey. En el chequeo local, el cambio
+de Juárez provenía de su página de Gaceta relacionada; el hash del documento
+principal seguía igual. No se interpretó como reforma del reglamento. Los portales
+HTML pueden variar por formularios u otros contenidos: separar esas variaciones
+del texto normativo antes de elevar un cambio técnico a revisión jurídica; la
+comparación de dos descargas de Puebla no acreditó que sólo cambiara el token
+del formulario. El monitor no descubre todos los acuerdos ni certifica vigencia.
+No declarar finalizado el programa ni eliminar su continuidad por estos avances.
