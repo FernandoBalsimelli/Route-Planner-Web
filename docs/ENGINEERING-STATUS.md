@@ -661,3 +661,21 @@ publicaciones sigue abierto; el monitor no encuentra todos los acuerdos ni
 asegura ausencia de multas. Conservar pruebas autenticadas y Android físico
 como pendientes. La rama antigua test/authenticated-flow es un borrador;
 portar/revisar sus pruebas sobre main actual, nunca fusionar su producto viejo.
+
+### Ciclo de búsqueda cercana · 10 de noviembre de 2026
+
+Solicitud: iniciar ahora y retomar después sin perder avances verificados.
+Automatización habilitada con siguiente inicio a las 06:57 de America/Chihuahua
+el 10 de noviembre, seguida de intervalos de cinco horas. El horario no reinicia
+cuotas ni garantiza cinco horas continuas de ejecución.
+
+Se diagnosticó que una coincidencia cercana de Pelias impedía consultar otras
+sucursales de Photon. Las pruebas públicas con Monterrey muestran candidatos
+adicionales con calle al buscar en una zona acotada. También se detectó mezcla
+de ciudades lejanas cuando sólo había unas pocas coincidencias cercanas.
+Cambios en preparación: consulta local paralela, respeto al formato Express,
+deduplicación por dirección, caché compartida de consultas en curso, validación
+de coordenadas y confirmación de acceso. Alcance y límites en
+API/docs/GEOCODING.md. La cobertura municipal nacional y Google exacto/legal
+siguen pendientes; este ciclo no altera sus estados ni cambia reglas legales.
+Validación/publicación pendientes de cerrar en el informe de este ciclo.
