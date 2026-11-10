@@ -2,8 +2,8 @@
 
 Fecha de revisión: 2026-11-10. Alcance: exclusivamente Route Planner.
 
-Estado vigente: preferencias de carretera y revisión municipal publicadas; Web
-5b2de70 y API cd6f2d3. Referencias parciales para 14 municipios; cero con validación
+Estado vigente: seguimiento por documento publicado; Web
+7956052 y API 13e5858. Referencias parciales para 14 municipios; cero con validación
 legal automática completa. Últimos resultados, rollback y próxima prioridad en
 el cierre del 10 de noviembre al final. Las entradas anteriores son historial.
 
@@ -954,7 +954,7 @@ Validación local: API 59 pruebas y build; Web 90 pruebas, TypeScript y build;
 auditorías sin vulnerabilidades conocidas. API CI 42827802403 aprobó sobre
 dab3d133, incluidas migraciones/RLS en Postgres 17 desechable. API PR #11
 integrada en 13e5858a2781e13cd2450ea88b85b87b374eeed7. La publicación Web y su
-comprobación móvil integral se registran al cerrar el ciclo.
+comprobación móvil integral quedaron cerradas con los resultados siguientes.
 
 Archivos API: scripts/check-official-sources.mjs, lib/source-evidence.js,
 lib/source-monitor.js, test/source-monitor.test.js, data/mx/source-status.json
@@ -965,3 +965,66 @@ credenciales o planes; Gestión y otros proyectos no se consultan ni modifican.
 La cobertura continúa en 14 referencias parciales y cero municipios con
 validación automática completa. Pendiente verificar despliegue final, trazados
 legales por sentido/horario/permisos y Android físico. El programa sigue abierto.
+
+
+### Cierre publicado del seguimiento por documento
+
+| Servicio | Commit de producción | Despliegue READY |
+| --- | --- | --- |
+| Web | 7956052346d393e96a5d3d89cd6ec31abe7380fb | dpl_G1LeAq5TtpHy5UWY5RQMRMBtX2YY |
+| API | 13e5858a2781e13cd2450ea88b85b87b374eeed7 | dpl_6Yj1gDrC6dbWHixWg4DHJNAv3nt7 |
+
+Alias y SHA comprobados en ambos proyectos. URLs:
+https://route-planner-web-sand.vercel.app/ y https://route-planner-api.vercel.app/.
+Web PR #13 y API PR #11 integradas; los árboles de merge coinciden exactamente
+con los comprobados. API/main añadió después 2e069e1, sólo el reporte técnico de
+fuentes. Este cierre posterior modifica únicamente documentación, sin recompilar
+ni cambiar el código publicado.
+
+CI API 42827802403: 59 pruebas, build, ocho migraciones y RLS en Postgres 17
+local desechable, auditoría sin vulnerabilidades conocidas. CI Web 42828095602:
+90 pruebas, TypeScript, build, 19 E2E móviles sin omisiones y dos integraciones
+con Auth/REST/RPC locales reales. Sus proveedores externos de ruteo son sintéticos:
+no equivalen a ORS autenticado de producción ni navegación Android en carretera.
+Las regresiones conservan guardado, recuperación, aislamiento de cuentas,
+preferencias y 48 entregas; no se reintroduce el límite artificial de ocho.
+
+Producción, comprobación funcional:
+- El proxy devolvió 200 en salud, coordenadas, Plus Code compuesto y búsqueda
+  cercana Express; ocho sugerencias cercanas en el punto público de Monterrey.
+- Validate con dos extremos y con 48 intermedias: 200; con 49: 400. Es validación
+  pública de entradas, no un cálculo autenticado de ORS real.
+- Source-status por proxy: 200, seis fuentes, once documentos desglosados,
+  reporte reciente y legalRulesAutomaticallyUpdated=false. En esa consulta
+  Juárez devolvió 403 en sus dos enlaces y conservó el cambio previo de Gaceta;
+  Puebla había recuperado sus enlaces. Los resultados pueden cambiar después.
+- Navegador real en el alias público: ambos avisos visibles y detalle de
+  seguimiento con once filas con enlace, fecha de intento y última descarga.
+  Juárez mostró el 403 actual y la evidencia anterior pendiente de revisión.
+- Vercel no encontró errores runtime agregados en los 30 minutos revisados de
+  Web y API. Las indisponibilidades de fuentes sí se informan en el monitor.
+
+Recuperación: Web dpl_2gZJ3tTX26emaAh3xUQeQaNpdgLa (5b2de70); API
+ dpl_FtzuVDJMQM4XQoUtuKAMJsYxAN2Y (cd6f2d3). Restaurar ambos revierte el producto
+anterior; el reporte nuevo es compatible y se conserva el historial Git. No hay
+migración alojada ni eliminación de registros. Sólo se modificaron repositorios
+y proyectos autorizados de Route Planner; Gestión y demás proyectos no se
+consultaron ni tocaron. No se activaron servicios o planes de pago ni se expusieron
+credenciales. Los tests de cuentas se ejecutan en contenedores desechables de CI.
+
+### Próxima reanudación
+
+Consultar main, los alias y este último cierre antes de cambiar código. Completado:
+evidencia por documento, fallos parciales, conservación ante CDN atrasada y avisos
+simultáneos comprobados. Parcial: monitor técnico de seis fuentes; no extrae ni
+certifica normas. Permanecen 14 municipios con referencias parciales y cero con
+validación legal automática completa.
+
+Priorizar vigencia, excepciones, permisos y geometrías/sentidos de las referencias
+municipales; contrastar primero la interpretación de Monterrey y las publicaciones
+vinculadas, sin convertir hashes de HTML en reformas ni nombres en geometrías
+legales. Continúan pendientes configuración de ejes/carga, alternativas de rutas,
+enlaces compartidos autorizados, cálculo autenticado de producción y ensayo
+Android físico/en carretera. Google no recibe atributos HGV ni una polilínea
+bloqueada; las guías no garantizan trazado exacto o legalidad. No se declara
+terminado el prompt maestro ni se elimina la continuidad por cerrar este ciclo.
