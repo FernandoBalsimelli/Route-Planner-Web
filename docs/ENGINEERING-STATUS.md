@@ -919,3 +919,49 @@ del texto normativo antes de elevar un cambio técnico a revisión jurídica; la
 comparación de dos descargas de Puebla no acreditó que sólo cambiara el token
 del formulario. El monitor no descubre todos los acuerdos ni certifica vigencia.
 No declarar finalizado el programa ni eliminar su continuidad por estos avances.
+
+
+## Seguimiento por documento y fallos parciales · 10 de noviembre de 2026
+
+Bases consultadas: Web main b999dca (código servido 5b2de70), API main 09118ad
+(código servido cd6f2d3). Alias READY coincidentes; sin avances concurrentes nuevos.
+No se modifican reglas legales ni ruteo en este ciclo.
+
+Causa raíz: checkSource agrupaba principal y vínculos en un único try/catch.
+Cuando fallaba un vínculo descartaba el resultado nuevo del principal; la UI
+además elegía entre cambio o indisponibilidad y ocultaba el otro estado. Ahora
+cada documento conserva tipo, URL, hash, intento, última descarga y error. El
+resumen separa disponibilidad parcial, cambios del principal/vínculos/bundle y
+cambio del conjunto de enlaces. Un bundle no identificado se marca pendiente.
+Los fallos posteriores conservan evidencia previa, incluidos cambios pendientes.
+
+El endpoint público conserva compatibilidad con checkpoints anteriores, añade
+antigüedad individual y limita enlaces a los declarados o al bundle de la fuente.
+Los mensajes de error se redactan. Una respuesta CDN atrasada no reemplaza el
+reporte incorporado más reciente; solicitudes simultáneas comparten la descarga.
+La UI muestra cambio y fallo simultáneamente, con el enlace y fecha de cada
+recurso; los reportes viejos indican que aún no tienen desglose. No se eliminan
+los cambios técnicos de HTML ni se transforman en reformas jurídicas.
+
+Contraste real: en la comprobación de las seis fuentes oficiales del ciclo,
+Puebla respondió en principal y COREMUN y falló en la ficha OJP con 503.
+Juárez tuvo cambio en la Gaceta vinculada; el hash del principal siguió igual.
+Monterrey y Guachochi no mostraron cambios del documento consultado. Jalisco
+quedó sin revisión completa de vigencia y CDMX no disponible. Son resultados
+de esa ventana, no garantías de disponibilidad ni validación legal actual.
+
+Validación local: API 59 pruebas y build; Web 90 pruebas, TypeScript y build;
+auditorías sin vulnerabilidades conocidas. API CI 42827802403 aprobó sobre
+dab3d133, incluidas migraciones/RLS en Postgres 17 desechable. API PR #11
+integrada en 13e5858a2781e13cd2450ea88b85b87b374eeed7. La publicación Web y su
+comprobación móvil integral se registran al cerrar el ciclo.
+
+Archivos API: scripts/check-official-sources.mjs, lib/source-evidence.js,
+lib/source-monitor.js, test/source-monitor.test.js, data/mx/source-status.json
+y MEXICO-COVERAGE.md. Web: OfficialSourceMonitor.tsx, globals.css, pruebas de
+monitor y geolocation.e2e, workflow e informes. El job de integración usa la
+API 13e5858a. No se cambian migraciones ni configuración alojada de Supabase,
+credenciales o planes; Gestión y otros proyectos no se consultan ni modifican.
+La cobertura continúa en 14 referencias parciales y cero municipios con
+validación automática completa. Pendiente verificar despliegue final, trazados
+legales por sentido/horario/permisos y Android físico. El programa sigue abierto.
