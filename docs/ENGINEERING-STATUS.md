@@ -705,3 +705,63 @@ autenticado contra ORS real. La normativa nacional y la transferencia exacta
 a Google continúan sin resolver. Próxima labor: portar sobre main actual las
 pruebas locales de Auth/REST y aislamiento de cuentas; no fusionar el producto
 antiguo de test/authenticated-flow. Este cierre sólo modifica documentación.
+
+
+### Integración real de cuentas y rutas · 10 de noviembre de 2026
+
+**Completado y publicado este ciclo:** pruebas con Auth, PostgREST, RPC y RLS
+reales en un stack local desechable, además de nombres accesibles explícitos
+para tipo y flota de vehículo. No hay cuentas nuevas ni migraciones aplicadas
+en Supabase alojado; Gestión y los demás proyectos permanecen sin modificaciones.
+
+Se portaron solamente los archivos revisados de test/authenticated-flow sobre
+main actual, sin fusionar su aplicación antigua. La API de CI está fijada en
+f5c36390dbeffa34d8cc8a01a1c05b9121005a1a. El CLI 3.0.0 se instala con un
+package/lockfile separado. Se revisó el cambio oficial de CLI v3 del 4 de
+noviembre: configuración local_smtp y comandos sólo locales. El bootstrap
+rechaza URL fuera de loopback y claves que no sean publicables/anon. Las
+credenciales locales se enmascaran; no se usa service_role en el navegador.
+
+Resultados: CI 42783891544 aprobado, 79 pruebas Web, 16 E2E móviles y dos
+integraciones genuinas con cuentas locales. Se comprobaron creación de cuenta
+y perfil persistente, flota, vehículo y medidas HGV, cálculo por navegador →
+proxy → API con bearer real, favoritos, guardado, archivo/papelera, recuperación
+y carga, optimización de reparto y separación de cuentas. La otra integración
+registra sus propios usuarios y comprueba 48 entregas por API/REST, orden de
+puntos, guardado atómico, reintento sin duplicados, rechazo de 49 sin escritura
+parcial y bloqueo de cambio de propietario. Los contenedores se detuvieron
+correctamente después de la prueba. Auditorías de la Web y del lockfile del
+CLI de integración: cero vulnerabilidades conocidas. No se encontraron errores
+runtime en la ventana de producción revisada después de publicar ambos ciclos.
+
+Las primeras ejecuciones detectaron una espera heredada por un aviso transitorio
+y un selector cuyo nombre accesible incluía todas sus opciones. Se sustituyó
+la espera por respuesta Auth y perfil persistente; se corrigió el selector
+real del producto y se separaron las cuentas de la prueba de persistencia para
+no confundir un fallo de interfaz con un fallo de credenciales. No se omitieron
+pruebas ni se cambiaron resultados esperados para permitir errores de negocio.
+
+Archivos: .github/workflows/checks.yml, .gitignore, components/VehicleManager.tsx,
+test/integration/{authenticated.e2e,ors-fixture,prepare-env,start-stack}.mjs,
+README.md, package.json, package-lock.json y supabase/config.toml. Reproducción
+y límites se documentan en test/integration/README.md. El entorno actual no
+tiene Docker; la ejecución funcional se realizó en GitHub Actions. La
+cartografía externa permanece sintética en estas dos integraciones: no se
+confunde Auth/REST reales con ORS real o una prueba de carretera Android.
+
+Web PR #10 integrada. Producción READY y alias route-planner-web-sand.vercel.app
+comprobados: commit c1634cabf391bcab3fecf35163fe9768895d3a8f, despliegue
+dpl_3Rbb7unX1Gp1NS4DX5Jd76KRXG7e. La API permanece en f5c3639 y
+dpl_KFWWLr4B8t7oThu5pDeVxyfk5FGH. Rollback de este segundo ciclo: Web
+dpl_7yofWu6n5oWzKT64Jdr6NECq2biW. Los cambios de prueba no alteran datos ni
+configuración alojada. La infraestructura CI nueva usa runners públicos
+estándar, sin servicios contratados ni secretos de producción.
+
+Pendientes del programa: datos municipales, vigencia y geometrías legales;
+Google Maps exacto/legal para camión en México; establecimientos ausentes de los
+índices; cuentas/cálculos autenticados de producción y navegación Android en
+carretera. No se declara terminado el prompt maestro. Actualizar la referencia
+API fijada al cambiar sus contratos/migraciones. La automatización sigue activa
+con próximo inicio a las 06:57 de America/Chihuahua del 10 de noviembre y
+recurrencia de cinco horas; antes de continuar, consultar main y este informe
+para no sobrescribir avances publicados.
