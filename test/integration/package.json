@@ -1,0 +1,8 @@
+{
+  "name": "route-planner-local-integration",
+  "private": true,
+  "version": "0.0.0",
+  "devDependencies": {
+    "supabase": "3.0.0"
+  }
+}
