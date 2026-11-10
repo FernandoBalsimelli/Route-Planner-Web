@@ -15,3 +15,11 @@ test('route report exposes source review and unresolved geometry without treatin
  let opened=0;await render({...navigationRoute.regulatoryCoverage,municipalitiesIdentified:[],message:'No se pudieron identificar municipios.'},()=>opened++);await act(async()=>container.querySelector('button').click());assert.equal(opened,1);assert.match(container.textContent,/no se interpreta como circulación libre/i);
 });
 test('old routes without a coverage payload request a recalculation',async()=>{await render(undefined);assert.match(container.textContent,/Vuelve a calcularla/);});
+
+
+test('each identified municipality opens its own review without implying routing approval',async()=>{
+ const opened=[];await render(navigationRoute.regulatoryCoverage,id=>opened.push(id));
+ const buttons=[...container.querySelectorAll('.municipality-review')];assert.equal(buttons.length,2);
+ await act(async()=>buttons[1].click());assert.deepEqual(opened,['19026']);
+ assert.equal(buttons[0].getAttribute('aria-label'),'Revisar normativa de Monterrey');
+});

@@ -409,3 +409,25 @@ test('mobile road preferences reach all Google links and preserve delivery order
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
   } finally { await context.close(); }
 });
+
+
+test('mobile route opens the exact municipality and shows changed-source review before expanding details',async()=>{
+ const {context,page}=await navigationSetup();
+ try{
+  await page.route('**/api/route-planner/v1/regulations/**',route=>{
+   const path=new URL(route.request().url()).pathname;
+   if(path.endsWith('/source-status'))return route.fulfill({json:{intervalHours:6,checkedAt:'2026-11-10T00:00:00Z',stale:false,notice:'No acredita vigencia legal.',sources:[{id:'monterrey-transito',title:'Fuente de Monterrey',url:'https://official.gob.mx/reglamento',status:'changed',scope:'Municipio de prueba',reviewedAt:'2026-11-09T00:00:00Z'}]}});
+   if(path.endsWith('/19039'))return route.fulfill({json:{name:'Monterrey',status:'reference_only',source:{id:'monterrey-transito',url:'https://official.gob.mx/reglamento',checkedAt:'2026-11-10T00:00:00Z'},notices:['Referencia de prueba; no aplica al cálculo.'],trunkSegments:[],timeRules:[]}});
+   return route.fulfill({json:{states:[{id:'19',name:'Nuevo León'}],municipalities:[{id:'19039',name:'Monterrey',coverage:'reference_only'}],totalMunicipalities:2478,municipalitiesWithPartialReference:14}});
+  });
+  await page.getByRole('button',{name:'Revisar normativa de Monterrey',exact:true}).click();
+  await page.getByRole('heading',{name:'Monterrey',exact:true}).waitFor();
+  assert.equal(await page.getByLabel('Entidad federativa',{exact:true}).inputValue(),'19');
+  assert.equal(await page.getByLabel('Municipio o demarcación',{exact:true}).inputValue(),'19039');
+  await page.locator('.source-monitor-alert').getByText('Cambio detectado · requiere revisar el documento',{exact:true}).waitFor();
+  assert.equal(await page.locator('.official-source-monitor details').evaluate(node=>node.open),false);
+  await page.getByRole('navigation',{name:'Secciones de Route Planner'}).getByRole('button',{name:'Planificar',exact:true}).click();
+  await page.getByRole('heading',{name:'Detalle del recorrido',exact:true}).waitFor();assert.equal(await page.getByRole('combobox',{name:'Origen',exact:true}).inputValue(),'Origen de prueba');
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+ }finally{await context.close();}
+});

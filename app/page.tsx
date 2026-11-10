@@ -34,6 +34,7 @@ function formatDistance(meters: number) { return meters >= 1000 ? `${(meters / 1
 function formatDuration(seconds: number) { const mins = Math.round(seconds / 60); const hours = Math.floor(mins / 60); return hours ? `${hours} h ${mins % 60} min` : `${mins} min`; }
 
 export default function Home() {
+  const [municipalReview, setMunicipalReview] = useState<{ id: string; request: number } | undefined>();
   const [workspace, setWorkspace] = useState<'planner' | 'saved' | 'vehicles' | 'guide'>('planner');
   useEffect(() => {
     const sync = () => {
@@ -285,7 +286,7 @@ export default function Home() {
           {result && <div className="result-details">
             {result.preferences && hasRoadPreferences(result.preferences) && <p className="optimized-note">Preferencias del cálculo: {roadPreferencesLabel(result.preferences)}. Según los datos del proveedor.</p>}
             {result.optimized && <p className="optimized-note"><AppIcon name="check" size={16}/>Orden de entregas optimizado por tiempo de viaje.</p>}
-            <RouteNavigator key={user?.id || 'anonymous'} active={workspace === 'planner'} route={result} truck={mode === 'truck'} onPosition={setNavigationPosition} onFollow={setNavigationFollow}/>{mode==='truck'&&<RouteCoverageReport coverage={result.regulatoryCoverage} onOpenGuide={()=>openWorkspace('guide')}/>}<h2>Detalle del recorrido</h2><div className="route-line">{(result.waypoints || []).map((point,index) => <div className="route-point" key={index}><i className={point.type === 'origin' ? 'dot green' : point.type === 'destination' ? 'dot orange' : 'stop-number'}>{point.type === 'stop' ? index : ''}</i><span><b>{point.type === 'origin' ? 'Origen' : point.type === 'destination' ? 'Destino' : `Entrega ${index}`}</b><small>{point.label || `${point.lat}, ${point.lng}`}</small></span></div>)}</div>
+            <RouteNavigator key={user?.id || 'anonymous'} active={workspace === 'planner'} route={result} truck={mode === 'truck'} onPosition={setNavigationPosition} onFollow={setNavigationFollow}/>{mode==='truck'&&<RouteCoverageReport coverage={result.regulatoryCoverage} onOpenGuide={id=>{setMunicipalReview(id?{id,request:Date.now()}:undefined);openWorkspace('guide');}}/>}<h2>Detalle del recorrido</h2><div className="route-line">{(result.waypoints || []).map((point,index) => <div className="route-point" key={index}><i className={point.type === 'origin' ? 'dot green' : point.type === 'destination' ? 'dot orange' : 'stop-number'}>{point.type === 'stop' ? index : ''}</i><span><b>{point.type === 'origin' ? 'Origen' : point.type === 'destination' ? 'Destino' : `Entrega ${index}`}</b><small>{point.label || `${point.lat}, ${point.lng}`}</small></span></div>)}</div>
             <details className="instructions"><summary>Indicaciones de conducción</summary>{result.sections.flatMap(section => section.actions || []).filter(action => action.instruction).slice(0, 12).map((action, index) => <p key={index}>{index + 1}. {action.instruction}</p>)}</details>
             {(result.notices || []).length > 0 && <div className="notice-box"><strong>Avisos de ruta</strong>{result.notices?.map((notice,index) => <p key={index}>{notice.title || notice.details || notice.code}</p>)}</div>}
             <div className="save-route-area"><label className="route-save-name">Nombre del recorrido<input maxLength={120} value={routeName} onChange={event => setRouteName(event.target.value)} placeholder="Ej. Express · entregas de la mañana"/></label><button type="button" className="primary-button save-button" disabled={saving} onClick={saveRoute}><AppIcon name="saved"/>{saving ? 'Guardando…' : 'Guardar esta ruta'}</button>{saveMessage && <p className="save-message" role="status">{saveMessage}</p>}</div>
@@ -296,6 +297,6 @@ export default function Home() {
     </section>
     <div className="workspace account-workspace" hidden={workspace !== 'vehicles'}><VehicleManager key={`profile-${user?.id || 'guest'}`} user={user} vehicles={vehicleProfiles} onSelect={id => { loadVehicleProfile(id); openWorkspace('planner'); }} onSaved={profile => { setVehicleProfiles(items => [profile, ...items.filter(item => item.id !== profile.id)]); loadVehicleProfile(profile.id, profile); }}/></div>
     <div className="workspace account-workspace" id="mis-rutas" hidden={workspace !== 'saved'}><SavedRoutesPanel key={`routes-${user?.id || 'guest'}`} user={user} revision={routesRevision} onLoad={restoreSavedRoute}/></div>
-    <div className="workspace guide-workspace" id="guia-camion" hidden={workspace !== 'guide'}><TruckGuide/></div>
+    <div className="workspace guide-workspace" id="guia-camion" hidden={workspace !== 'guide'}><TruckGuide requestedMunicipality={municipalReview}/></div>
   </main></LocationBookProvider>;
 }
