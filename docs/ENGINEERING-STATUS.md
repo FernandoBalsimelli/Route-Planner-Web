@@ -1028,3 +1028,137 @@ enlaces compartidos autorizados, cálculo autenticado de producción y ensayo
 Android físico/en carretera. Google no recibe atributos HGV ni una polilínea
 bloqueada; las guías no garantizan trazado exacto o legalidad. No se declara
 terminado el prompt maestro ni se elimina la continuidad por cerrar este ciclo.
+
+
+## Ciclo cerrado · 10-11-2026 · Perfil operativo de camión
+
+### Diagnóstico y alcance
+
+Se retomó main de Web 8d327395 y API 2e069e13; se leyeron este informe y
+MEXICO-COVERAGE antes de editar. Los alias aún correspondían a Web 79560523 y
+API 13e5858a, ambos READY. No se encontraron cambios nuevos de otras ejecuciones.
+Los perfiles sólo guardaban las cinco medidas/pesos: faltaban configuración,
+ejes y capacidad nominal, necesarios para revisar referencias que distinguen
+unidades o capacidad de carga. No se detectó una nueva caída de búsqueda/red.
+
+Completado en este ciclo:
+- Perfiles de camión con configuración, ejes y capacidad nominal opcionales.
+  Seleccionar configuración completa sus ejes; «Sin identificar / otra
+  configuración» permite indicar ejes manuales sin inventar un código.
+- Los perfiles anteriores conservan campos desconocidos. No se infieren ejes,
+  capacidad o carga por eje a partir del peso bruto. Capacidad nominal y peso
+  bruto cargado se muestran y guardan por separado.
+- El plan usa los nuevos datos, cancela cálculos obsoletos al cambiarlos y
+  conserva la instantánea histórica en una ruta guardada. Editar el vehículo
+  después no altera aquel perfil al recuperar el recorrido.
+- Validación de configuración/ejes y precisión de capacidad (hasta tres
+  decimales sin redondeo silencioso de umbrales). La validación local ocurre
+  antes del fetch: un dato inválido no se convierte en un falso fallo de red.
+- API compatible con clientes anteriores; devuelve vehicleContext en camión.
+  ORS sigue recibiendo exclusivamente sus cinco parámetros soportados. Estos
+  campos nuevos no se envían como restricciones inexistentes.
+
+### Fuentes y normativa
+
+Catálogo de 23 códigos con su número total de ejes, contrastado con Tabla B-2 de
+NOM-012-SCT-2-2017 en SIDOF, consultada 10-11-2026. Sólo nomenclatura/ejes: no se
+han convertido pesos por configuración, neumáticos, clase de carretera,
+excepciones o permisos en reglas. Fuente y contrato se documentan en
+VEHICLE-OPERATING-PROFILE.md. Ambos repositorios conservan el catálogo idéntico y
+CI compara sus bytes. La Web de integración fija API b3341ea; el commit posterior
+d7ebfd5 sólo alinea el nombre de la migración y su documento, con SQL idéntico.
+
+Permanecen 14 municipios con referencias parciales y cero con validación legal
+automática completa. No se incorporan calles, geometrías/sentidos ni municipios
+nuevos. El registro de la unidad no demuestra permiso de circulación. Google
+Maps no recibe atributos HGV ni una polilínea bloqueada; los puntos guía siguen
+sin garantizar trazado exacto o cumplimiento de normas.
+
+### Archivos
+
+Web: app/page.tsx y globals.css; VehicleManager, VehicleOperatingFields,
+SavedRoutesPanel y TruckGuide; lib/vehicle-operating, vehicles, route-save y
+routes; data/vehicle-configurations.json; cinco archivos de pruebas, la
+integración autenticada, el workflow de checks y la documentación. API:
+index.js, catálogo compartido, migración vehicle_operating_profile, routing.test,
+verify.sql, workflow transaccional de migraciones y documentación del contrato.
+Los cambios completos se consultan en los PR enlazados, sin afectar otros repos.
+
+### Pruebas y resultados
+
+- Local: TypeScript, compilación Web, sintaxis/build API, Web 95/95, API 60/60.
+  Auditorías de dependencias de producción: cero vulnerabilidades conocidas.
+- Chromium local no pudo arrancar: socket/ptrace Operation not permitted.
+  No se presenta ese intento como prueba de navegador aprobada.
+- CI API 42871675232 y 42872696082 aprobados: 60 pruebas, compilación, nueve
+  migraciones en Postgres 17 aislado, constraints, propiedad/RLS, rollback de
+  fixtures y auditoría. La segunda ejecución verificó el nombre definitivo.
+- CI Web 42872052848 aprobado: TypeScript, build, 95 pruebas, 20 casos de
+  navegador móvil/escritorio y dos flujos con Auth/REST reales de Supabase local.
+  ORS y las teselas de los casos automatizados son fixtures controlados.
+- Integración autenticada: crear/editar vehículo, configuración T3-S2/5 ejes,
+  capacidad 30.125 t, rechazar contradicciones y precisión adicional desde REST,
+  calcular/guardar/cargar con instantánea anterior a editar el vehículo, papelera,
+  favoritos, preferencias, optimización de reparto y aislamiento de dos cuentas.
+  El segundo caso conserva 48 entregas, reintentos idempotentes y rechazo de 49.
+- Navegador público real: campos nuevos visibles, T3-S2 completa cinco ejes,
+  capacidad independiente y registro manual de tres ejes sin código identificado.
+  Las teselas públicas se cargaron. No se creó una cuenta alojada ni se modificó
+  el vehículo del usuario para probar.
+- Producción vía proxy: salud 200; coordenadas, Plus Code completo y compuesto
+  200; ocho coincidencias Express priorizadas cerca de Monterrey. Validación de
+  dos puntos y 48 intermedias 200; 49, ejes inconsistentes, configuración
+  desconocida y capacidad con precisión adicional 400; cliente anterior 200;
+  cálculo sin sesión 401 y CORS de la Web correcto. Son validaciones públicas,
+  no un cálculo autenticado real de ORS en producción.
+- Vercel: sin errores/fatales runtime agregados en los 30 minutos revisados en
+  ambos proyectos. No equivale a ausencia permanente de errores ni cobertura
+  completa de observabilidad. Prueba Android física/en carretera pendiente.
+
+### Migración, publicación y recuperación
+
+Migración aditiva aplicada en Supabase Route Planner: 20261110181032,
+vehicle_operating_profile. Añade tres columnas anulables y tres CHECK a vehicles.
+Conservó la fila existente con sus nuevos campos vacíos, RLS habilitado y su
+política de propiedad. Sin cuentas, tablas o registros eliminados. El archivo
+inicial de CI 20261110175839 fue renombrado al número asignado por Supabase;
+SQL comprobado idéntico, sin reejecutar ni editar el historial remoto.
+Advisors conserva sólo el aviso conocido de protección de contraseñas filtradas
+deshabilitada; no aparecieron nuevos avisos RLS. Referencia:
+https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
+
+Cambios integrados:
+- Web PR #14, https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/14,
+  commit de implementación 2fa2dc6ccd375e9a114887a669563b27b612baca;
+  merge/código publicado 2ca303c002c77dc79e11b72da271c078404fde33.
+- API PR #12, https://github.com/FernandoBalsimelli/Route-Planner-API/pull/12,
+  implementación 197827706c2641721a6d7ee844e5e8466218cbc0 y merge b3341ea.
+  PR #13, https://github.com/FernandoBalsimelli/Route-Planner-API/pull/13,
+  alinea la migración: merge publicado d7ebfd5dd1db2eb113c3ea5ff1761cfc191aac9c.
+
+Alias comprobados READY y correspondientes a esos commits:
+- Web dpl_37przBY8daiJuu8AjufZgFStqtJ9:
+  https://route-planner-web-sand.vercel.app/
+- API dpl_EBZeeib4sbBYxN5rm9TqM7KqwRYx:
+  https://route-planner-api.vercel.app/
+
+Rollback del producto: Web dpl_G1LeAq5TtpHy5UWY5RQMRMBtX2YY (79560523), API
+ dpl_6Yj1gDrC6dbWHixWg4DHJNAv3nt7 (13e5858a). Conservar las columnas y los datos
+nuevos al revertir aplicaciones; nunca DROP para deshacer la interfaz. Historial
+y ramas de implementación permanecen. El cierre documental de main puede ser
+posterior al commit publicado: no cambia el código que ya se probó y desplegó.
+
+Sólo se modificaron los repositorios, despliegues y Supabase autorizados de Route
+Planner. Gestión y los demás proyectos no se consultaron ni se modificaron.
+Sin planes/servicios de pago, secretos expuestos ni operaciones destructivas.
+
+### Punto de reanudación
+
+Este ciclo termina los nuevos campos operativos y su persistencia; no termina el
+programa maestro. Parcial: revisión municipal y monitor técnico de seis fuentes,
+sin conversión de documentación a exclusiones legales. Pendientes: contrastar
+vigencia/excepciones/permisos y geometrías/sentidos; incorporar validaciones por
+configuración sin usar capacidad nominal como peso real; alternativas de rutas,
+enlaces compartidos autorizados y pruebas autenticadas reales de producción y
+en carretera. Los próximos cambios deben volver a consultar main y los alias.
+No restaurar el límite de ocho entregas ni eliminar la continuidad programada.
