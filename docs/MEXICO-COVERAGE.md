@@ -264,3 +264,21 @@ no cambia los datos de aquel cálculo. Véase VEHICLE-OPERATING-PROFILE.md.
 
 Permanecen 14 municipios con referencia parcial y cero con validación legal
 completa. No se incorporan geometrías ni municipios nuevos en este ciclo.
+
+## Comparación de datos de la unidad · 10 de noviembre de 2026
+
+La consulta municipal contrasta los datos actuales del planificador con los
+comparadores estructurados existentes de Puebla y el criterio de ejes del
+artículo 39 de Monterrey. Sólo describe coincidencias o diferencias numéricas;
+no asigna una ventana, certifica permisos ni determina las calles transitables.
+Conserva los ámbitos y todas las disposiciones visibles, incluso al no coincidir.
+
+Capacidad nominal y peso bruto se comparan por separado. El umbral exacto de
+3.5 t queda sin ventana asignada. Configuración/ejes contradictorios y valores
+inválidos quedan pendientes. Ancho de carga no se infiere del ancho del camión.
+Al cambiar a Reparto se retira el contexto del camión, sin mostrar una supuesta
+exención anterior. Detalle y fuentes: MUNICIPAL-VEHICLE-REVIEW.md.
+
+No aumenta el número de municipios cubiertos: siguen 14 referencias parciales y
+cero validaciones legales completas. No se agregan geometrías ni exclusiones al
+cálculo. Continúan pendientes vigencia, ámbito, permisos, días y excepciones.

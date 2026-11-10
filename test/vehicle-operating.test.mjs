@@ -14,3 +14,9 @@ test('operating values round trip without rounding a municipal threshold or infe
   assert.match(operatingSummary(values), /T3-S2 · 5 ejes · Capacidad de carga 3.499 t/);
   for (const invalid of [{axleCount:'2.5'},{axleCount:'1'},{axleCount:'13'},{axleCount:'3',configuration:'T3-S2'},{configuration:'unknown'},{payloadCapacity:'3.4999'},{payloadCapacity:'0'},{payloadCapacity:'101'},{payloadCapacity:'NaN'}]) assert.throws(() => operatingInput({...EMPTY_OPERATING_FORM,...invalid}));
 });
+
+
+test('sub-milligram precision around a threshold is rejected instead of choosing a side', () => {
+  for (const payloadCapacity of ['3.4999999999999996', '3.5000000000000004']) assert.throws(() => operatingInput({ ...EMPTY_OPERATING_FORM, payloadCapacity }), /tres decimales/);
+  assert.equal(operatingInput({ ...EMPTY_OPERATING_FORM, payloadCapacity: '1.001' }).payloadCapacityT, 1.001);
+});

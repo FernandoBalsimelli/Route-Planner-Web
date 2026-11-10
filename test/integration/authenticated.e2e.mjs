@@ -167,6 +167,16 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
     assert.equal(await page.getByRole('checkbox', { name: 'Evitar casetas de peaje', exact: true }).isChecked(), true);
     assert.equal(await page.getByRole('checkbox', { name: 'Evitar autopistas', exact: true }).isChecked(), true);
     for (const href of await page.locator('.navigation-segments a').evaluateAll(nodes => nodes.map(node => node.href))) assert.equal(new URL(href).searchParams.get('avoid'), 'tolls,highways');
+    await page.route('**/api/route-planner/v1/regulations/source-status',route=>route.fulfill({json:{sources:[],intervalHours:6,stale:false}}));
+    await nav(page).getByRole('button',{name:'Guía camión',exact:true}).click();
+    await page.getByRole('button',{name:'Consultar cobertura municipal',exact:true}).click();
+    await page.getByLabel('Entidad federativa',{exact:true}).selectOption('21');
+    await page.getByLabel('Municipio o demarcación',{exact:true}).selectOption('21114');
+    await page.getByRole('heading',{name:'Puebla',exact:true}).waitFor();
+    await page.locator('[data-comparison="matches"]').filter({hasText:'Capacidad de carga: 30.125 t'}).waitFor();
+    assert.match(await page.locator('.vehicle-review-context').innerText(),/T3-S2 · 5 ejes/);
+    assert.match(await page.locator('.vehicle-reference-comparison').filter({hasText:'no se evalúa tu configuración'}).innerText(),/T3-S2/);
+    await nav(page).getByRole('button',{name:'Planificar',exact:true}).click();
     await page.getByRole('checkbox', { name: 'Evitar casetas de peaje', exact: true }).uncheck();
     await page.getByRole('checkbox', { name: 'Evitar autopistas', exact: true }).uncheck();
     // Reparto exercises the genuine API optimization request with a deterministic external fixture.

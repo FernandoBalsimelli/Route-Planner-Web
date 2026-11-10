@@ -20,7 +20,7 @@ export function operatingInput(form: VehicleOperatingForm): VehicleOperatingInpu
   }
   if (form.payloadCapacity.trim()) {
     const value = Number(form.payloadCapacity);
-    if (!Number.isFinite(value) || value <= 0 || value > 100 || Math.abs(value * 1000 - Math.round(value * 1000)) > 1e-8) throw new Error('La capacidad de carga debe ser mayor que 0, hasta 100 t y con un máximo de tres decimales.');
+    if (!Number.isFinite(value) || value <= 0 || value > 100 || Number(value.toFixed(3)) !== value) throw new Error('La capacidad de carga debe ser mayor que 0, hasta 100 t y con un máximo de tres decimales.');
     result.payloadCapacityT = value;
   }
   return result;

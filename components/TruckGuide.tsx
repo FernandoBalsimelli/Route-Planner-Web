@@ -1,8 +1,9 @@
 import React from 'react';
 import AppIcon from './AppIcon';
 import MunicipalCoverage from './MunicipalCoverage';
+import type { ReviewVehicle } from '@/lib/municipal-vehicle-review';
 
-export default function TruckGuide({ requestedMunicipality }: { requestedMunicipality?: { id: string; request: number } }) {
+export default function TruckGuide({ requestedMunicipality, vehicle }: { requestedMunicipality?: { id: string; request: number }; vehicle?: ReviewVehicle }) {
   return <section className="truck-guide" aria-labelledby="truck-guide-title">
     <div className="section-heading"><span className="section-symbol"><AppIcon name="shield" size={26}/></span><p className="eyebrow">ANTES DE SALIR</p><h1 id="truck-guide-title">Cómo planeamos para tu camión</h1><p>Restricciones del mapa y reglas de circulación: qué se considera y qué necesitas comprobar.</p></div>
     <div className="coverage-banner"><AppIcon name="shield"/><div><strong>Ruteo con restricciones cartográficas</strong><p>Una ruta calculada no es una certificación de seguridad ni de autorización legal. La cobertura de restricciones puede estar incompleta.</p></div></div>
@@ -12,7 +13,7 @@ export default function TruckGuide({ requestedMunicipality }: { requestedMunicip
       <article><span className="guide-step">03</span><h2>La normativa en México</h2><p>El catálogo oficial marca como vigente la <b>NOM-012-SCT-2-2017</b>. Regula pesos y dimensiones en vías de jurisdicción federal. Sus tablas dependen de la configuración vehicular, ejes y clase de camino: ET, A, B, C o D.</p><p>La aplicación aún no cruza tu ruta con esas tablas ni valida permisos especiales. Escribir un peso en el perfil no acredita que esté autorizado.</p><p>En calles urbanas también debes comprobar las reglas estatales y municipales: corredores, horarios, accesos y señalización.</p></article>
       <article><span className="guide-step">04</span><h2>Lo que falta verificar</h2><ul><li>Horarios de carga, permisos y restricciones municipales actualizadas.</li><li>Validación del número y configuración de ejes contra las tablas de la norma; puedes registrarlos en tu vehículo, pero todavía no se aplican como límites legales.</li><li>Obras, cierres temporales, puentes sin datos y acceso real de descarga.</li><li>Carga peligrosa o sobredimensionada y sus autorizaciones.</li></ul><p>Puedes solicitar evitar peajes o autopistas al calcular. Se conserva el orden de entregas porque el optimizador disponible no aplica esas preferencias. También se solicitan en los enlaces de Google Maps; no transmiten peso, medidas ni permisos de tu camión y no garantizan el mismo trazado.</p></article>
     </div>
-    <MunicipalCoverage requestedMunicipality={requestedMunicipality}/>
+    <MunicipalCoverage requestedMunicipality={requestedMunicipality} vehicle={vehicle}/>
     <div className="guide-sources"><h2>Fuentes oficiales y técnicas</h2><a href="https://platiica.economia.gob.mx/normalizacion/nom-012-sct-2-2017/" target="_blank" rel="noreferrer">Catálogo oficial de normas: vigencia de NOM-012 ↗</a><a href="https://sidof.segob.gob.mx/notas/docFuente/5508944" target="_blank" rel="noreferrer">DOF: texto y tablas de la NOM-012-SCT-2-2017 ↗</a><a href="https://giscience.github.io/openrouteservice/api-reference/endpoints/directions/routing-options" target="_blank" rel="noreferrer">OpenRouteService: parámetros para vehículos pesados ↗</a><a href="https://giscience.github.io/openrouteservice/run-instance/configuration/engine/profiles/build#heavyvehicle" target="_blank" rel="noreferrer">OpenRouteService: datos de acceso, peso y dimensiones ↗</a><small>Fuentes consultadas el 9 de noviembre de 2026. Verifica cambios oficiales antes de cada operación.</small></div>
   </section>;
 }
