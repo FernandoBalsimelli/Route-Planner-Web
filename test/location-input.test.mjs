@@ -166,3 +166,13 @@ test('missing house number is labelled approximate before and after explicit con
   assert.match(container.querySelector('.address-number-notice').textContent, /aproximado/);
   assert.equal(container.querySelector('input').value, point.label);
 });
+test('business selection asks to verify the branch and access and confirms only the chosen coordinates',async()=>{
+ let confirmed=null;
+ const point={label:'Bodega Aurrera Express, Calle Cedro, Monterrey',lat:25.6801,lng:-100.31,kind:'venue',street:'Calle Cedro'};
+ globalThis.fetch=async()=>Response.json({suggestions:[point]});
+ function BusinessHarness(){const [value,setValue]=useState('Bodega Aurrera Express'),[selected,setSelected]=useState(null);return React.createElement(LocationInput,{title:'Destino',color:'orange',value,selected,apiUrl:'/api',placeholder:'',onChange:setValue,onConfirm:p=>{confirmed=p;setSelected(p);}});}
+ container=document.createElement('div');document.body.append(container);root=createRoot(container);await act(async()=>root.render(React.createElement(BusinessHarness)));await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));
+ await act(async()=>container.querySelector('[role="option"]').click());assert.equal(confirmed,null);assert.match(container.textContent,/Corrobora la sucursal y el acceso de descarga/);assert.match(container.textContent,/no indica una entrada habilitada/);
+ const link=[...container.querySelectorAll('a')].find(node=>node.textContent==='Ver mapa ↗');assert.equal(new URL(link.href).searchParams.get('query'),'25.6801,-100.31');
+ await act(async()=>button('Confirmar punto').click());assert.deepEqual(confirmed,point);assert.equal(container.querySelector('input').value,point.label);
+});

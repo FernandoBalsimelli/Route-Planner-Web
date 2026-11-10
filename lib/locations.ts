@@ -22,6 +22,12 @@ export function addressNumberNotice(point: LocationSelection): string {
   return '';
 }
 
+export function businessLocationNotice(point: LocationSelection): string {
+  if(point.kind!=='venue')return '';
+  const address=point.street?'': 'El proveedor no informa la calle de esta sucursal. ';
+  return address+'Corrobora la sucursal y el acceso de descarga. El punto del negocio puede estar en el centro del predio y no indica una entrada habilitada para tu vehículo.';
+}
+
 export type Coordinates = { lat: number; lng: number };
 
 export async function resolvePointLabel(point: Coordinates, apiUrl: string, signal: AbortSignal): Promise<{ location: LocationSelection; addressFound: boolean }> {

@@ -361,3 +361,14 @@ test('mobile creates twelve deliveries and sends every point to Google in consec
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
  }finally{await context.close();}
 });
+test('mobile branch confirmation preserves street and coordinates after showing the loading-access notice',async()=>{
+ const {context,page}=await setup(()=>{});
+ try{
+  await page.route('**/api/route-planner/v1/locations/suggest**',route=>route.fulfill({json:{ok:true,nearby:true,suggestions:[{label:'Bodega Aurrera Express, Calle Cedro 101, Monterrey',lat:25.6801,lng:-100.31,kind:'venue',street:'Calle Cedro',houseNumber:'101',distanceMeters:500}]}}));
+  await page.goto(base);await page.getByRole('combobox',{name:'Destino',exact:true}).fill('Bodega Aurrera Express');await page.getByRole('option',{name:/Calle Cedro 101/}).click();
+  await page.getByText(/Corrobora la sucursal y el acceso de descarga/).waitFor();assert.equal(await page.locator('.location-confirmed').count(),0);
+  const link=page.getByRole('link',{name:'Ver mapa ↗',exact:true});assert.equal(new URL(await link.getAttribute('href')).searchParams.get('query'),'25.6801,-100.31');
+  await page.getByRole('button',{name:'Confirmar punto',exact:true}).click();assert.equal(await page.getByRole('combobox',{name:'Destino',exact:true}).inputValue(),'Bodega Aurrera Express, Calle Cedro 101, Monterrey');assert.equal(await page.locator('.location-confirmed').count(),1);
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+ }finally{await context.close();}
+});

@@ -3,7 +3,7 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { locateDevice } from '@/lib/geolocation';
-import { addressNumberNotice, resolvePointLabel, type Coordinates, type LocationSelection } from '@/lib/locations';
+import { addressNumberNotice, businessLocationNotice, resolvePointLabel, type Coordinates, type LocationSelection } from '@/lib/locations';
 import LocationBookTools from './LocationBookTools';
 import { useLocationBook } from './LocationBookProvider';
 import { validLocation } from '@/lib/location-book';
@@ -225,6 +225,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
     {searchError && <p className="location-search-error">{searchError} Puedes continuar escribiendo una dirección completa.</p>}
     {pending && <div className="location-confirm-card">
       <div><strong>¿Es este el punto correcto?</strong><p>{pending.label}</p><small>{locationKind(pending.kind) && `${locationKind(pending.kind)} · `}{pending.plusCode || `${pending.lat.toFixed(6)}, ${pending.lng.toFixed(6)}`}</small></div>
+      {businessLocationNotice(pending) && <p className="address-number-notice" role="status">{businessLocationNotice(pending)}</p>}
       {addressNumberNotice(pending) && <p className="address-number-notice" role="status">{addressNumberNotice(pending)}</p>}
       {pending.numberMatch && pending.numberMatch !== 'matched' && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value.trim())}`} target="_blank" rel="noreferrer">Buscar la dirección escrita en Google Maps ↗</a>}
       <a href={`https://www.google.com/maps/search/?api=1&query=${pending.lat},${pending.lng}`} target="_blank" rel="noreferrer">Ver mapa ↗</a>
