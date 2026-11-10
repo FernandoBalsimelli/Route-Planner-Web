@@ -450,3 +450,27 @@ test('mobile source review retains a verified principal alongside a failed linke
   assert.equal(await docs.nth(1).getByRole('link').getAttribute('href'),'https://official.gob.mx/gazette');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
  }finally{await context.close();}
 });
+
+
+test('mobile truck operating profile derives axles, allows unidentified units and fits a narrow screen', async () => {
+  const { context, page } = await setup(() => {}, { width: 360, height: 800 });
+  try {
+    await page.route('**/api/route-planner/**', route => route.fulfill({ json: { ok: true, suggestions: [] } }));
+    await page.goto(base);
+    await page.getByRole('button', { name: 'Camión', exact: true }).click();
+    const config = page.getByLabel('Configuración vehicular', { exact: true });
+    const axes = page.getByLabel('Número total de ejes', { exact: true });
+    const capacity = page.getByLabel('Capacidad máxima de carga (t)', { exact: true });
+    assert.equal(await config.inputValue(), ''); assert.equal(await axes.inputValue(), ''); assert.equal(await capacity.inputValue(), '');
+    await config.selectOption('T3-S2');
+    assert.equal(await axes.inputValue(), '5'); assert.notEqual(await axes.getAttribute('readonly'), null);
+    await capacity.fill('30.125');
+    assert.equal(await page.getByLabel('Peso bruto (t)', { exact: true }).inputValue(), '40', 'capacity must not replace actual gross weight');
+    await config.selectOption('');
+    assert.equal(await axes.getAttribute('readonly'), null);
+    await axes.fill('3'); assert.equal(await axes.inputValue(), '3'); assert.equal(await capacity.inputValue(), '30.125');
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+    await page.getByRole('button', { name: 'Reparto', exact: true }).click();
+    assert.equal(await config.count(), 0);
+  } finally { await context.close(); }
+});

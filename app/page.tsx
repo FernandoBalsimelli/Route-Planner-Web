@@ -14,6 +14,8 @@ import VehicleManager from '@/components/VehicleManager';
 import SavedRoutesPanel, { type SavedRoute } from '@/components/SavedRoutesPanel';
 import ManifestImport from '@/components/ManifestImport';
 import { VEHICLE_COLUMNS, type VehicleProfile } from '@/lib/vehicles';
+import VehicleOperatingFields from '@/components/VehicleOperatingFields';
+import { EMPTY_OPERATING_FORM, operatingInput, operatingForm, operatingSummary } from '@/lib/vehicle-operating';
 import type { RouteResult } from '@/lib/routes';
 import LocationBookProvider from '@/components/LocationBookProvider';
 import RouteExports from '@/components/RouteExports';
@@ -62,6 +64,7 @@ export default function Home() {
   const [preferences, setPreferences] = useState<RoadPreferences>(DEFAULT_ROUTE_PREFERENCES);
   const [optimizeStops, setOptimizeStops] = useState(false);
   const [stopOrderMessage, setStopOrderMessage] = useState('');
+  const [operating, setOperating] = useState(EMPTY_OPERATING_FORM);
   const [vehicle, setVehicle] = useState({ height: '4.0', width: '2.5', length: '18', grossWeight: '40', axleWeight: '10' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -91,7 +94,7 @@ export default function Home() {
   useEffect(() => {
     planningRequest.current?.abort();
     setLoading(false);
-  }, [origin, destination, selectedOrigin, selectedDestination, stops, mode, vehicle, optimizeStops, preferences]);
+  }, [origin, destination, selectedOrigin, selectedDestination, stops, mode, vehicle, operating, optimizeStops, preferences]);
   useEffect(() => () => planningRequest.current?.abort(), []);
   const canPlan = origin.trim().length > 2 && destination.trim().length > 2 && !loading;
   const navigationPoints = useMemo(() => {
@@ -127,6 +130,7 @@ export default function Home() {
     const profile = supplied || vehicleProfiles.find(item => item.id === profileId);
     setSelectedVehicleProfileId(profileId);
     if (!profile) return;
+    setOperating(operatingForm({axleCount:profile.axle_count??undefined,configuration:profile.vehicle_configuration??undefined,payloadCapacityT:profile.payload_capacity_t??undefined}));
     setMode(profile.vehicle_type === 'truck' ? 'truck' : 'delivery');
     if (profile.vehicle_type === 'truck') setOptimizeStops(false);
     setResult(null);
@@ -170,6 +174,7 @@ export default function Home() {
     })));
     setMode(route.route_metadata?.mode || (route.name.startsWith('Camión') ? 'truck' : 'delivery'));
     const savedVehicle = route.route_metadata?.vehicle;
+    setOperating(operatingForm(savedVehicle));
     if (savedVehicle) setVehicle({ height: String(savedVehicle.heightM ?? 4), width: String(savedVehicle.widthM ?? 2.5), length: String(savedVehicle.lengthM ?? 18), grossWeight: String(savedVehicle.grossWeightT ?? 40), axleWeight: String(savedVehicle.axleWeightT ?? 10) });
     setSelectedVehicleProfileId(route.vehicle_id || '');
     setRouteName(route.name);
@@ -189,6 +194,7 @@ export default function Home() {
     planningRequest.current = controller;
     setLoading(true); setError(''); setResult(null); setMapSearch(null);
     try {
+      const operatingParameters = mode === 'truck' ? operatingInput(operating) : {};
       let sessionData;
       try {
         const sessionResult = supabase ? await supabase.auth.getSession() : { data: { session: null }, error: null };
@@ -204,7 +210,7 @@ export default function Home() {
         response = await fetch(`${API_URL}/v1/routes/plan`, {
           signal: controller.signal,
           method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${sessionData.session.access_token}` },
-          body: JSON.stringify({ origin: selectedOrigin || origin.trim(), destination: selectedDestination || destination.trim(), stops: stops.filter(s => s.value.trim()).map(s => s.selected || s.value.trim()), mode, preferences, optimize: optimizeStops && mode === 'delivery' && !hasRoadPreferences(preferences), vehicle: mode === 'truck' ? { heightM: Number(vehicle.height), widthM: Number(vehicle.width), lengthM: Number(vehicle.length), grossWeightT: Number(vehicle.grossWeight), axleWeightT: Number(vehicle.axleWeight) } : undefined }),
+          body: JSON.stringify({ origin: selectedOrigin || origin.trim(), destination: selectedDestination || destination.trim(), stops: stops.filter(s => s.value.trim()).map(s => s.selected || s.value.trim()), mode, preferences, optimize: optimizeStops && mode === 'delivery' && !hasRoadPreferences(preferences), vehicle: mode === 'truck' ? { heightM: Number(vehicle.height), widthM: Number(vehicle.width), lengthM: Number(vehicle.length), grossWeightT: Number(vehicle.grossWeight), axleWeightT: Number(vehicle.axleWeight), ...operatingParameters } : undefined }),
         });
       } catch {
         throw new Error('No se pudo conectar con Route Planner API. La conexión fue interrumpida antes de recibir respuesta.');
@@ -231,7 +237,7 @@ export default function Home() {
         name: routeName.trim() || `${mode === 'truck' ? 'Camión' : 'Reparto'} · ${new Date().toLocaleDateString('es-MX')}`,
         vehicleId: selectedVehicleProfileId || null,
         mode,
-        vehicle: mode === 'truck' ? { heightM: Number(vehicle.height), widthM: Number(vehicle.width), lengthM: Number(vehicle.length), grossWeightT: Number(vehicle.grossWeight), axleWeightT: Number(vehicle.axleWeight) } : null,
+        vehicle: mode === 'truck' ? { heightM: Number(vehicle.height), widthM: Number(vehicle.width), lengthM: Number(vehicle.length), grossWeightT: Number(vehicle.grossWeight), axleWeightT: Number(vehicle.axleWeight), ...operatingInput(operating) } : null,
       });
       const signature = JSON.stringify(data);
       if (!saveIntent.current || saveIntent.current.signature !== signature) saveIntent.current = { signature, id: crypto.randomUUID() };
@@ -270,7 +276,7 @@ export default function Home() {
           </div>
           <RoutePreferences value={preferences} truck={mode === 'truck'} onChange={changePreferences}/>
           <label className="optimize-toggle"><input type="checkbox" checked={optimizeStops} onChange={e => { setOptimizeStops(e.target.checked); setStopOrderMessage(''); setResult(null); }} disabled={mode === 'truck' || hasRoadPreferences(preferences) || stops.filter(stop => stop.value.trim()).length < 2}/><span><b>Optimizar orden de paradas</b><small>{mode === 'truck' ? 'Camión: se conserva el orden y se envían tus medidas al proveedor.' : hasRoadPreferences(preferences) ? 'Orden actual: la optimización no aplica las preferencias de carretera.' : 'Con dos o más entregas, busca el orden con menor tiempo de viaje.'}</small></span></label>
-          {mode === 'truck' && <details className="vehicle-panel" open><summary><AppIcon name="truck" size={18}/><span>Medidas del camión cargado</span></summary><div className="vehicle-fields">{([['height','Altura (m)','0.5','10'],['width','Ancho (m)','0.5','5'],['length','Largo (m)','1','30'],['grossWeight','Peso bruto (t)','0.1','100'],['axleWeight','Peso por eje (t)','0.1','30']] as const).map(([key,title,min,max]) => <label key={key}>{title}<input type="number" min={min} max={max} step="0.1" value={vehicle[key]} onChange={event => { setVehicle(values => ({...values,[key]:event.target.value})); setResult(null); }}/></label>)}</div><p className="hint">Los valores iniciales son un ejemplo. Usa los de tu unidad.</p><button type="button" className="text-button" onClick={() => openWorkspace('guide')}>Qué restricciones considera esta ruta ↗</button></details>}
+          {mode === 'truck' && <details className="vehicle-panel" open><summary><AppIcon name="truck" size={18}/><span>Medidas del camión cargado</span></summary><div className="vehicle-fields">{([['height','Altura (m)','0.5','10'],['width','Ancho (m)','0.5','5'],['length','Largo (m)','1','30'],['grossWeight','Peso bruto (t)','0.1','100'],['axleWeight','Peso por eje (t)','0.1','30']] as const).map(([key,title,min,max]) => <label key={key}>{title}<input type="number" min={min} max={max} step="0.1" value={vehicle[key]} onChange={event => { setVehicle(values => ({...values,[key]:event.target.value})); setResult(null); }}/></label>)}</div><VehicleOperatingFields value={operating} onChange={value=>{setOperating(value);setResult(null);}}/><p className="hint">Los valores iniciales son un ejemplo. Usa los de tu unidad.</p><button type="button" className="text-button" onClick={() => openWorkspace('guide')}>Qué restricciones considera esta ruta ↗</button></details>}
           <div className="plan-actions"><button type="button" className="primary-button" disabled={!canPlan} onClick={planRoute}>{loading ? 'Calculando ruta…' : 'Calcular ruta'}<AppIcon name="arrow"/></button>{!user && <small>Inicia sesión para calcular y guardar tus recorridos.</small>}</div>
           {error && <div className="error-box" role="alert"><strong>No se pudo calcular</strong><p>{error}</p>{providerStatus === 'missing' && <small>El servicio de rutas requiere configuración del administrador.</small>}</div>}
           {!result && <NavigationLinks points={navigationPoints} route={result} preferences={preferences} truck={mode === 'truck'}/>}
@@ -285,6 +291,7 @@ export default function Home() {
           {mode === 'truck' && <button type="button" className="truck-coverage" onClick={() => openWorkspace('guide')}><AppIcon name="shield"/><span><b>Restricciones cartográficas</b><small>Revisa la cobertura y la normativa antes de salir.</small></span><span aria-hidden="true">↗</span></button>}
           {result && <div className="result-details">
             {result.preferences && hasRoadPreferences(result.preferences) && <p className="optimized-note">Preferencias del cálculo: {roadPreferencesLabel(result.preferences)}. Según los datos del proveedor.</p>}
+            {result.vehicleContext && operatingSummary(result.vehicleContext) && <p className="optimized-note">Datos de la unidad: {operatingSummary(result.vehicleContext)}. Pendientes de validación normativa.</p>}
             {result.optimized && <p className="optimized-note"><AppIcon name="check" size={16}/>Orden de entregas optimizado por tiempo de viaje.</p>}
             <RouteNavigator key={user?.id || 'anonymous'} active={workspace === 'planner'} route={result} truck={mode === 'truck'} onPosition={setNavigationPosition} onFollow={setNavigationFollow}/>{mode==='truck'&&<RouteCoverageReport coverage={result.regulatoryCoverage} onOpenGuide={id=>{setMunicipalReview(id?{id,request:Date.now()}:undefined);openWorkspace('guide');}}/>}<h2>Detalle del recorrido</h2><div className="route-line">{(result.waypoints || []).map((point,index) => <div className="route-point" key={index}><i className={point.type === 'origin' ? 'dot green' : point.type === 'destination' ? 'dot orange' : 'stop-number'}>{point.type === 'stop' ? index : ''}</i><span><b>{point.type === 'origin' ? 'Origen' : point.type === 'destination' ? 'Destino' : `Entrega ${index}`}</b><small>{point.label || `${point.lat}, ${point.lng}`}</small></span></div>)}</div>
             <details className="instructions"><summary>Indicaciones de conducción</summary>{result.sections.flatMap(section => section.actions || []).filter(action => action.instruction).slice(0, 12).map((action, index) => <p key={index}>{index + 1}. {action.instruction}</p>)}</details>

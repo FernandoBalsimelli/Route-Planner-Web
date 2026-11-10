@@ -80,6 +80,10 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
     await page.getByLabel('Nombre o número de unidad', { exact: true }).fill('Unidad E2E 12');
     await page.getByLabel('Tipo de vehículo', { exact: true }).selectOption('truck');
     for (const [label,value] of [['Altura total (m)','4.1'],['Ancho (m)','2.5'],['Largo (m)','18'],['Peso bruto cargado (t)','38'],['Peso máximo por eje (t)','9']]) await page.getByLabel(label, { exact: true }).fill(value);
+    await page.getByLabel('Configuración vehicular', { exact: true }).selectOption('T3-S2');
+    assert.equal(await page.getByLabel('Número total de ejes', { exact: true }).inputValue(), '5');
+    assert.ok(await page.getByLabel('Número total de ejes', { exact: true }).getAttribute('readonly') !== null);
+    await page.getByLabel('Capacidad máxima de carga (t)', { exact: true }).fill('30.125');
     await page.getByText('Flota (opcional)', { exact: true }).click();
     await page.getByLabel('Nueva flota', { exact: true }).fill('Flota E2E');
     await page.getByRole('button', { name: 'Crear flota', exact: true }).click();
@@ -88,6 +92,15 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
     await page.getByRole('button', { name: 'Usar en ruta', exact: true }).click();
     assert.equal(await page.getByRole('spinbutton', { name: 'Altura (m)', exact: true }).inputValue(), '4.1');
     assert.ok((await rows(first.client, 'vehicles'))[0].fleet_id, 'the selected fleet is persisted');
+    const storedVehicle = (await rows(first.client, 'vehicles'))[0];
+    assert.equal(storedVehicle.axle_count, 5);
+    assert.equal(storedVehicle.vehicle_configuration, 'T3-S2');
+    assert.equal(storedVehicle.payload_capacity_t, 30.125);
+    for (const invalid of [{axle_count:3},{vehicle_configuration:'unknown'},{payload_capacity_t:3.4999}]) {
+      const rejected=await first.client.from('vehicles').update(invalid).eq('id',storedVehicle.id);
+      assert.ok(rejected.error, 'real REST must enforce configuration and capacity constraints');
+    }
+    assert.equal((await rows(first.client,'vehicles'))[0].payload_capacity_t,30.125);
     await point(page, 'Origen', '28.632995, -106.0691');
     await point(page, 'Destino', '28.63958, -106.08325');
     await page.getByRole('button', { name: 'Agregar parada' }).click();
@@ -103,6 +116,9 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
     assert.equal(response.status(), 200, 'real bearer session must pass proxy and API Auth validation');
     const planned = (await response.json()).route;
     assert.equal(planned.waypoints.length, 4);
+    assert.equal(planned.vehicleContext.axleCount, 5);
+    assert.equal(planned.vehicleContext.configuration, 'T3-S2');
+    assert.equal(planned.vehicleContext.payloadCapacityT, 30.125);
     assert.equal(planned.waypoints[1].lat, 28.65);
     await page.getByText('3.4 km', { exact: true }).waitFor();
     const requests = readFileSync(capture, 'utf8').trim().split('\n').map(JSON.parse);
@@ -117,6 +133,9 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
     assert.equal(saved.owner_id, first.uid);
     assert.equal(saved.vehicle_id, (await rows(first.client, 'vehicles'))[0].id);
     assert.equal(saved.route_metadata.mode, 'truck');
+    assert.equal(saved.route_metadata.vehicle.axleCount, 5);
+    assert.equal(saved.route_metadata.vehicle.configuration, 'T3-S2');
+    assert.equal(saved.route_metadata.vehicle.payloadCapacityT, 30.125);
     assert.deepEqual(saved.route_metadata.result.preferences, { avoidTolls: true, avoidHighways: true });
     assert.equal((await rows(first.client, 'route_stops')).length, 2);
     const destination = page.locator('.location-field').filter({ has: page.getByRole('combobox', { name: 'Destino', exact: true }) });
@@ -125,6 +144,9 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
     await destination.getByRole('button', { name: 'Guardar favorito', exact: true }).click();
     await page.getByText('Sucursal guardada en tus favoritos.', { exact: true }).waitFor();
     assert.equal((await rows(first.client, 'favorite_locations'))[0].name, 'Express E2E sucursal 1234');
+    const changed=await first.client.from('vehicles').update({axle_count:6,vehicle_configuration:'T3-S3',payload_capacity_t:32}).eq('id',storedVehicle.id);
+    assert.equal(changed.error,null);
+    await page.reload();
     await nav(page).getByRole('button', { name: 'Mis rutas', exact: true }).click();
     await page.getByRole('button', { name: 'Eliminar ruta Entregas E2E Express', exact: true }).click();
     await page.getByText(/Ruta eliminada. Puedes recuperarla/).waitFor();
@@ -138,6 +160,10 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
     await page.getByText('3.4 km', { exact: true }).waitFor();
     assert.equal(await page.getByRole('combobox', { name: 'PARADA 1', exact: true }).inputValue(), planned.waypoints[1].label);
     assert.equal(await page.getByRole('spinbutton', { name: 'Peso bruto (t)', exact: true }).inputValue(), '38');
+    assert.equal(await page.getByLabel('Configuración vehicular', { exact: true }).inputValue(), 'T3-S2', 'loading uses the historical snapshot, not the edited vehicle');
+    assert.equal(await page.getByLabel('Número total de ejes', { exact: true }).inputValue(), '5');
+    assert.equal(await page.getByLabel('Capacidad máxima de carga (t)', { exact: true }).inputValue(), '30.125');
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
     assert.equal(await page.getByRole('checkbox', { name: 'Evitar casetas de peaje', exact: true }).isChecked(), true);
     assert.equal(await page.getByRole('checkbox', { name: 'Evitar autopistas', exact: true }).isChecked(), true);
     for (const href of await page.locator('.navigation-segments a').evaluateAll(nodes => nodes.map(node => node.href))) assert.equal(new URL(href).searchParams.get('avoid'), 'tolls,highways');
@@ -184,7 +210,7 @@ test('real local session plans and saves 48 deliveries atomically, retries witho
  const {data:auth,error}=await client.auth.getSession();assert.equal(error,null);const token=auth.session.access_token;
  const origin={label:'Patio sintético',lat:28.63,lng:-106.06},destination={label:'Destino sintético',lat:28.64,lng:-106.07};
  const stops=Array.from({length:48},(_,i)=>({label:`Entrega sintética ${i+1}`,lat:28.6301+i/100000,lng:-106.0601}));
- const payload={origin,destination,stops,mode:'truck',preferences:{avoidTolls:true,avoidHighways:true},vehicle:{heightM:4.1,widthM:2.5,lengthM:18,grossWeightT:38,axleWeightT:9}};
+ const payload={origin,destination,stops,mode:'truck',preferences:{avoidTolls:true,avoidHighways:true},vehicle:{heightM:4.1,widthM:2.5,lengthM:18,grossWeightT:38,axleWeightT:9,axleCount:5,configuration:'T3-S2',payloadCapacityT:30.125}};
  const plan=async body=>fetch(base+'/api/route-planner/v1/routes/plan',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify(body)});
  const response=await plan(payload);assert.equal(response.status,200);const result=(await response.json()).route;assert.equal(result.waypoints.length,50);assert.deepEqual(result.waypoints.slice(1,-1).map(point=>point.label),stops.map(point=>point.label));
  const requestId=crypto.randomUUID(),route={name:'48 entregas reales en REST local',origin,destination,route_metadata:{mode:'truck',vehicle:payload.vehicle,result}};
@@ -192,7 +218,7 @@ test('real local session plans and saves 48 deliveries atomically, retries witho
  const saved=await save({p_request_id:requestId,p_route:route,p_stops:stops});assert.equal(saved.error,null);assert.equal(typeof saved.data,'string');
  const retried=await save({p_request_id:requestId,p_route:route,p_stops:stops});assert.equal(retried.error,null);assert.equal(retried.data,saved.data);
  const rowsResult=await client.from('route_stops').select('*').eq('route_id',saved.data).order('sequence');assert.equal(rowsResult.error,null);assert.equal(rowsResult.data.length,48);
- const savedRoute=await client.from('saved_routes').select('route_metadata').eq('id',saved.data).single();assert.equal(savedRoute.error,null);assert.deepEqual(savedRoute.data.route_metadata.result.preferences,payload.preferences);
+ const savedRoute=await client.from('saved_routes').select('route_metadata').eq('id',saved.data).single();assert.equal(savedRoute.error,null);assert.deepEqual(savedRoute.data.route_metadata.result.preferences,payload.preferences);assert.deepEqual(savedRoute.data.route_metadata.vehicle,payload.vehicle);assert.deepEqual(result.vehicleContext,payload.vehicle);
  assert.ok(rowsResult.data.every(point=>point.owner_id===uid));assert.deepEqual(rowsResult.data.map(point=>point.location.label),stops.map(point=>point.label));
  const tooMany=[...stops,{label:'Entrega 49 rechazada',lat:28.64,lng:-106.07}];
  assert.equal((await plan({...payload,stops:tooMany})).status,400);

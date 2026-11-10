@@ -3,6 +3,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import VehicleOperatingFields from './VehicleOperatingFields';
+import { EMPTY_OPERATING_FORM, operatingForm, operatingSummary } from '@/lib/vehicle-operating';
 import { dimensionFields, VEHICLE_COLUMNS, vehicleValues, type VehicleProfile } from '@/lib/vehicles';
 
 export default function VehicleManager({ user, vehicles, onSaved, onSelect }: { user: User | null; vehicles: VehicleProfile[]; onSaved: (vehicle: VehicleProfile) => void; onSelect: (id: string) => void }) {
@@ -10,6 +12,7 @@ export default function VehicleManager({ user, vehicles, onSaved, onSelect }: { 
   const [editing, setEditing] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [type, setType] = useState<VehicleProfile['vehicle_type']>('delivery');
+  const [operating, setOperating] = useState(EMPTY_OPERATING_FORM);
   const [dimensions, setDimensions] = useState<Record<string, string>>({});
   const [fleetId, setFleetId] = useState('');
   const [fleets, setFleets] = useState<Array<{ id: string; name: string }>>([]);
@@ -33,6 +36,7 @@ export default function VehicleManager({ user, vehicles, onSaved, onSelect }: { 
   }, [user?.id]);
   function edit(vehicle?: VehicleProfile) {
     setEditing(vehicle?.id || 'new'); setName(vehicle?.name || ''); setType(vehicle?.vehicle_type || 'delivery'); setFleetId(vehicle?.fleet_id || ''); setMessage('');
+    setOperating(operatingForm({ axleCount: vehicle?.axle_count ?? undefined, configuration: vehicle?.vehicle_configuration ?? undefined, payloadCapacityT: vehicle?.payload_capacity_t ?? undefined }));
     setDimensions(Object.fromEntries(dimensionFields.map(field => [field.key, vehicle?.[field.key] != null ? String(vehicle[field.key]) : ''])));
   }
   async function saveProfile() {
@@ -52,7 +56,7 @@ export default function VehicleManager({ user, vehicles, onSaved, onSelect }: { 
     const ownerId = user.id;
     setBusy(true); setMessage('');
     try {
-      const values = vehicleValues(name, type, dimensions, fleetId);
+      const values = vehicleValues(name, type, dimensions, fleetId, operating);
       const query = editing === 'new' ? supabase.from('vehicles').insert({ ...values, owner_id: ownerId }) : supabase.from('vehicles').update(values).eq('id', editing!).eq('owner_id', ownerId);
       const { data, error } = await query.select(VEHICLE_COLUMNS).single();
       if (error) throw new Error(error.message);
@@ -78,14 +82,14 @@ export default function VehicleManager({ user, vehicles, onSaved, onSelect }: { 
     {!user ? <p>Inicia sesión para guardar tus vehículos y usarlos en cualquier recorrido.</p> : <>
       <details className="profile-details"><summary>Datos de mi perfil</summary><label>Nombre<input value={displayName} maxLength={120} onChange={event => setDisplayName(event.target.value)}/></label><button type="button" disabled={busy} onClick={() => void saveProfile()}>Guardar nombre</button></details>
       <div className="vehicles-header"><p>Guarda cada unidad una vez. Selecciónala al planear tu ruta.</p><button type="button" disabled={busy} onClick={() => edit()}>＋ Agregar vehículo</button></div>
-      <div className="saved-routes-list">{vehicles.map(vehicle => <article className="saved-route-card" key={vehicle.id}><div><strong>{vehicle.name}</strong><small>{vehicle.vehicle_type === 'truck' ? `Camión · ${vehicle.height_m ?? '—'} m de altura · ${vehicle.gross_weight_t ?? '—'} t` : vehicle.vehicle_type === 'car' ? 'Automóvil' : 'Unidad de reparto'}</small></div><div className="route-card-actions"><button type="button" onClick={() => { onSelect(vehicle.id); document.getElementById('planificador')?.scrollIntoView({ behavior: 'smooth' }); }}>Usar en ruta</button><button type="button" disabled={busy} aria-label={`Editar ${vehicle.name}`} onClick={() => edit(vehicle)}>Editar</button></div></article>)}</div>
+      <div className="saved-routes-list">{vehicles.map(vehicle => <article className="saved-route-card" key={vehicle.id}><div><strong>{vehicle.name}</strong><small>{vehicle.vehicle_type === 'truck' ? `Camión · ${vehicle.height_m ?? '—'} m de altura · ${vehicle.gross_weight_t ?? '—'} t` : vehicle.vehicle_type === 'car' ? 'Automóvil' : 'Unidad de reparto'}</small>{vehicle.vehicle_type === 'truck' && <small>{operatingSummary({axleCount:vehicle.axle_count??undefined,configuration:vehicle.vehicle_configuration??undefined,payloadCapacityT:vehicle.payload_capacity_t??undefined})||'Configuración y capacidad sin registrar'}</small>}</div><div className="route-card-actions"><button type="button" onClick={() => { onSelect(vehicle.id); document.getElementById('planificador')?.scrollIntoView({ behavior: 'smooth' }); }}>Usar en ruta</button><button type="button" disabled={busy} aria-label={`Editar ${vehicle.name}`} onClick={() => edit(vehicle)}>Editar</button></div></article>)}</div>
       {!vehicles.length && !editing && <p className="saved-routes-note">Agrega tu primera unidad, por ejemplo «Unidad 12 · ABC-123».</p>}
       {editing && <form className="vehicle-editor" onSubmit={saveVehicle}>
         <h3>{editing === 'new' ? 'Nuevo vehículo' : 'Editar vehículo'}</h3>
         <label>Nombre o número de unidad<input required maxLength={120} value={name} onChange={event => setName(event.target.value)} placeholder="Unidad 12 · ABC-123"/></label>
         <label>Tipo de vehículo<select aria-label="Tipo de vehículo" value={type} onChange={event => setType(event.target.value as VehicleProfile['vehicle_type'])}><option value="delivery">Unidad de reparto</option><option value="car">Automóvil</option><option value="truck">Camión de carga</option></select></label>
         <details className="profile-details"><summary>Flota (opcional)</summary><label>Flota del vehículo<select aria-label="Flota del vehículo" value={fleetId} onChange={event => setFleetId(event.target.value)}><option value="">Sin flota</option>{fleets.map(fleet => <option key={fleet.id} value={fleet.id}>{fleet.name}</option>)}</select></label><label>Nueva flota<input maxLength={120} value={newFleet} onChange={event => setNewFleet(event.target.value)}/></label><button type="button" disabled={busy || !newFleet.trim()} onClick={() => void addFleet()}>Crear flota</button></details>
-        {type === 'truck' && <><div className="vehicle-fields">{dimensionFields.map(field => <label key={field.key}>{field.title}<input type="number" required min="0.01" max={field.max} step="any" value={dimensions[field.key] || ''} onChange={event => setDimensions(values => ({ ...values, [field.key]: event.target.value }))}/></label>)}</div><p className="hint">Usa las medidas y el peso de la unidad cargada. El cálculo considera las restricciones cartográficas disponibles; la cobertura puede ser incompleta.</p></>}
+        {type === 'truck' && <><div className="vehicle-fields">{dimensionFields.map(field => <label key={field.key}>{field.title}<input type="number" required min="0.01" max={field.max} step="any" value={dimensions[field.key] || ''} onChange={event => setDimensions(values => ({ ...values, [field.key]: event.target.value }))}/></label>)}</div><VehicleOperatingFields value={operating} onChange={setOperating}/><p className="hint">Usa las medidas y el peso de la unidad cargada. El cálculo considera las restricciones cartográficas disponibles; la cobertura puede ser incompleta.</p></>}
         <div className="route-card-actions"><button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar y usar vehículo'}</button><button type="button" disabled={busy} onClick={() => setEditing(null)}>Cancelar</button></div>
       </form>}
       {message && <p role="status" className="vehicle-profile-message">{message}</p>}

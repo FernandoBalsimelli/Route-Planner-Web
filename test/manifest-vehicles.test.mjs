@@ -35,3 +35,15 @@ test('manifest review keeps more than thirty proposed deliveries instead of sile
   const deliveries=Array.from({length:49},(_,i)=>`Bodega Aurrera Express, Calle Ejemplo ${100+i}, Chihuahua`);
   assert.deepEqual(manifestCandidates(deliveries.join('\n')),deliveries);
 });
+
+
+test('vehicle operation is optional for legacy units and persists without confusing capacity and gross weight', () => {
+  const dimensions = { height_m: '4', width_m: '2.5', length_m: '18', gross_weight_t: '38', axle_weight_t: '9' };
+  const legacy = vehicleValues('Legado', 'truck', dimensions, '');
+  assert.equal(legacy.axle_count, null); assert.equal(legacy.vehicle_configuration, null); assert.equal(legacy.payload_capacity_t, null);
+  const operation = { axleCount: '5', configuration: 'T3-S2', payloadCapacity: '30.125' };
+  const truck = vehicleValues('Tracto', 'truck', dimensions, '', operation);
+  assert.equal(truck.axle_count, 5); assert.equal(truck.vehicle_configuration, 'T3-S2'); assert.equal(truck.payload_capacity_t, 30.125); assert.equal(truck.gross_weight_t, 38);
+  const car = vehicleValues('Auto', 'car', {}, '', operation);
+  assert.equal(car.axle_count, null); assert.equal(car.vehicle_configuration, null); assert.equal(car.payload_capacity_t, null);
+});

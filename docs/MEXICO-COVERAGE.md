@@ -243,3 +243,24 @@ no declaraciones de reformas ni de disponibilidad futura.
 Una respuesta remota retrasada de CDN no sustituye el reporte incorporado más
 reciente. Se conserva la comprobación con fecha más reciente y se comparten
 consultas simultáneas, manteniendo el límite de caché y tiempos de espera.
+
+
+## Perfil operativo sin ampliar la cobertura legal · 10 de noviembre de 2026
+
+El perfil puede registrar configuración, número total de ejes y capacidad nominal
+de carga. El selector usa nomenclatura y ejes de la Tabla B-2 de la
+[NOM-012-SCT-2-2017](https://sidof.segob.gob.mx/notas/docFuente/5508944),
+consultada el 10-11-2026. Capacidad nominal, peso bruto cargado y carga por eje
+son conceptos distintos; se almacenan sin inferir uno del otro. Un campo vacío
+sigue desconocido. La precisión de capacidad se limita a tres decimales sin
+redondear silenciosamente un valor a través del umbral de 3.5 t.
+
+La selección completa los ejes y verifica su consistencia interna. No verifica
+neumáticos, clase de carretera, límites de peso de la NOM, permisos o excepciones.
+Tampoco resuelve el caso exactamente 3.5 t de la referencia poblana ni activa
+horarios o calles evitadas. ORS no recibe estos campos nuevos como restricciones.
+Las rutas guardan el perfil histórico para su revisión; editar la unidad después
+no cambia los datos de aquel cálculo. Véase VEHICLE-OPERATING-PROFILE.md.
+
+Permanecen 14 municipios con referencia parcial y cero con validación legal
+completa. No se incorporan geometrías ni municipios nuevos en este ciclo.
