@@ -1,5 +1,6 @@
 # Integración local de cuentas y rutas
 
+Se corrigen también los nombres accesibles de los selectores de tipo y flota.
 Este directorio prueba la Web actual con sesiones reales emitidas por Auth,
 PostgREST, las ocho migraciones de Route Planner y sus políticas RLS en un
 stack desechable. Se porta sólo la infraestructura de la antigua rama de pruebas;

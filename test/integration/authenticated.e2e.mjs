@@ -51,6 +51,12 @@ async function session(username) {
   assert.equal(result.error, null, 'local Auth must issue a real session');
   return { client, uid: result.data.user.id };
 }
+async function createLocalAccount(username){
+ const client=createClient(supabaseUrl,key,{auth:{persistSession:false,autoRefreshToken:false}});
+ const {data,error}=await client.auth.signUp({email:username+'@example.test',password});assert.equal(error,null);assert.ok(data.session&&data.user);
+ const profile=await client.from('profiles').upsert({id:data.user.id,display_name:username},{onConflict:'id',ignoreDuplicates:true});assert.equal(profile.error,null);
+ return {client,uid:data.user.id};
+}
 async function rows(client, table) {
   const result = await client.from(table).select('*');
   assert.equal(result.error, null, `REST access to ${table} failed`);
@@ -139,9 +145,10 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
     assert.match(last[2].path, /driving-car/);
     assert.equal(last[2].body.options, undefined);
     await page.locator('.account-button').click();
+    const logout=page.waitForResponse(response=>response.url().includes('/auth/v1/logout')&&response.request().method()==='POST');
     await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
-    await page.getByText('Sesión cerrada.', { exact: true }).waitFor();
-    await page.locator('.account-button').click();
+    assert.equal((await logout).status(),204);await page.locator('.account-button').filter({hasText:'Iniciar sesión'}).waitFor();
+    if(await page.getByRole('dialog',{name:'Cuenta de Route Planner'}).isVisible())await page.locator('.account-button').click();
     await createAccount(page, 'e2e-owner-two');
     const second = await session('e2e-owner-two');
     assert.notEqual(first.uid, second.uid);
@@ -163,7 +170,7 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
 });
 
 test('real local session plans and saves 48 deliveries atomically, retries without duplicates and rejects a 49th', {timeout:60000}, async()=>{
- const {client,uid}=await session('e2e-owner-one');
+ const {client,uid}=await createLocalAccount('rpc-owner-one');
  const {data:auth,error}=await client.auth.getSession();assert.equal(error,null);const token=auth.session.access_token;
  const origin={label:'Patio sintético',lat:28.63,lng:-106.06},destination={label:'Destino sintético',lat:28.64,lng:-106.07};
  const stops=Array.from({length:48},(_,i)=>({label:`Entrega sintética ${i+1}`,lat:28.6301+i/100000,lng:-106.0601}));
@@ -179,6 +186,6 @@ test('real local session plans and saves 48 deliveries atomically, retries witho
  assert.equal((await plan({...payload,stops:tooMany})).status,400);
  const rejected=await save({p_request_id:crypto.randomUUID(),p_route:{...route,name:'No debe persistir 49 entregas'},p_stops:tooMany});assert.ok(rejected.error);
  const absent=await client.from('saved_routes').select('id').eq('name','No debe persistir 49 entregas');assert.equal(absent.error,null);assert.deepEqual(absent.data,[]);
- const second=await session('e2e-owner-two');const hidden=await second.client.from('route_stops').select('*').eq('route_id',saved.data);assert.equal(hidden.error,null);assert.deepEqual(hidden.data,[]);
+ const second=await createLocalAccount('rpc-owner-two');const hidden=await second.client.from('route_stops').select('*').eq('route_id',saved.data);assert.equal(hidden.error,null);assert.deepEqual(hidden.data,[]);
  const reassign=await client.from('saved_routes').update({owner_id:second.uid}).eq('id',saved.data);assert.ok(reassign.error,'an owner cannot transfer a route to another account through REST');
 });
