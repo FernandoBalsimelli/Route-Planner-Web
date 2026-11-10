@@ -13,7 +13,7 @@ test('strict capacity comparisons preserve the 3.5 boundary without substituting
   assert.match(comparisonText(compareVehicleRule(low,{payloadCapacityT:3.5}).checks[0]),/no se asigna una ventana/);
 });
 test('unknown or invalid operating inputs do not become inferred exemptions or rounded capacity', () => {
-  for (const payloadCapacityT of [undefined,NaN,Infinity,0,-1,3.4999,101]) assert.equal(compareVehicleRule(low,{payloadCapacityT}).checks[0].result,'unknown');
+  for (const payloadCapacityT of [undefined,NaN,Infinity,0,-1,3.4999,3.4999999999999996,3.5000000000000004,101]) assert.equal(compareVehicleRule(low,{payloadCapacityT}).checks[0].result,'unknown');
   for (const axleCount of [undefined,NaN,0,1,2.5,13]) assert.equal(axleReferenceComparison(4,{axleCount}).result,'unknown');
   assert.equal(axleReferenceComparison(4,{axleCount:2,configuration:'T3-S2'}).result,'unknown');
   assert.equal(axleReferenceComparison(4,{configuration:'C2'}).result,'unknown');

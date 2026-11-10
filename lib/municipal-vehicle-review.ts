@@ -20,7 +20,7 @@ function positive(value: unknown, maximum: number): number | undefined {
 }
 function capacity(value: unknown): number | undefined {
   const number = positive(value, 100);
-  return number !== undefined && Math.abs(number * 1000 - Math.round(number * 1000)) <= 1e-8 ? number : undefined;
+  return number !== undefined && Number(number.toFixed(3)) === number ? number : undefined;
 }
 export function reviewedVehicle(input?: ReviewVehicle): ReviewVehicle | undefined {
   if (!input) return undefined;
