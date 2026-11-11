@@ -228,6 +228,7 @@ export default function Home() {
         const choices = [payload.route, ...(Array.isArray(payload.alternatives) ? payload.alternatives.slice(0, 2) : [])];
         setRouteChoices(choices);
         setAlternativeNotice(choices.length === 1 ? 'Hay un solo recorrido válido disponible con estos puntos y restricciones.' : 'Elige el recorrido que quieres revisar. Distancia y tiempo son estimaciones del proveedor; las alternativas no certifican autorización para circular.');
+        if (payload.alternativeSummary?.omittedRoutes > 0) setAlternativeNotice(value => value + ' Se omitieron opciones incompletas, repetidas o que exceden el máximo solicitado.');
       }
       document.getElementById('mapa-planificacion')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
     } catch (e) {

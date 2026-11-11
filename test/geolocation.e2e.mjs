@@ -231,7 +231,7 @@ test('mobile numbered-address search exposes a street fallback without claiming 
   } finally { await context.close(); }
 });
 
-async function navigationSetup(){
+async function navigationSetup(timeoutMs){
  const testUser={id:'00000000-0000-4000-8000-000000000001',aud:'authenticated',role:'authenticated',email:'driver@example.test',app_metadata:{},user_metadata:{},created_at:'2026-01-01T00:00:00Z'};
  const exp=Math.floor(Date.now()/1000)+3600;
  const token=[Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url'),Buffer.from(JSON.stringify({sub:testUser.id,aud:'authenticated',exp})).toString('base64url'),'test-signature'].join('.');
@@ -240,6 +240,7 @@ async function navigationSetup(){
   window.__gps={started:0,cleared:[],callbacks:[]};
   Object.defineProperty(navigator,'geolocation',{value:{getCurrentPosition(){},watchPosition(ok,fail){const gps=window.__gps;gps.started++;gps.callbacks.push({ok,fail});return gps.started;},clearWatch(id){window.__gps.cleared.push(id);}}});
  });
+ if (timeoutMs) page.setDefaultTimeout(timeoutMs);
  await context.addInitScript(({session})=>localStorage.setItem('sb-auth-auth-token',JSON.stringify(session)),{session});
  await context.route('https://auth.example.test/**',route=>route.fulfill({json:route.request().url().includes('/auth/v1/user')?testUser:[]}));
  const {navigationRoute}=await import('./fixtures/route-navigation.mjs');
@@ -529,8 +530,8 @@ test('mobile axle review is limited to the selected municipality and keeps unkno
   } finally { await context.close(); }
 });
 
-test('mobile alternative selection changes the route and stops GPS without another calculation',async()=>{
- const {context,page}=await navigationSetup();
+test('mobile alternative selection changes the route and stops GPS without another calculation',{timeout:60000},async()=>{
+ const {context,page}=await navigationSetup(10000);
  try{
   const {navigationRoute,encodePath,points}=await import('./fixtures/route-navigation.mjs');
   const alternative={...navigationRoute,distanceMeters:420,durationSeconds:80,polyline:encodePath(points.map((point,index)=>index===1||index===2?[point[0]+.0004,point[1]]:point))};

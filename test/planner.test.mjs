@@ -145,8 +145,8 @@ test('alternative selection replaces metrics and geometry without another API ca
  await act(async()=>button('Agregar parada').click());assert.equal(toggle.disabled,true);assert.equal(toggle.checked,false);assert.equal(container.querySelector('.route-alternatives'),null);
 });
 test('a single alternative result is explained without fabricating more choices',async()=>{
- globalThis.fetch=async(url)=>url.endsWith('/routes/plan')?Response.json({ok:true,route:{distanceMeters:1000,durationSeconds:100,sections:[],waypoints:[]},alternatives:[]}):Response.json({suggestions:[]});
+ globalThis.fetch=async(url)=>url.endsWith('/routes/plan')?Response.json({ok:true,route:{distanceMeters:1000,durationSeconds:100,sections:[],waypoints:[]},alternatives:[],alternativeSummary:{omittedRoutes:2}}):Response.json({suggestions:[]});
  container=document.createElement('div');document.body.append(container);root=createRoot(container);await act(async()=>root.render(React.createElement(Home)));
  for(const [i,input]of[...container.querySelectorAll('.route-form .field input')].entries())await fill(input,`Punto de prueba ${i}`);
- await act(async()=>container.querySelector('.alternative-toggle input').click());await act(async()=>button('Calcular ruta').click());assert.match(container.querySelector('.route-alternatives').textContent,/un solo recorrido/);assert.equal(container.querySelectorAll('.route-alternatives button').length,0);
+ await act(async()=>container.querySelector('.alternative-toggle input').click());await act(async()=>button('Calcular ruta').click());assert.match(container.querySelector('.route-alternatives').textContent,/un solo recorrido/);assert.equal(container.querySelectorAll('.route-alternatives button').length,0);assert.match(container.querySelector('.route-alternatives').textContent,/Se omitieron opciones incompletas/);
 });
