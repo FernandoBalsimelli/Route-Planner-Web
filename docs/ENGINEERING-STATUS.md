@@ -1,11 +1,12 @@
 # Route Planner — estado de ingeniería
 
-Fecha de revisión: 2026-11-10. Alcance: exclusivamente Route Planner.
+Fecha de revisión: 2026-11-11. Alcance: exclusivamente Route Planner.
 
-Estado vigente: seguimiento por documento publicado; Web
-7956052 y API 13e5858. Referencias parciales para 14 municipios; cero con validación
-legal automática completa. Últimos resultados, rollback y próxima prioridad en
-el cierre del 10 de noviembre al final. Las entradas anteriores son historial.
+Estado vigente: referencias parciales para 15 municipios; cero con validación
+legal automática completa. Chihuahua capital distingue el marco estatal de los
+ejemplos de planeación metropolitana, sin nuevas exclusiones del trazado.
+Los resultados, commits, despliegues, rollback y próxima prioridad están en el
+último cierre al final de este documento. Las entradas anteriores son historial.
 
 ## Recursos verificados
 

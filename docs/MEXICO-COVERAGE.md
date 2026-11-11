@@ -295,3 +295,20 @@ con referencias parciales y cero con validación legal automática completa.
 
 La investigación y el cambio no hacen que Google Maps reciba el trazado exacto
 ni los atributos del vehículo. Detalle de límites y contrato: ROUTE-ALTERNATIVES.md.
+
+## Chihuahua capital · 11 de noviembre de 2026
+
+Se incorpora 08019 como referencia parcial: artículo 66 de la ley estatal
+consolidada al 08-08-2026 y propuesta MO-4.4 del programa metropolitano publicado
+el 05-07-2025. Las horas citadas como ejemplos de planeación no se convierten
+en ventanas vigentes. La interfaz identifica documento, jurisdicción y fechas,
+y enlaza la página correcta de cada fuente.
+
+El seguimiento técnico incluye ambos documentos, preservando los reportes de
+las otras fuentes. Detalle, huellas, ámbito y pendientes:
+[CHIHUAHUA-CAPITAL-REFERENCE.md](CHIHUAHUA-CAPITAL-REFERENCE.md).
+
+El total pasa a **15 municipios con referencia parcial**, siete fuentes principales
+y **cero con validación legal automática completa**. Aldama y Aquiles Serdán no
+ganan cobertura por aparecer en el programa metropolitano. No se incorporan
+geometrías, permisos ni nuevas exclusiones automáticas de circulación.

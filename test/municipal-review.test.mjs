@@ -42,3 +42,16 @@ test('vehicle review preserves jurisdiction, unknown capacity, exact boundary an
  assert.equal(container.querySelector('h3').textContent,'Puebla');
  assert.match(container.querySelector('.vehicle-review-context').textContent,/Coincidir con un dato no autoriza/);
 });
+
+test('planning evidence shows its own source and never renders an operational window or vehicle exemption',async()=>{
+ const source=reference('08019','Chihuahua','chihuahua-capital-carga');
+ Object.assign(source.source,{documentTypeLabel:'Ley estatal · artículo 66',jurisdictionLabel:'Chihuahua capital, marco estatal',publishedAt:'2006-09-20',consolidatedThrough:'2026-08-08'});
+ source.rules=[{id:'proposal',title:'Propuesta de prueba',kind:'planning_proposal',description:'Ejemplos por definir, sin horario vigente.',citation:'Planeación sintética',page:390,sourceUrl:'https://official.gob.mx/plan.pdf',window:{start:'06:00',end:'09:00',timezone:'America/Chihuahua',days:null},vehicleConditions:{payloadCapacityT:{lt:3.5}}}];
+ globalThis.fetch=async(url)=>url.includes('?')?catalog():url.endsWith('/source-status')?Response.json({sources:[],intervalHours:6}):Response.json(source);
+ await render({id:'08019',request:1});
+ const proposal=container.querySelector('[data-evidence-kind="planning_proposal"]');
+ assert.match(proposal.textContent,/Propuesta de planeación · no es un horario vigente/);
+ assert.doesNotMatch(proposal.textContent,/06:00–09:00|sin dato válido/);assert.equal(proposal.querySelector('.vehicle-reference-comparison'),null);
+ assert.equal(proposal.querySelector('a').href,'https://official.gob.mx/plan.pdf#page=390');
+ const provenance=container.querySelector('[aria-label="Procedencia de la referencia"]');assert.match(provenance.textContent,/08\/08\/2026/);assert.match(provenance.textContent,/20\/09\/2006/);assert.match(provenance.textContent,/marco estatal/);
+});
