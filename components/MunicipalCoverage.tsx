@@ -7,8 +7,9 @@ import { operatingSummary } from '@/lib/vehicle-operating';
 type Municipality={id:string;name:string;state:string;coverage:string;routingEnforced:boolean};
 type Road={road:string;segment:string;page:number;annex:number};
 type TimeRule=Road&{days:number[];start:string;end:string;maximumAxlesExempt:number|null;interpretation:string;interpretationNote:string};
-type Rule=VehicleReferenceRule&{id:string;title:string;description:string;citation:string;page?:number;window?:{start:string;end:string;timezone:string;days:number[]|null;effect:string};vehicleConfigurations?:string[]};
-type Reference={scope?:string;rules?:Rule[];relatedLinks?:Array<{title:string;url:string}>;name:string;status:string;routingEnforced:boolean;source:{id?:string;url:string;checkedAt:string;pages?:number[];legalReview?:string}|null;trunkSegments:Road[];timeRules:TimeRule[];notices:string[]};
+type Rule=VehicleReferenceRule&{id:string;title:string;description:string;citation:string;kind?:string;sourceUrl?:string;page?:number;window?:{start:string;end:string;timezone:string;days:number[]|null;effect:string};vehicleConfigurations?:string[]};
+type Reference={scope?:string;rules?:Rule[];relatedLinks?:Array<{title:string;url:string}>;name:string;status:string;routingEnforced:boolean;source:{id?:string;url:string;checkedAt:string;pages?:number[];legalReview?:string;documentTypeLabel?:string;jurisdictionLabel?:string;publishedAt?:string;consolidatedThrough?:string}|null;trunkSegments:Road[];timeRules:TimeRule[];notices:string[]};
+const documentDate=(value:string)=>value.split('-').reverse().join('/');
 export default function MunicipalCoverage({ requestedMunicipality, vehicle }: { requestedMunicipality?: { id: string; request: number }; vehicle?: ReviewVehicle }){
  const heading=useRef<HTMLHeadingElement>(null);
  const [open,setOpen]=useState(false),[states,setStates]=useState<Array<{id:string;name:string}>>([]),[municipalities,setMunicipalities]=useState<Municipality[]>([]),[state,setState]=useState(''),[municipality,setMunicipality]=useState(''),[reference,setReference]=useState<Reference|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(false),[total,setTotal]=useState(0),[partial,setPartial]=useState(0),[roadSearch,setRoadSearch]=useState('');
@@ -41,6 +42,12 @@ export default function MunicipalCoverage({ requestedMunicipality, vehicle }: { 
    {reference&&<div className="municipal-reference"><h3>{reference.name}</h3><p className="coverage-status">{reference.status==='reference_only'?'Referencia oficial consultable; no se aplica automáticamente al trazado.':'Reglas oficiales aún no incorporadas. No significa circulación libre.'}</p>
     {reference.scope&&<p><strong>Ámbito de la referencia:</strong> {reference.scope}</p>}
     {reference.source&&<p><a href={reference.source.url} target="_blank" rel="noreferrer">Abrir fuente oficial ↗</a> · revisada {new Date(reference.source.checkedAt).toLocaleDateString('es-MX')}</p>}
+    {reference.source?.documentTypeLabel&&<dl className="municipal-source-details" aria-label="Procedencia de la referencia">
+     <div><dt>Documento</dt><dd>{reference.source.documentTypeLabel}</dd></div>
+     {reference.source.jurisdictionLabel&&<div><dt>Jurisdicción</dt><dd>{reference.source.jurisdictionLabel}</dd></div>}
+     {reference.source.publishedAt&&<div><dt>Publicación original</dt><dd>{documentDate(reference.source.publishedAt)}</dd></div>}
+     {reference.source.consolidatedThrough&&<div><dt>Última reforma indicada en la fuente</dt><dd>{documentDate(reference.source.consolidatedThrough)}</dd></div>}
+    </dl>}
     {reference.relatedLinks?.map(link=><p key={link.url}><a href={link.url} target="_blank" rel="noreferrer">{link.title} ↗</a></p>)}
     {reference.notices.map((notice,index)=><p className="hint" key={index}>{notice}</p>)}
     <div className="vehicle-review-context"><h4>Datos del camión frente a la referencia</h4>
@@ -49,7 +56,14 @@ export default function MunicipalCoverage({ requestedMunicipality, vehicle }: { 
      {!reference.rules?.length && !axleCheck && <p>Esta referencia todavía no tiene comparadores de vehículo incorporados.</p>}
     </div>
     {axleCheck && <div className="vehicle-reference-comparison" aria-label="Comparación de ejes con artículo 39"><p data-comparison={axleCheck.result}>{comparisonText(axleCheck)}</p><p>Artículo 39: sólo se contrasta el criterio de ejes de la excepción horaria en red troncal. No acredita acceso a otras vías ni resuelve la discrepancia de días con los anexos.</p><a href={`${reference.source?.url}#page=20`} target="_blank" rel="noreferrer">Consultar artículo 39, pág. 20 ↗</a></div>}
-    {!!reference.rules?.length&&<div className="municipal-time-rules">{reference.rules.map(rule=><article key={rule.id}><strong>{rule.title}</strong><p>{rule.description}</p><VehicleReferenceComparison rule={rule} vehicle={vehicle}/>{rule.window&&<p className="hint">{rule.window.start}–{rule.window.end} · {rule.window.timezone} · {rule.window.days?'días según fuente':'días y excepciones por comprobar'}</p>}{rule.vehicleConfigurations&&<p className="hint">Configuraciones: {rule.vehicleConfigurations.join(', ')}</p>}<p className="hint">{rule.citation} · aplicación automática pendiente</p>{rule.page&&reference.source&&<a href={`${reference.source.url}#page=${rule.page}`} target="_blank" rel="noreferrer">Consultar página {rule.page} ↗</a>}</article>)}</div>}
+    {!!reference.rules?.length&&<div className="municipal-time-rules">{reference.rules.map(rule=><article key={rule.id} data-evidence-kind={rule.kind}>
+     <strong>{rule.title}</strong>
+     {rule.kind==='planning_proposal'&&<p className="coverage-status">Propuesta de planeación · no es un horario vigente</p>}
+     <p>{rule.description}</p>
+     {rule.kind!=='planning_proposal'&&<><VehicleReferenceComparison rule={rule} vehicle={vehicle}/>{rule.window&&<p className="hint">{rule.window.start}–{rule.window.end} · {rule.window.timezone} · {rule.window.days?'días según fuente':'días y excepciones por comprobar'}</p>}{rule.vehicleConfigurations&&<p className="hint">Configuraciones: {rule.vehicleConfigurations.join(', ')}</p>}</>}
+     <p className="hint">{rule.citation} · {rule.kind==='planning_proposal'?'no se aplica al cálculo':'aplicación automática pendiente'}</p>
+     {rule.page&&reference.source&&<a href={`${rule.sourceUrl||reference.source.url}#page=${rule.page}`} target="_blank" rel="noreferrer">Consultar página {rule.page} ↗</a>}
+    </article>)}</div>}
     {!!reference.trunkSegments.length&&<><label>Buscar vialidad o tramo<input type="search" value={roadSearch} onChange={event=>setRoadSearch(event.target.value)} placeholder="Nombre de calle, avenida o tramo"/></label>
      <details><summary>{reference.trunkSegments.length} {reference.source?.id==='monterrey-transito'?'tramos de red troncal · Anexo 1':'vialidades citadas en la fuente'}</summary><div className="municipal-table"><table><thead><tr><th>Vialidad</th><th>Tramo y sentido de la fuente</th></tr></thead><tbody>{reference.trunkSegments.filter(matches).map((row,index)=><tr key={index}><td>{row.road}</td><td>{row.segment} <a href={`${reference.source?.url}#page=${row.page}`} target="_blank" rel="noreferrer">Pág. {row.page} ↗</a></td></tr>)}</tbody></table></div></details>
      {!!reference.timeRules.length&&<details><summary>{reference.timeRules.length} registros de horarios · Anexos 2 y 3</summary><div className="municipal-time-rules">{reference.timeRules.filter(matches).map((rule,index)=><article key={index}><strong>{rule.road} · {rule.start}–{rule.end}</strong><p>{rule.days.includes(1)?'Lunes a viernes':'Sábado y domingo'} · hora de Monterrey</p><p>{rule.segment}</p><p className="hint">{rule.interpretationNote}</p><a href={`${reference.source?.url}#page=${rule.page}`} target="_blank" rel="noreferrer">Fuente, pág. {rule.page} ↗</a></article>)}</div></details>}

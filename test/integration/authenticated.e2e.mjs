@@ -176,6 +176,15 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
     await page.locator('[data-comparison="matches"]').filter({hasText:'Capacidad de carga: 30.125 t'}).waitFor();
     assert.match(await page.locator('.vehicle-review-context').innerText(),/T3-S2 · 5 ejes/);
     assert.match(await page.locator('.vehicle-reference-comparison').filter({hasText:'no se evalúa tu configuración'}).innerText(),/T3-S2/);
+    await page.getByLabel('Entidad federativa',{exact:true}).selectOption('08');
+    await page.getByLabel('Municipio o demarcación',{exact:true}).selectOption('08019');
+    await page.getByRole('heading',{name:'Chihuahua',exact:true}).waitFor();
+    await page.getByLabel('Procedencia de la referencia',{exact:true}).getByText('08/08/2026',{exact:true}).waitFor();
+    const planning=page.locator('[data-evidence-kind="planning_proposal"]');
+    assert.match(await planning.innerText(),/Propuesta de planeación · no es un horario vigente/);
+    assert.equal(await planning.locator('.vehicle-reference-comparison').count(),0);
+    assert.match(await planning.getByRole('link',{name:'Consultar página 390',exact:false}).getAttribute('href'),/PSMAMS.*#page=390$/);
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
     await nav(page).getByRole('button',{name:'Planificar',exact:true}).click();
     await page.getByRole('checkbox', { name: 'Evitar casetas de peaje', exact: true }).uncheck();
     await page.getByRole('checkbox', { name: 'Evitar autopistas', exact: true }).uncheck();
