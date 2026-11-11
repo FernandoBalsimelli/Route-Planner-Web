@@ -541,6 +541,6 @@ test('mobile alternative selection changes the route and stops GPS without anoth
   await page.getByRole('checkbox',{name:/Revisé los accesos y permisos/}).check();await page.getByRole('button',{name:'Iniciar navegación en la app'}).click();assert.equal(await page.evaluate(()=>window.__gps.started),1);
   await option.click();assert.equal(await option.getAttribute('aria-pressed'),'true');assert.match(await page.locator('.metrics').innerText(),/420 m/);assert.deepEqual(await page.evaluate(()=>window.__gps.cleared),[1]);assert.equal(requests,1);
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
-  await page.getByRole('button',{name:'Agregar parada',exact:true}).click();assert.equal(await page.locator('.route-alternatives').count(),0);assert.equal(await page.getByRole('checkbox',{name:/Buscar rutas alternativas/}).isChecked(),false);assert.equal(await page.getByRole('checkbox',{name:/Buscar rutas alternativas/}).isDisabled(),true);
+  await page.getByRole('button',{name:'Agregar parada'}).click();assert.equal(await page.locator('.route-alternatives').count(),0);assert.equal(await page.getByRole('checkbox',{name:/Buscar rutas alternativas/}).isChecked(),false);assert.equal(await page.getByRole('checkbox',{name:/Buscar rutas alternativas/}).isDisabled(),true);
  }finally{await context.close();}
 });
