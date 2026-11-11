@@ -231,7 +231,7 @@ test('mobile numbered-address search exposes a street fallback without claiming 
   } finally { await context.close(); }
 });
 
-async function navigationSetup(){
+async function navigationSetup(timeoutMs){
  const testUser={id:'00000000-0000-4000-8000-000000000001',aud:'authenticated',role:'authenticated',email:'driver@example.test',app_metadata:{},user_metadata:{},created_at:'2026-01-01T00:00:00Z'};
  const exp=Math.floor(Date.now()/1000)+3600;
  const token=[Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url'),Buffer.from(JSON.stringify({sub:testUser.id,aud:'authenticated',exp})).toString('base64url'),'test-signature'].join('.');
@@ -240,6 +240,7 @@ async function navigationSetup(){
   window.__gps={started:0,cleared:[],callbacks:[]};
   Object.defineProperty(navigator,'geolocation',{value:{getCurrentPosition(){},watchPosition(ok,fail){const gps=window.__gps;gps.started++;gps.callbacks.push({ok,fail});return gps.started;},clearWatch(id){window.__gps.cleared.push(id);}}});
  });
+ if (timeoutMs) page.setDefaultTimeout(timeoutMs);
  await context.addInitScript(({session})=>localStorage.setItem('sb-auth-auth-token',JSON.stringify(session)),{session});
  await context.route('https://auth.example.test/**',route=>route.fulfill({json:route.request().url().includes('/auth/v1/user')?testUser:[]}));
  const {navigationRoute}=await import('./fixtures/route-navigation.mjs');
@@ -527,4 +528,20 @@ test('mobile axle review is limited to the selected municipality and keeps unkno
     await nav.getByRole('button',{name:'Guía camión',exact:true}).click();assert.match(await review.locator('[data-comparison="matches"]').innerText(),/4 ejes/);
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
   } finally { await context.close(); }
+});
+
+test('mobile alternative selection changes the route and stops GPS without another calculation',{timeout:60000},async()=>{
+ const {context,page}=await navigationSetup(10000);
+ try{
+  const {navigationRoute,encodePath,points}=await import('./fixtures/route-navigation.mjs');
+  const alternative={...navigationRoute,distanceMeters:420,durationSeconds:80,polyline:encodePath(points.map((point,index)=>index===1||index===2?[point[0]+.0004,point[1]]:point))};
+  let requests=0;
+  await page.route('**/api/route-planner/v1/routes/plan',route=>{requests++;assert.equal(route.request().postDataJSON().alternatives,true);return route.fulfill({json:{ok:true,route:navigationRoute,alternatives:[alternative]}});});
+  await page.getByRole('checkbox',{name:/Buscar rutas alternativas/}).check();await page.getByRole('button',{name:'Calcular ruta',exact:true}).click();
+  const option=page.locator('.route-alternatives').getByRole('button',{name:/Ruta 2/});await option.waitFor();
+  await page.getByRole('checkbox',{name:/Revisé los accesos y permisos/}).check();await page.getByRole('button',{name:'Iniciar navegación en la app'}).click();assert.equal(await page.evaluate(()=>window.__gps.started),1);
+  await option.click();assert.equal(await option.getAttribute('aria-pressed'),'true');assert.match(await page.locator('.metrics').innerText(),/420 m/);assert.deepEqual(await page.evaluate(()=>window.__gps.cleared),[1]);assert.equal(requests,1);
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+  await page.getByRole('button',{name:'Agregar parada'}).click();assert.equal(await page.locator('.route-alternatives').count(),0);assert.equal(await page.getByRole('checkbox',{name:/Buscar rutas alternativas/}).isChecked(),false);assert.equal(await page.getByRole('checkbox',{name:/Buscar rutas alternativas/}).isDisabled(),true);
+ }finally{await context.close();}
 });

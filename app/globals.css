@@ -60,3 +60,11 @@
 .vehicle-reference-comparison { border-left: 3px solid var(--primary); padding: .35rem .8rem; margin-block: .8rem; overflow-wrap: anywhere; }
 .vehicle-reference-comparison p { margin-block: .45rem; font-size: .9rem; }
 .vehicle-reference-comparison [data-comparison="above"], .vehicle-reference-comparison [data-comparison="boundary"] { font-weight: 700; }
+
+.route-alternatives { padding: 1rem; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.route-alternatives h2 { font-size: 1rem; margin-bottom: .5rem; }
+.route-alternatives p { color: var(--muted); font-size: .8rem; margin-bottom: .8rem; }
+.route-alternatives [role="group"] { display: flex; gap: .6rem; flex-wrap: wrap; }
+.route-alternatives button { flex: 1 1 140px; display: grid; gap: .35rem; text-align: left; padding: .8rem; }
+.route-alternatives button[aria-pressed="true"] { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+.route-alternatives button span, .route-alternatives button small { font-size: .8rem; }

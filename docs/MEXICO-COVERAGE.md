@@ -282,3 +282,16 @@ exención anterior. Detalle y fuentes: MUNICIPAL-VEHICLE-REVIEW.md.
 No aumenta el número de municipios cubiertos: siguen 14 referencias parciales y
 cero validaciones legales completas. No se agregan geometrías ni exclusiones al
 cálculo. Continúan pendientes vigencia, ámbito, permisos, días y excepciones.
+
+
+## Alternativas con la misma cobertura pendiente · 10 de noviembre de 2026
+
+Cada alternativa conserva su geometría y su propia identificación aproximada de
+municipios. Cambiar de opción actualiza la consulta del recorrido mostrado;
+no copia la jurisdicción de la primera opción ni acredita autorización por sus
+referencias. Las alternativas conservan las restricciones cartográficas de HGV,
+pero no añaden geometrías municipales verificadas al cálculo. Siguen 14 municipios
+con referencias parciales y cero con validación legal automática completa.
+
+La investigación y el cambio no hacen que Google Maps reciba el trazado exacto
+ni los atributos del vehículo. Detalle de límites y contrato: ROUTE-ALTERNATIVES.md.
