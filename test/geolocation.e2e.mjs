@@ -528,3 +528,19 @@ test('mobile axle review is limited to the selected municipality and keeps unkno
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
   } finally { await context.close(); }
 });
+
+test('mobile alternative selection changes the route and stops GPS without another calculation',async()=>{
+ const {context,page}=await navigationSetup();
+ try{
+  const {navigationRoute,encodePath,points}=await import('./fixtures/route-navigation.mjs');
+  const alternative={...navigationRoute,distanceMeters:420,durationSeconds:80,polyline:encodePath(points.map((point,index)=>index===1||index===2?[point[0]+.0004,point[1]]:point))};
+  let requests=0;
+  await page.route('**/api/route-planner/v1/routes/plan',route=>{requests++;assert.equal(route.request().postDataJSON().alternatives,true);return route.fulfill({json:{ok:true,route:navigationRoute,alternatives:[alternative]}});});
+  await page.getByRole('checkbox',{name:/Buscar rutas alternativas/}).check();await page.getByRole('button',{name:'Calcular ruta',exact:true}).click();
+  const option=page.locator('.route-alternatives').getByRole('button',{name:/Ruta 2/});await option.waitFor();
+  await page.getByRole('checkbox',{name:/Revisé los accesos y permisos/}).check();await page.getByRole('button',{name:'Iniciar navegación en la app'}).click();assert.equal(await page.evaluate(()=>window.__gps.started),1);
+  await option.click();assert.equal(await option.getAttribute('aria-pressed'),'true');assert.match(await page.locator('.metrics').innerText(),/420 m/);assert.deepEqual(await page.evaluate(()=>window.__gps.cleared),[1]);assert.equal(requests,1);
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+  await page.getByRole('button',{name:'Agregar parada',exact:true}).click();assert.equal(await page.locator('.route-alternatives').count(),0);assert.equal(await page.getByRole('checkbox',{name:/Buscar rutas alternativas/}).isChecked(),false);assert.equal(await page.getByRole('checkbox',{name:/Buscar rutas alternativas/}).isDisabled(),true);
+ }finally{await context.close();}
+});

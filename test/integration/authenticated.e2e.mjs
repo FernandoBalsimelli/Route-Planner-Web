@@ -237,3 +237,27 @@ test('real local session plans and saves 48 deliveries atomically, retries witho
  const second=await createLocalAccount('rpc-owner-two');const hidden=await second.client.from('route_stops').select('*').eq('route_id',saved.data);assert.equal(hidden.error,null);assert.deepEqual(hidden.data,[]);
  const reassign=await client.from('saved_routes').update({owner_id:second.uid}).eq('id',saved.data);assert.ok(reassign.error,'an owner cannot transfer a route to another account through REST');
 });
+
+
+test('real local session selects and saves an alternative geometry, then restores exactly that route', {timeout:60000}, async()=>{
+ const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+ await context.route('https://tile.openstreetmap.org/**',route=>route.fulfill({contentType:'image/png',body:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jWZkAAAAASUVORK5CYII=','base64')}));
+ const page=await context.newPage();
+ try{
+  await page.goto(base);await createAccount(page,'alternative-owner');const owner=await session('alternative-owner');
+  await page.getByRole('button',{name:'Camión',exact:true}).click();
+  await point(page,'Origen','28.632995, -106.0691');await point(page,'Destino','28.63958, -106.08325');
+  await page.getByRole('checkbox',{name:/Buscar rutas alternativas/}).check();
+  await page.getByRole('checkbox',{name:'Evitar casetas de peaje',exact:true}).check();
+  const responsePromise=page.waitForResponse(response=>response.url().endsWith('/v1/routes/plan'));
+  await page.getByRole('button',{name:'Calcular ruta',exact:true}).click();const response=await responsePromise;assert.equal(response.status(),200);const payload=await response.json();assert.equal(payload.alternatives.length,1);
+  const option=page.locator('.route-alternatives').getByRole('button',{name:/Ruta 2/});await option.click();assert.equal(await option.getAttribute('aria-pressed'),'true');
+  assert.match(await page.locator('.metrics').innerText(),/4.1 km/);
+  await page.getByLabel('Nombre del recorrido',{exact:true}).fill('Alternativa elegida');
+  await page.getByRole('button',{name:'Guardar esta ruta',exact:true}).click();await page.getByText('Ruta guardada en tu cuenta.',{exact:true}).waitFor();
+  const saved=(await rows(owner.client,'saved_routes'))[0];assert.equal(saved.route_metadata.result.polyline,payload.alternatives[0].polyline);assert.equal(saved.route_metadata.result.distanceMeters,4100);assert.equal(saved.route_metadata.result.preferences.avoidTolls,true);
+  const captured=readFileSync(capture,'utf8').trim().split('\n').map(JSON.parse).at(-1);assert.equal(captured.body.alternative_routes.target_count,3);assert.deepEqual(captured.body.options.avoid_features,['tollways']);assert.equal(captured.body.options.profile_params.restrictions.weight,40);
+  await nav(page).getByRole('button',{name:'Mis rutas',exact:true}).click();await page.getByRole('button',{name:'Cargar ruta',exact:true}).click();await page.getByRole('heading',{name:'Detalle del recorrido',exact:true}).waitFor();
+  assert.match(await page.locator('.metrics').innerText(),/4.1 km/);assert.equal(await page.locator('.route-alternatives').count(),0);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+ }finally{await context.close();}
+});

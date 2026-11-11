@@ -63,6 +63,10 @@ export default function Home() {
   const [stops, setStops] = useState<Stop[]>([]);
   const [preferences, setPreferences] = useState<RoadPreferences>(DEFAULT_ROUTE_PREFERENCES);
   const [optimizeStops, setOptimizeStops] = useState(false);
+  const [requestAlternatives, setRequestAlternatives] = useState(false);
+  const [routeChoices, setRouteChoices] = useState<RouteResult[]>([]);
+  const [alternativeNotice, setAlternativeNotice] = useState('');
+  useEffect(() => { if (stops.length) setRequestAlternatives(false); }, [stops.length]);
   const [stopOrderMessage, setStopOrderMessage] = useState('');
   const [operating, setOperating] = useState(EMPTY_OPERATING_FORM);
   const [vehicle, setVehicle] = useState({ height: '4.0', width: '2.5', length: '18', grossWeight: '40', axleWeight: '10' });
@@ -94,7 +98,7 @@ export default function Home() {
   useEffect(() => {
     planningRequest.current?.abort();
     setLoading(false);
-  }, [origin, destination, selectedOrigin, selectedDestination, stops, mode, vehicle, operating, optimizeStops, preferences]);
+  }, [origin, destination, selectedOrigin, selectedDestination, stops, mode, vehicle, operating, optimizeStops, preferences, requestAlternatives]);
   useEffect(() => () => planningRequest.current?.abort(), []);
   const canPlan = origin.trim().length > 2 && destination.trim().length > 2 && !loading;
   const navigationPoints = useMemo(() => {
@@ -180,6 +184,7 @@ export default function Home() {
     setRouteName(route.name);
     if (route.origin?.lat != null && route.origin?.lng != null) setSearchArea({ label: label(route.origin), lat: route.origin.lat, lng: route.origin.lng });
     setPreferences(readRoutePreferences(route.route_metadata?.result?.preferences));
+    setRequestAlternatives(false); setRouteChoices([]); setAlternativeNotice('');
     setResult(route.route_metadata?.result || null);
     setOptimizeStops(Boolean(route.route_metadata?.result?.optimized));
     setError('');
@@ -192,7 +197,7 @@ export default function Home() {
     planningRequest.current?.abort();
     const controller = new AbortController();
     planningRequest.current = controller;
-    setLoading(true); setError(''); setResult(null); setMapSearch(null);
+    setLoading(true); setError(''); setResult(null); setMapSearch(null); setRouteChoices([]); setAlternativeNotice('');
     try {
       const operatingParameters = mode === 'truck' ? operatingInput(operating) : {};
       let sessionData;
@@ -210,7 +215,7 @@ export default function Home() {
         response = await fetch(`${API_URL}/v1/routes/plan`, {
           signal: controller.signal,
           method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${sessionData.session.access_token}` },
-          body: JSON.stringify({ origin: selectedOrigin || origin.trim(), destination: selectedDestination || destination.trim(), stops: stops.filter(s => s.value.trim()).map(s => s.selected || s.value.trim()), mode, preferences, optimize: optimizeStops && mode === 'delivery' && !hasRoadPreferences(preferences), vehicle: mode === 'truck' ? { heightM: Number(vehicle.height), widthM: Number(vehicle.width), lengthM: Number(vehicle.length), grossWeightT: Number(vehicle.grossWeight), axleWeightT: Number(vehicle.axleWeight), ...operatingParameters } : undefined }),
+          body: JSON.stringify({ origin: selectedOrigin || origin.trim(), destination: selectedDestination || destination.trim(), stops: stops.filter(s => s.value.trim()).map(s => s.selected || s.value.trim()), mode, preferences, alternatives: requestAlternatives && stops.length === 0, optimize: optimizeStops && mode === 'delivery' && !hasRoadPreferences(preferences), vehicle: mode === 'truck' ? { heightM: Number(vehicle.height), widthM: Number(vehicle.width), lengthM: Number(vehicle.length), grossWeightT: Number(vehicle.grossWeight), axleWeightT: Number(vehicle.axleWeight), ...operatingParameters } : undefined }),
         });
       } catch {
         throw new Error('No se pudo conectar con Route Planner API. La conexión fue interrumpida antes de recibir respuesta.');
@@ -219,6 +224,11 @@ export default function Home() {
       if (controller.signal.aborted) return;
       if (!response.ok) { if (payload.code === 'ORS_API_KEY_MISSING') setProviderStatus('missing'); throw new Error(payload.message || 'No se pudo calcular la ruta.'); }
       setResult(payload.route); setProviderStatus('ready');
+      if (requestAlternatives) {
+        const choices = [payload.route, ...(Array.isArray(payload.alternatives) ? payload.alternatives.slice(0, 2) : [])];
+        setRouteChoices(choices);
+        setAlternativeNotice(choices.length === 1 ? 'Hay un solo recorrido válido disponible con estos puntos y restricciones.' : 'Elige el recorrido que quieres revisar. Distancia y tiempo son estimaciones del proveedor; las alternativas no certifican autorización para circular.');
+      }
       document.getElementById('mapa-planificacion')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
     } catch (e) {
       if (controller.signal.aborted) return;
@@ -276,12 +286,14 @@ export default function Home() {
           </div>
           <RoutePreferences value={preferences} truck={mode === 'truck'} onChange={changePreferences}/>
           <label className="optimize-toggle"><input type="checkbox" checked={optimizeStops} onChange={e => { setOptimizeStops(e.target.checked); setStopOrderMessage(''); setResult(null); }} disabled={mode === 'truck' || hasRoadPreferences(preferences) || stops.filter(stop => stop.value.trim()).length < 2}/><span><b>Optimizar orden de paradas</b><small>{mode === 'truck' ? 'Camión: se conserva el orden y se envían tus medidas al proveedor.' : hasRoadPreferences(preferences) ? 'Orden actual: la optimización no aplica las preferencias de carretera.' : 'Con dos o más entregas, busca el orden con menor tiempo de viaje.'}</small></span></label>
+          <label className="optimize-toggle alternative-toggle"><input type="checkbox" checked={requestAlternatives} disabled={stops.length > 0} onChange={event => { setRequestAlternatives(event.target.checked); setResult(null); setRouteChoices([]); setAlternativeNotice(''); }}/><span><b>Buscar rutas alternativas</b><small>{stops.length ? 'Para todas tus entregas se calcula un recorrido en el orden indicado. Las alternativas requieren sólo origen y destino.' : 'Hasta tres recorridos, si el proveedor encuentra opciones. Sin paradas intermedias; límite publicado de 100 km.'}</small></span></label>
           {mode === 'truck' && <details className="vehicle-panel" open><summary><AppIcon name="truck" size={18}/><span>Medidas del camión cargado</span></summary><div className="vehicle-fields">{([['height','Altura (m)','0.5','10'],['width','Ancho (m)','0.5','5'],['length','Largo (m)','1','30'],['grossWeight','Peso bruto (t)','0.1','100'],['axleWeight','Peso por eje (t)','0.1','30']] as const).map(([key,title,min,max]) => <label key={key}>{title}<input type="number" min={min} max={max} step="0.1" value={vehicle[key]} onChange={event => { setVehicle(values => ({...values,[key]:event.target.value})); setResult(null); }}/></label>)}</div><VehicleOperatingFields value={operating} onChange={value=>{setOperating(value);setResult(null);}}/><p className="hint">Los valores iniciales son un ejemplo. Usa los de tu unidad.</p><button type="button" className="text-button" onClick={() => openWorkspace('guide')}>Qué restricciones considera esta ruta ↗</button></details>}
           <div className="plan-actions"><button type="button" className="primary-button" disabled={!canPlan} onClick={planRoute}>{loading ? 'Calculando ruta…' : 'Calcular ruta'}<AppIcon name="arrow"/></button>{!user && <small>Inicia sesión para calcular y guardar tus recorridos.</small>}</div>
           {error && <div className="error-box" role="alert"><strong>No se pudo calcular</strong><p>{error}</p>{providerStatus === 'missing' && <small>El servicio de rutas requiere configuración del administrador.</small>}</div>}
           {!result && <NavigationLinks points={navigationPoints} route={result} preferences={preferences} truck={mode === 'truck'}/>}
         </div>
         <aside id="mapa-planificacion" className={`result-panel ${result ? 'has-result' : 'is-planning'}`} aria-label="Mapa y resultado de la ruta">
+          {result && alternativeNotice && <section className="route-alternatives" aria-label="Opciones de recorrido"><h2>Compara recorridos</h2><p>{alternativeNotice}</p>{routeChoices.length > 1 && <div role="group" aria-label="Elegir recorrido">{routeChoices.map((choice, index) => <button type="button" key={index} disabled={saving} aria-pressed={choice === result} onClick={() => { setResult(choice); setSaveMessage(''); }}><strong>Ruta {index + 1}</strong><span>{formatDistance(choice.distanceMeters)} · {formatDuration(choice.durationSeconds)}</span>{choice === result && <small>Seleccionada</small>}</button>)}</div>}</section>}
           <div className="map-card">
             <div className="result-top"><div><span className="live-dot"/><strong>{result ? 'Tu recorrido' : mapSearch?.points.length ? `Sucursales · ${mapSearch.title.toLowerCase()}` : 'Explora tu recorrido'}</strong></div><a href="#puntos-ruta">Ver entregas <AppIcon name="arrow" size={16}/></a></div>
             {result ? <><div className="metrics"><div><small>Distancia</small><strong>{formatDistance(result.distanceMeters)}</strong></div><div><small>Tiempo estimado</small><strong>{formatDuration(result.durationSeconds)}</strong></div><span className="route-ready"><AppIcon name="check" size={16}/>Calculada</span></div><RouteMap polyline={result.polyline} waypoints={result.waypoints || []} livePosition={navigationPosition} followPosition={navigationFollow}/></> : <RouteMap planning waypoints={previewWaypoints} reference={selectedOrigin || searchArea} candidates={mapSearch?.points} targetTitle={mapSearch?.title} onChooseCandidate={chooseMapCandidate}/>}

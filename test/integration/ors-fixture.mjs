@@ -22,7 +22,13 @@ globalThis.fetch = async (input, init) => {
     if (url.pathname.includes('/directions/')) {
       const body = JSON.parse(init.body);
       appendFileSync(process.env.RP_ORS_CAPTURE_FILE, JSON.stringify({ path: url.pathname, body }) + '\n');
-      return Response.json({ routes: [{ summary: { distance: 3421, duration: 620 }, geometry: polyline(body.coordinates), way_points: body.coordinates.map((_,i)=>i), segments: [{ distance: 3421, duration: 620, steps: [{ instruction: 'Indicación sintética de la prueba, sin validación vial', distance: 3421, duration: 620, type: 0 }] }] }] });
+      const routes = [{ summary: { distance: 3421, duration: 620 }, geometry: polyline(body.coordinates), way_points: body.coordinates.map((_,i)=>i), segments: [{ distance: 3421, duration: 620, steps: [{ instruction: 'Indicación sintética de la prueba, sin validación vial', distance: 3421, duration: 620, type: 0 }] }] }];
+      if (body.alternative_routes) {
+        const [start,end] = body.coordinates;
+        const coordinates = [start, [(start[0]+end[0])/2+.002,(start[1]+end[1])/2+.002], end];
+        routes.push({ summary: { distance: 4100, duration: 780 }, geometry: polyline(coordinates), way_points: [0,2], segments: [{ distance:4100,duration:780,steps:[{instruction:'Alternativa sintética',distance:4100,duration:780,type:0,way_points:[0,2]}] }] });
+      }
+      return Response.json({ routes });
     }
     if (url.pathname === '/vroom/v0') {
       const body = JSON.parse(init.body);
