@@ -1286,3 +1286,117 @@ pruebas de restricciones conocidas; no se presenta como integración realizada.
 Reanudar leyendo main y ambos alias, conservar el reporte automático de API y el
 límite real del proveedor sin restaurar ocho entregas. El programa maestro no
 está completo; no se elimina la continuidad por cerrar este ciclo.
+
+## Ciclo cerrado · 10-11-2026 · Alternativas de recorrido
+
+### Diagnóstico y cambios
+
+Se leyeron main y los informes persistentes antes de editar: Web 3e5aea8, API
+0550ad5; los alias estaban READY en Web 2dfa34a y API d7ebfd5. No había cambios
+nuevos de código. Se conservó el reporte automático de fuentes de API.
+
+El cálculo sólo consumía routes[0] y la interfaz no permitía comparar opciones.
+Ahora alternatives es opcional y falso por defecto. Con origen y destino sin
+intermedias se solicitan hasta tres recorridos en una llamada Directions. Se
+conservan perfil HGV, medidas/pesos y preferencias de peajes/autopistas. No se
+repiten solicitudes debilitando restricciones ni se fabrican opciones o tiempos.
+
+Cada opción se serializa desde su geometría: métricas, instrucciones, índices de
+extremos y jurisdicciones propias, con el mismo contexto del vehículo. Se
+rechaza una primaria incompleta; secundarias incompletas, duplicadas o excedentes
+se omiten y su descarte se informa. Si sólo queda una opción válida se explica.
+
+La selección actualiza mapa, métricas, navegación, instrucciones, jurisdicciones,
+exportación y el resultado guardado, sin otra llamada al proveedor. Cambiar de
+opción detiene la sesión GPS anterior. Durante un guardado no se puede cambiar
+la selección. Cargar una ruta restaura sólo el trazado elegido, sin reconstruir
+alternativas que no fueron guardadas.
+
+### Límites y normativa
+
+Fuentes oficiales de ORS consultadas el 10-11-2026 (fecha de Chihuahua): límite
+publicado de alternativas 100 km y hasta tres rutas; formato JSON con geometría,
+resumen e índices; contrato alternative_routes y parámetros HGV. Referencias y
+contrato en ROUTE-ALTERNATIVES.md de ambos repositorios. Distancia/tiempo son
+estimaciones del proveedor, no mediciones en carretera.
+
+Se rechazan antes de Directions extremos separados por más de 100 km en línea
+recta. Es una condición de descarte, no distancia real de conducción ni garantía
+de aceptación por debajo del umbral. El proveedor puede devolver menos opciones
+o rechazar su distancia/credencial/cuota. Su error específico permanece visible.
+
+Las alternativas se limitan a dos puntos en esta implementación; no se sustituyen
+entregas por opciones ni se limita el recorrido normal a ocho. Añadir una entrega
+desactiva alternativas y cancela cálculos obsoletos, conservando las 48 intermedias
+admitidas por el cálculo normal. El backend rechaza la combinación incompatible.
+
+Cada geometría tiene su revisión aproximada de municipios. No se añaden reglas
+municipales de exclusión: siguen 14 referencias parciales y cero municipios con
+validación legal completa. No hay geometrías/sentidos oficiales nuevos aplicados.
+Google Maps no recibe polilínea bloqueada, atributos HGV o permisos por seleccionar
+otra opción aquí. El cambio no certifica circulación legal ni seguridad.
+
+### Archivos y pruebas
+
+API: index.js, test/routing.test.js, docs/ROUTE-ALTERNATIVES.md. Web: app/page.tsx,
+globals.css, test/planner.test.mjs, geolocation.e2e.mjs, integración autenticada y
+su fixture ORS; workflow con API fijada a 9fddd1f; documentos de alternativas,
+cobertura e ingeniería. Sin dependencias nuevas, migraciones o cambios de RLS.
+
+Local: build/sintaxis API, TypeScript y build Web aprobados; API 64 pruebas y Web
+103 aprobadas; auditorías de producción sin vulnerabilidades conocidas. No se
+repitió el navegador local en este entorno: su bloqueo de socket/ptrace está
+documentado en ciclos anteriores; la verificación de navegador se hizo en CI.
+
+CI API 42957456691: 64 pruebas, build, nueve migraciones en Postgres 17 aislado,
+propiedad/RLS y auditoría aprobados. CI Web 42958503698: typecheck, build, 103
+pruebas, 23 casos de navegador y tres flujos autenticados aprobados en el head
+final c118d3183229967203830d50e45f7eb6ef09716d. Se corrigió el selector de un test para reconocer «＋ Agregar
+parada» y se verificó también el aviso de opciones omitidas antes de publicar.
+
+Casos nuevos: tres rutas con geometrías/instrucciones distintas; conservación de
+restricciones y preferencias; rechazo de intermedias y extremos lejanos antes del
+proveedor; datos incompletos/duplicados; una sola opción y límites específicos,
+sin reintentos débiles. Web comprueba selección sin nueva petición, métricas,
+retiro al añadir entregas y explicación de descartes. Móvil comprueba detención
+GPS al seleccionar otro trazado y ausencia de desbordamiento.
+
+La tercera integración usa Auth/REST locales reales, solicita alternativas a la
+API con ORS simulado, selecciona la segunda, guarda su geometría y métricas y
+restaura ese mismo resultado. Mantiene los otros casos de RLS, perfiles, papelera,
+referencias, preferencias y 48 entregas. No son alternativas reales calculadas
+con una sesión de producción, ni pruebas Android físicas/en carretera.
+
+Producción vía proxy: salud 200; coordenadas, Plus Codes completo/compuesto y
+búsqueda Express cercana 200 (ocho sugerencias). Validate acepta alternativas
+con dos puntos y rechaza intermedias; acepta 48 entregas normales y rechaza 49.
+Plan sin sesión conserva 401. Se comprobó la API nueva desde la Web anterior,
+conservando compatibilidad. En navegador público se comprobó el control de alternativas: al añadir una entrega se desactiva y desmarca, y al quitarla vuelve a estar disponible. No se calculó una alternativa autenticada en producción durante esa comprobación.
+
+Vercel no mostró errores/fatales runtime agregados en los 30 minutos revisados de Web y API. Esto no garantiza ausencia permanente de errores.
+
+### Publicación, recuperación y siguiente prioridad
+
+API PR #14: https://github.com/FernandoBalsimelli/Route-Planner-API/pull/14,
+head d427e171, merge publicado 9fddd1fc5cf0414397e0f4ee32c58802c9946352,
+despliegue dpl_6iVB9D6CzDauuAzqmFXufcRAVHP1:
+https://route-planner-api.vercel.app/.
+Web PR #16: https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/16,
+merge/código publicado 1917904ffa752fdf303f3e559241b0f3b75ba546, despliegue dpl_9mWuK3srK1qd9h47q8jeYDDN8FUc:
+https://route-planner-web-sand.vercel.app/.
+Ambos alias comprobados READY y asociados a esos commits. El cierre documental
+posterior no cambia el código que se probó y publicó.
+
+Rollback: Web dpl_5Cc571NruusJTef3Td1egdxY4eTy (2dfa34a), API
+ dpl_EBZeeib4sbBYxN5rm9TqM7KqwRYx (d7ebfd5). No hay migración que revertir; rutas
+guardadas conservan su trazado y el mismo contrato JSON. Ramas y commits
+permanecen como puntos de recuperación. Sin datos existentes eliminados ni
+modificaciones alojadas de Supabase. Gestión y demás proyectos no se consultaron
+ni modificaron. No se activaron planes de pago ni se expusieron secretos.
+
+Implementado: alternativas entre dos puntos y selección/persistencia verificadas
+con proveedor controlado. Pendiente: contraste autenticado real de ORS en producción
+y Android físico. No se garantizan tres opciones o disponibilidad en la cuenta.
+Continúan vigencia/excepciones/permisos y geometrías/sentidos municipales, enlaces
+compartidos con permisos y evolución de navegación. El programa maestro sigue
+incompleto; reanudar comprobando main y alias y conservar la continuidad.
