@@ -18,7 +18,9 @@ function FitRoute({ points }: { points: LatLngTuple[] }) {
   useEffect(() => {
     if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(() => {
-      if (map.getContainer().clientWidth) map.invalidateSize({ pan: false });
+      // Keep the geographic center when a previously hidden panel gains size.
+      // Disabling pan skips Leaflet's pixel-offset compensation and shifts it.
+      if (map.getContainer().clientWidth) map.invalidateSize({ pan: true, animate: false });
     });
     observer.observe(map.getContainer());
     return () => observer.disconnect();
