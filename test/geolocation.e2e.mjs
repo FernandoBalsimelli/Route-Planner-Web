@@ -235,6 +235,7 @@ test('mobile manifest preserves repeated deliveries and makes coincident points 
     const notice=page.getByLabel('Puntos cercanos entre entregas');
     await notice.getByText(/Entregas 1 y 2/).waitFor();
     await notice.getByRole('button',{name:'Revisar entrega 2',exact:true}).click();
+    assert.ok(await page.getByRole('combobox',{name:'Entrega 2',exact:true}).evaluate(node=>node===document.activeElement),'review shortcut focuses its delivery');
     await page.getByRole('combobox',{name:'Entrega 2',exact:true}).fill('Calle corregida 456');
     assert.equal(await notice.count(),0,'editing invalidates the old confirmed point and its warning');
     assert.ok(await page.getByRole('button',{name:'Añadir 1 entregas confirmadas',exact:true}).isDisabled());

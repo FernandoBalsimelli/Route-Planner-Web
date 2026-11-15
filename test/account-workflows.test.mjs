@@ -105,6 +105,8 @@ test('manifest retains separate repeated orders and flags coincident confirmatio
     await act(async()=>button('Confirmar punto').click());
   }
   assert.match(container.querySelector('[aria-label="Puntos cercanos entre entregas"]').textContent,/Entregas 1 y 2/);
+  await act(async()=>button('Revisar entrega 2').click());
+  assert.equal(document.activeElement,container.querySelector('input[role="combobox"]'));
   assert.equal(button('Añadir 2 entregas').disabled,false);
   await act(async()=>container.querySelector('.manifest-candidate .manifest-include input').click());
   assert.equal(container.querySelector('[aria-label="Puntos cercanos entre entregas"]'),null);
