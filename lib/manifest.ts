@@ -15,5 +15,7 @@ export function manifestCandidates(text: string): string[] {
     else { flush(); block = line; hasAddress = isAddress; }
   }
   flush();
-  return [...new Set(candidates)];
+  // Repeated addresses can represent distinct orders. Only the operator can
+  // exclude a delivery; parsing must preserve source order and multiplicity.
+  return candidates;
 }

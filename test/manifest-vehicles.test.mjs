@@ -8,8 +8,8 @@ test('manifest groups a store and its address without treating headers as delive
   const result = manifestCandidates('Manifiesto: 123\nFecha: 08/11/2026\nBodega Aurrera Express\nCalle Cedro 312\nColonia Centro, Chihuahua\nBodega Aurrerá Express\nAvenida Universidad 100\nCol. Centro, Monterrey');
   assert.deepEqual(result, ['Bodega Aurrera Express, Calle Cedro 312, Colonia Centro, Chihuahua', 'Bodega Aurrerá Express, Avenida Universidad 100, Col. Centro, Monterrey']);
 });
-test('pasted addresses keep exact numbers, remove duplicates and bound input', () => {
-  assert.deepEqual(manifestCandidates('Calle Uno 123, Chihuahua\nCalle Dos 456, Delicias\nCalle Uno 123, Chihuahua'), ['Calle Uno 123, Chihuahua', 'Calle Dos 456, Delicias']);
+test('pasted addresses keep exact numbers and repeated deliveries while bounding input', () => {
+  assert.deepEqual(manifestCandidates('Calle Uno 123, Chihuahua\nCalle Dos 456, Delicias\nCalle Uno 123, Chihuahua'), ['Calle Uno 123, Chihuahua', 'Calle Dos 456, Delicias', 'Calle Uno 123, Chihuahua']);
   assert.equal(manifestCandidates('x'.repeat(1000))[0].length, 180);
 });
 test('real Spanish OCR output groups the city with its branch and discards the manifest title', () => {

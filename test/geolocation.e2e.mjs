@@ -216,6 +216,38 @@ test('scanned PDF is rasterized and read by the real Spanish OCR worker before r
   } finally { await context.close(); }
 });
 
+test('mobile manifest preserves repeated deliveries and makes coincident points reviewable before import', { timeout: 60000 }, async () => {
+  const { context, page } = await setup(() => {});
+  page.setDefaultTimeout(15000);
+  try {
+    await page.route('**/api/route-planner/**',route=>route.fulfill({json:{ok:true,suggestions:[{label:'Express de prueba, Calle Uno 123',lat:25.681,lng:-100.31}]}}));
+    await page.goto(base);
+    await page.getByRole('button',{name:'Escanear o pegar manifiesto'}).click();
+    await page.getByRole('textbox',{name:'Texto del manifiesto'}).fill('Calle Uno 123\nCalle Uno 123');
+    await page.getByRole('button',{name:'Preparar direcciones para revisar'}).click();
+    assert.equal(await page.locator('.manifest-candidate').count(),2);
+    await page.getByLabel('Texto repetido en el manifiesto').getByText('Entregas 1, 2: mismo texto.',{exact:true}).waitFor();
+    for(let i=0;i<2;i++){
+      const row=page.locator('.manifest-candidate').nth(i);
+      await row.getByRole('option').click();
+      await row.getByRole('button',{name:'Confirmar punto',exact:true}).click();
+    }
+    const notice=page.getByLabel('Puntos cercanos entre entregas');
+    await notice.getByText(/Entregas 1 y 2/).waitFor();
+    await notice.getByRole('button',{name:'Revisar entrega 2',exact:true}).click();
+    assert.ok(await page.getByRole('combobox',{name:'Entrega 2',exact:true}).evaluate(node=>node===document.activeElement),'review shortcut focuses its delivery');
+    await page.getByRole('combobox',{name:'Entrega 2',exact:true}).fill('Calle corregida 456');
+    assert.equal(await notice.count(),0,'editing invalidates the old confirmed point and its warning');
+    assert.ok(await page.getByRole('button',{name:'Añadir 1 entregas confirmadas',exact:true}).isDisabled());
+    await page.locator('.manifest-candidate').nth(1).getByRole('option').click();
+    await page.getByRole('button',{name:'Confirmar punto',exact:true}).click();
+    await page.getByRole('button',{name:'Añadir 2 entregas confirmadas',exact:true}).click();
+    assert.equal(await page.getByRole('combobox',{name:'PARADA 1',exact:true}).inputValue(),'Express de prueba, Calle Uno 123');
+    assert.equal(await page.getByRole('combobox',{name:'Destino',exact:true}).inputValue(),'Express de prueba, Calle Uno 123');
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+  } finally { await context.close(); }
+});
+
 test('mobile numbered-address search exposes a street fallback without claiming an exact house', async () => {
   const { context, page } = await setup(() => {});
   try {
