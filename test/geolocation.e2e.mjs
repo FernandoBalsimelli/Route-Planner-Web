@@ -186,7 +186,7 @@ test('map retains its geographic center across hidden-panel resize on desktop an
       await page.route('**/api/route-planner/**',route=>route.fulfill({json:{ok:true,suggestions:[{label:'Referencia de prueba, Chihuahua',lat:28.63,lng:-106.07}]}}));
       await page.goto(base);
       await page.getByRole('combobox',{name:'Origen',exact:true}).fill('Referencia de prueba');
-      await page.getByRole('option').click();await page.getByRole('button',{name:'Confirmar punto',exact:true}).click();
+      await page.getByRole('listbox',{name:'Sugerencias para Origen',exact:true}).getByRole('option').click();await page.getByRole('button',{name:'Confirmar punto',exact:true}).click();
       await page.waitForFunction(centered,{},{timeout:10000});
       const nav=page.getByRole('navigation',{name:'Secciones de Route Planner'});
       await nav.getByRole('button',{name:'Vehículos',exact:true}).click();
