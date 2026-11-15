@@ -173,6 +173,33 @@ test('desktop gives the map the main area and preserves its size after changing 
   } finally { await context.close(); }
 });
 
+test('map retains its geographic center across hidden-panel resize on desktop and mobile', { timeout: 60000 }, async () => {
+  for(const dimensions of [{initial:{width:1440,height:1000},resized:{width:1100,height:850}},{initial:{width:390,height:844},resized:{width:844,height:390}}]){
+    const {context,page}=await setup(()=>{},dimensions.initial);page.setDefaultTimeout(15000);
+    const centered=()=>{
+      const map=document.querySelector('.route-map'),marker=document.querySelector('.rp-map-pin-start')?.closest('.leaflet-marker-icon');
+      if(!map||!marker)return false;
+      const box=map.getBoundingClientRect(),pin=marker.getBoundingClientRect();
+      return box.width>0&&Math.abs(pin.x+pin.width/2-box.x-box.width/2)<20&&Math.abs(pin.y+pin.height/2-box.y-box.height/2)<20;
+    };
+    try{
+      await page.route('**/api/route-planner/**',route=>route.fulfill({json:{ok:true,suggestions:[{label:'Referencia de prueba, Chihuahua',lat:28.63,lng:-106.07}]}}));
+      await page.goto(base);
+      await page.getByRole('combobox',{name:'Origen',exact:true}).fill('Referencia de prueba');
+      await page.getByRole('listbox',{name:'Sugerencias para Origen',exact:true}).getByRole('option').click();await page.getByRole('button',{name:'Confirmar punto',exact:true}).click();
+      await page.waitForFunction(centered,{},{timeout:10000});
+      const nav=page.getByRole('navigation',{name:'Secciones de Route Planner'});
+      await nav.getByRole('button',{name:'Vehículos',exact:true}).click();
+      await page.setViewportSize(dimensions.resized);
+      await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+      await nav.getByRole('button',{name:'Planificar',exact:true}).click();
+      await page.waitForFunction(centered,{},{timeout:10000});
+      assert.ok(await page.evaluate(centered),'the confirmed origin must remain at the geographic center after the hidden resize');
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+    }finally{await context.close();}
+  }
+});
+
 test('mobile manifest reads a real multipage PDF locally and keeps geographic confirmation mandatory', async () => {
   const { context, page } = await setup(() => {});
   try {
