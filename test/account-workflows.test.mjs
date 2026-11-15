@@ -89,6 +89,30 @@ test('manifest imports only explicitly confirmed points and searches one candida
   await act(async () => button('Añadir 1 entregas').click());
   assert.deepEqual(imported, [{ label: 'Sucursal confirmada, Calle Uno 123', lat: 25.681, lng: -100.31 }]);
 });
+test('manifest retains separate repeated orders and flags coincident confirmations without dropping either', async () => {
+  let imported;
+  globalThis.fetch=async()=>Response.json({suggestions:[{label:'Sucursal confirmada',lat:25.681,lng:-100.31}]});
+  await render(React.createElement(ManifestImport,{apiUrl:'/api',reference:null,remaining:48,hasDestination:true,onImport:points=>{imported=points;}}));
+  await act(async()=>button('Escanear o pegar').click());
+  const area=container.querySelector('textarea');
+  await act(async()=>{Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype,'value').set.call(area,'Calle Uno 123\nCalle Uno 123');area.dispatchEvent(new window.Event('input',{bubbles:true}));});
+  await act(async()=>button('Preparar direcciones').click());
+  assert.equal(container.querySelectorAll('.manifest-candidate').length,2);
+  assert.match(container.querySelector('[aria-label="Texto repetido en el manifiesto"]').textContent,/Entregas 1, 2/);
+  for(let i=0;i<2;i++){
+    await act(async()=>new Promise(resolve=>setTimeout(resolve,360)));
+    await act(async()=>container.querySelector('.location-suggestion').click());
+    await act(async()=>button('Confirmar punto').click());
+  }
+  assert.match(container.querySelector('[aria-label="Puntos cercanos entre entregas"]').textContent,/Entregas 1 y 2/);
+  assert.equal(button('Añadir 2 entregas').disabled,false);
+  await act(async()=>container.querySelector('.manifest-candidate .manifest-include input').click());
+  assert.equal(container.querySelector('[aria-label="Puntos cercanos entre entregas"]'),null);
+  assert.equal(button('Añadir 1 entregas').disabled,false);
+  await act(async()=>container.querySelector('.manifest-candidate .manifest-include input').click());
+  await act(async()=>button('Añadir 2 entregas').click());
+  assert.equal(imported.length,2);assert.deepEqual(imported[0],imported[1]);
+});
 test('nearby input forwards the reference and lets the operator disable proximity', async () => {
   const urls = []; globalThis.fetch = async url => { urls.push(new URL(url, window.location.href)); return Response.json({ suggestions: [] }); };
   await render(React.createElement(LocationInput, { title: 'Entrega', color: 'green', value: 'Bodega Aurrera Express', apiUrl: '/api', placeholder: '', mapReference: { lat: 25.68, lng: -100.31 }, onChange() {}, onConfirm() {} }));

@@ -2,11 +2,12 @@
 
 import { MAX_INTERMEDIATE_STOPS } from '@/lib/route-limits';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import LocationInput from './LocationInput';
 import { manifestCandidates } from '@/lib/manifest';
+import { nearbyManifestLocations, repeatedManifestLines } from '@/lib/manifest-review';
 import type { Coordinates, LocationSelection } from '@/lib/locations';
-type Candidate = { id: string; value: string; selected: LocationSelection | null; enabled: boolean };
+type Candidate = { id: string; sourceValue: string; value: string; selected: LocationSelection | null; enabled: boolean };
 
 export default function ManifestImport({ apiUrl, reference, remaining, hasDestination, onImport }: { apiUrl: string; reference: Coordinates | null; remaining: number; hasDestination: boolean; onImport: (points: LocationSelection[], useLastAsDestination: boolean) => void }) {
   const [open, setOpen] = useState(false);
@@ -25,9 +26,11 @@ export default function ManifestImport({ apiUrl, reference, remaining, hasDestin
   const selected = candidates.filter(candidate => candidate.enabled);
   const points = selected.flatMap(candidate => candidate.selected && candidate.selected.label === candidate.value ? [candidate.selected] : []);
   const capacity = remaining + (useLast ? 1 : 0);
+  const repeatedLines = useMemo(() => repeatedManifestLines(candidates.map(row => row.sourceValue)), [candidates]);
+  const nearbyPairs = useMemo(() => nearbyManifestLocations(candidates), [candidates]);
   function prepare() {
     const lines = manifestCandidates(text);
-    const rows = lines.map((value, index) => ({ id: crypto.randomUUID(), value, selected: null, enabled: index < capacity }));
+    const rows = lines.map((value, index) => ({ id: crypto.randomUUID(), sourceValue: value, value, selected: null, enabled: index < capacity }));
     setCandidates(rows); setActiveId(rows[0]?.id || '');
     setMessage(lines.length ? 'Revisa cada dirección, elige su sucursal y confirma el punto. Puedes excluir encabezados o entregas que no correspondan.' : 'No se encontró texto de direcciones. Toma una foto más clara o pega una entrega por línea.');
   }
@@ -68,8 +71,10 @@ export default function ManifestImport({ apiUrl, reference, remaining, hasDestin
       <button type="button" disabled={busy || !text.trim()} onClick={prepare}>Preparar direcciones para revisar</button>
       {message && <p role="status">{message}</p>}
       {!!candidates.length && <><p className="hint">Las direcciones confirmadas se añaden al recorrido; el documento no se guarda. Verifica calle, colonia y acceso de descarga, especialmente si hay varias sucursales con el mismo nombre.</p>
+        {repeatedLines.length > 0 && <div className="manifest-review-notice" role="status" aria-label="Texto repetido en el manifiesto"><strong>Hay direcciones escritas más de una vez</strong><p>Conservamos cada entrega y su orden. Pueden ser pedidos distintos; excluye sólo las filas que no correspondan.</p><ul>{repeatedLines.slice(0, 5).map(group => <li key={group[0]}>Entregas {group.length > 8 ? `${group.slice(0, 8).join(', ')} y ${group.length - 8} más` : group.join(', ')}: mismo texto.</li>)}</ul>{repeatedLines.length > 5 && <p>Hay {repeatedLines.length - 5} grupos adicionales de texto repetido.</p>}</div>}
         {candidates.map((candidate, index) => <div className="manifest-candidate" key={candidate.id}><label className="manifest-include"><input type="checkbox" checked={candidate.enabled} onChange={event => setCandidates(rows => rows.map(row => row.id === candidate.id ? { ...row, enabled: event.target.checked } : row))}/> Incluir entrega {index + 1}</label><p>{candidate.value} {candidate.selected && <strong>✓ Confirmada</strong>}</p>{candidate.enabled && <button type="button" className="map-open-button" aria-expanded={activeId === candidate.id} onClick={() => setActiveId(candidate.id)}>{candidate.selected ? 'Revisar punto confirmado' : 'Revisar ubicación'}</button>}{candidate.enabled && activeId === candidate.id && <LocationInput title={`Entrega ${index + 1}`} color="number" apiUrl={apiUrl} value={candidate.value} selected={candidate.selected} mapReference={reference} placeholder="Sucursal, dirección y ciudad" onChange={value => setCandidates(rows => rows.map(row => row.id === candidate.id ? { ...row, value, selected: null } : row))} onConfirm={point => { setCandidates(rows => rows.map(row => row.id === candidate.id ? { ...row, value: point.label, selected: point } : row)); setActiveId(candidates.find(row => row.id !== candidate.id && row.enabled && !row.selected)?.id || candidate.id); }}/>}</div>)}
         <label className="manifest-include"><input type="checkbox" checked={useLast} onChange={event => setUseLast(event.target.checked)}/> Usar la última entrega como destino{hasDestination ? ' (reemplaza el destino actual)' : ''}</label>
+        {nearbyPairs.length > 0 && <div className="manifest-review-notice" role="status" aria-label="Puntos cercanos entre entregas"><strong>Revisa estos puntos confirmados</strong><p>Están a 10 m o menos en línea recta. No significa que sean la misma sucursal ni un error; comprueba que cada pedido corresponda al acceso elegido. No eliminamos ninguna entrega.</p><ul>{nearbyPairs.slice(0, 6).map(pair => <li key={`${pair.first}-${pair.second}`}>Entregas {pair.first} y {pair.second}: {pair.distanceMeters < 1 ? 'puntos prácticamente coincidentes' : `${Math.ceil(pair.distanceMeters)} m entre puntos`}. <button type="button" className="map-open-button" onClick={() => setActiveId(candidates[pair.second - 1].id)}>Revisar entrega {pair.second}</button></li>)}</ul>{nearbyPairs.length > 6 && <p>Hay {nearbyPairs.length - 6} pares cercanos adicionales. Revisa también las demás entregas confirmadas.</p>}</div>}
         <p role="status">{points.length} de {selected.length} entregas confirmadas. Espacio para {capacity} entregas en este recorrido.</p>
         {selected.length > capacity && <p className="location-search-error">Excluye entregas para respetar el máximo de {MAX_INTERMEDIATE_STOPS} paradas intermedias y un destino.</p>}
         <button type="button" className="primary-button" disabled={!points.length || points.length !== selected.length || points.length > capacity} onClick={() => { onImport(points, useLast); setCandidates([]); setText(''); setPdfFile(null); setOpen(false); }}>Añadir {points.length} entregas confirmadas</button>

@@ -1,6 +1,6 @@
 # Route Planner — estado de ingeniería
 
-Fecha de revisión: 2026-11-11. Alcance: exclusivamente Route Planner.
+Fecha de revisión: 2026-11-15. Alcance: exclusivamente Route Planner.
 
 Estado vigente: referencias parciales para 15 municipios; cero con validación
 legal automática completa. Chihuahua capital distingue el marco estatal de los
@@ -1401,3 +1401,81 @@ y Android físico. No se garantizan tres opciones o disponibilidad en la cuenta.
 Continúan vigencia/excepciones/permisos y geometrías/sentidos municipales, enlaces
 compartidos con permisos y evolución de navegación. El programa maestro sigue
 incompleto; reanudar comprobando main y alias y conservar la continuidad.
+
+## Ciclo: Chihuahua capital y separación de evidencia de planeación
+
+Implementación del 11 de noviembre; producción y guía pública reverificadas el
+15 de noviembre de 2026. Main se consultó de nuevo antes de continuar: Web
+191b166 y API 669579a, esta última con reportes automáticos posteriores al código.
+No se sobrescribieron esos reportes. El trabajo general sigue incompleto.
+
+### Hallazgo y cambio
+
+La descarga oficial del Congreso contiene la ley estatal consolidada hasta el
+08-08-2026; una copia indexada más antigua mostraba 2024. El artículo 66 remite a
+la autoridad para concretar horarios. El programa metropolitano MO-4.4 (POE 54,
+05-07-2025) ofrece ejemplos de horas punta como propuesta. No son prueba de
+prohibiciones municipales vigentes.
+
+08019 pasa a referencia parcial, con fuente, fechas, jurisdicción, huellas y
+páginas distintas para ley y programa. La Web identifica `planning_proposal`,
+no muestra comparadores ni ventanas operativas de una propuesta, y enlaza su
+propio documento. El monitor revisa también el anexo de 23,352,913 bytes con
+presupuesto explícito de 24 MiB; las demás fuentes conservan 20 MiB, con tope
+absoluto de configuración de 32 MiB y control durante el streaming.
+
+Quedan 15 municipios con referencia parcial, siete fuentes principales y cero
+con validación legal automática completa. No se atribuye cobertura a otros
+municipios por formar parte de una zona metropolitana; no hay geometrías ni
+nuevas exclusiones aplicadas. Detalle: CHIHUAHUA-CAPITAL-REFERENCE.md.
+
+### Archivos y pruebas
+
+API: national-references.json, source-status.json, check-official-sources.mjs,
+pruebas municipales/monitor y documentos de cobertura/Chihuahua. Web:
+MunicipalCoverage.tsx, globals.css, pruebas de consulta municipal e integración
+autenticada, workflow fijado a API 27e8082 y documentos de cobertura/ingeniería.
+Sin dependencias nuevas ni migraciones.
+
+Local: 66 pruebas API, 104 Web, sintaxis/build API, TypeScript, build Web y ambas
+auditorías sin vulnerabilidades de producción conocidas. CI API 42993051789:
+66 pruebas y nueve migraciones en Postgres 17 aislado, propiedad/RLS y auditoría
+aprobados. CI Web 42993181139: 104 pruebas, 23 casos de navegador y tres flujos
+con Auth/REST locales reales aprobados. La integración móvil consultó la ficha
+real de la API y su fuente de planeación. ORS permaneció simulado.
+
+Producción comprobó salud, coordenadas, Plus Codes completo/compuesto, búsqueda
+Express, consulta de 08019, catálogo 15/0 y siete fuentes. Validate aceptó dos
+puntos y 48 intermedias, rechazó 49; plan sin sesión mantuvo 401. En navegador se
+corroboró un punto de coordenadas y la guía publicada con procedencia, fechas y
+la separación de propuesta. La búsqueda enfocada en Chihuahua no encontró
+Express a menos de 50 km: conserva aviso explícito y distancias de los resultados
+lejanos; no demuestra cobertura completa de sucursales.
+
+Supabase Route Planner se inspeccionó sin cambios: ACTIVE_HEALTHY, nueve
+migraciones, seis tablas públicas con RLS. Sigue el aviso de protección de
+contraseñas filtradas desactivada, ya registrado; no se habilitaron servicios.
+Remediación: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection.
+
+### Publicación y recuperación
+
+API PR #15: https://github.com/FernandoBalsimelli/Route-Planner-API/pull/15.
+Commit de código publicado: 6fad021dd414a964056ad029e8f4dc80033c577d;
+despliegue dpl_FNdvSQM2HMky1kreq84MnQ7cugjc, READY:
+https://route-planner-api.vercel.app/.
+Web PR #17: https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/17.
+Commit de código publicado: 191b1663000528e7a47dac8af1f826dd75da58ff;
+despliegue dpl_4YAb5nFU5bmdHUiWK1Gt4iopbFfZ, READY:
+https://route-planner-web-sand.vercel.app/.
+Alias y commits se reverificaron el 15 de noviembre. El código API es anterior
+a los reportes automáticos posteriores de main; el endpoint puede leer evidencia
+más reciente sin alterar reglas. Rollback: Web dpl_9mWuK3srK1qd9h47q8jeYDDN8FUc
+(1917904), API dpl_6iVB9D6CzDauuAzqmFXufcRAVHP1 (9fddd1f). Sin cambios alojados
+de datos/esquema que revertir. Gestión y demás proyectos no se modificaron.
+
+Completado: referencia y clasificación de evidencia. Parcial: cobertura municipal.
+Pendientes: acuerdos locales vigentes, permisos/excepciones, días/horarios y
+geometrías/sentidos; revisar cambios y fallos del monitor sin activarlos como
+leyes. Faltan cálculos ORS autenticados reales en producción y Android físico.
+Siguiente ciclo: corregir pérdida de pedidos repetidos en manifiestos y facilitar
+su corroboración, conservando todas las entregas intencionales.
