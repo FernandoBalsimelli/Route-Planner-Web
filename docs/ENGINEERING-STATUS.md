@@ -3,7 +3,8 @@
 Fecha de revisión: 2026-11-15. Alcance: exclusivamente Route Planner.
 
 Estado vigente: los manifiestos conservan los pedidos repetidos y permiten
-revisar puntos coincidentes. Web publicada 0f8be4d; API publicada 6fad021.
+revisar puntos coincidentes. El mapa conserva su centro al mostrar/redimensionar
+el planificador. Web publicada 4d693ab; API publicada 6fad021.
 Hay 15 municipios con referencias parciales y cero con validación legal completa.
 Resultados, rollback, trabajo en revisión y próxima prioridad en el último cierre
 al final. Las entradas anteriores son historial.
@@ -1540,16 +1541,88 @@ el ciclo siguiente. Continúan pendientes permisos, horarios, vigencia y geometr
 municipales; siguen 15 referencias parciales y cero validaciones legales completas.
 
 
-### Punto de reanudación: centro del mapa en revisión
+### Punto de reanudación anterior cerrado
 
-La corrección está aislada en `fix/map-center-hidden-resize-20261115`, PR #19:
-https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/19. Head de recuperación
-e963e7f4b545f77e56a6334acfefa4d332abd725. No se ha publicado esta corrección.
-TypeScript, build y 109 pruebas locales pasan. El primer caso de navegador se
-detuvo en un selector ambiguo que apuntaba a la opción del vehículo; se acotó a
-las sugerencias del origen. Falta el resultado final de CI antes de fusionar,
-desplegar y comprobar centro cartográfico en producción. Véase MAP-VIEWPORT.md.
+La corrección del centro se validó y publicó en el ciclo siguiente. Los commits
+de recuperación e963e7f y 8a243b3 quedan en el historial. No hay código de este
+ciclo pendiente de publicar.
 
-Se contrastaron las opciones gratuitas y límites de navegación con documentación
-primaria actual: NAVIGATION-OPTIONS.md. OsmAnd/GPX es un candidato de ensayo, no
-una integración verificada en Android ni una solución a la cobertura legal nacional.
+## Ciclo: centro cartográfico al mostrar el planificador · 15-11-2026
+
+La comprobación visual del flujo anterior expuso un desplazamiento geográfico
+al pasar de un panel oculto al mapa. El ResizeObserver desactivaba con `pan:false`
+la compensación de tamaño de Leaflet 1.9.4. No era una respuesta errónea del
+geocodificador. Se restableció la compensación con animación desactivada, sin
+recalcular ni reenmarcar todas las paradas y conservando el centro del operador.
+
+Archivos de código: components/RouteMap.tsx y test/geolocation.e2e.mjs. Documentos:
+MAP-VIEWPORT.md, NAVIGATION-OPTIONS.md y este cierre. Sin cambios de dependencias,
+API, variables, datos alojados, esquema, RLS o servicios de pago.
+
+### Pruebas y producción
+
+TypeScript, build y 109 pruebas Web locales aprobados. El primer caso nuevo
+falló por un selector ambiguo de prueba (opción del vehículo); se corrigió
+acotándolo al listbox del origen. CI final 43774511555, head e963e7f, aprobó
+109 pruebas, 25 casos de navegador, tres flujos con Auth/REST locales reales y
+auditoría sin vulnerabilidades de producción conocidas.
+
+La regresión confirma el marcador, oculta el planificador, cambia el tamaño de
+viewport y vuelve a comprobar su centro en escritorio y orientación móvil.
+Usa cajas DOM visibles, sin acceso a estado privado de Leaflet. El resto de
+flujos conserva GPS, manifiestos, Plus Codes, múltiples paradas, navegación,
+preferencias, selección de alternativas, guardado, papelera y aislamiento RLS.
+ORS en las integraciones sigue simulado; no son cálculos reales autenticados de
+producción ni navegación Android física.
+
+En navegador público se cargó el planificador desde la guía, se confirmó un
+origen con coordenadas públicas de prueba y geocodificación real, se pasó de
+nuevo por la guía y se regresó al mapa. El marcador permaneció centrado: desfase
+DOM medido 0 px horizontal y 0 px vertical. Se capturó el mapa real de Chihuahua,
+sin inyectar respuestas o ubicación. No se calculó ni guardó una ruta alojada.
+
+El proxy de producción se volvió a comprobar después del despliegue: salud,
+coordenadas, Plus Code completo/compuesto y Express; validación de dos puntos y
+48 paradas, rechazo de 49 y protección 401 sin sesión. Validación de entrada no
+equivale a cálculo real. Los logs agregados de Web/API no mostraron errores ni
+fatales en los 30 minutos revisados; no es garantía permanente.
+
+### Publicación y recuperación
+
+PR #19: https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/19.
+Web publicada: **4d693ab327bff2a759c35702f0295d4c422900be**, despliegue
+**dpl_GckiwsqF2o53gixMS7pZ19aXoEos**, alias READY verificado:
+https://route-planner-web-sand.vercel.app/.
+API continúa en **6fad021dd414a964056ad029e8f4dc80033c577d**, despliegue
+**dpl_FNdvSQM2HMky1kreq84MnQ7cugjc**, alias READY verificado:
+https://route-planner-api.vercel.app/.
+La API main contiene reportes automáticos posteriores; no se sobrescribieron.
+El cierre documental posterior de Web no cambia el código probado y desplegado.
+
+Rollback inmediato de Web: **dpl_3HBMRwx9kgMtsS4Hk93hYtFGc7qA** (0f8be4d),
+que conserva la corrección de manifiestos. Para el ciclo de manifiestos se
+conserva además dpl_4YAb5nFU5bmdHUiWK1Gt4iopbFfZ (191b166). No hay migraciones
+ni datos que revertir. Gestión y demás proyectos no se modificaron; no se
+contrataron ni activaron funciones de pago.
+
+### Estado y próxima prioridad
+
+Completados y publicados: preservación de pedidos, avisos y foco de revisión,
+compensación del centro del mapa y documentación del ciclo de Chihuahua.
+Parcial: cobertura/precisión de proveedores y normativa municipal. Se mantienen
+15 referencias parciales, cero validaciones legales completas y sin geometrías
+municipales nuevas aplicadas al cálculo. El monitor reporta Puebla con cambios y
+fuentes de Juárez/CDMX sin comprobación; no se interpretan como reformas vigentes.
+
+Investigación terminada: NAVIGATION-OPTIONS.md contrasta Maps URLs y la opción
+OsmAnd/GPX con fuentes primarias del 15-11-2026. La importación y navegación GPX
+son candidatas para un ensayo gratuito sujeto a sus límites; no se instalaron
+productos, activaron compras ni se probó ese navegador físicamente. Los puntos
+guía no bloquean Google Maps ni le transmiten dimensiones, peso o permisos HGV.
+
+Próxima prioridad P1: conectar la corroboración de manifiestos con el mapa central
+para comparar sucursales sin cambiar de contexto, conservando confirmación y
+cancelación de búsquedas obsoletas. Después, completar acuerdos locales,
+permisos/excepciones y geometrías/sentidos oficiales verificables. Siguen
+pendientes ORS autenticado real en producción, Android físico, enlaces compartidos
+con permisos y otras funciones del programa maestro. **El programa no está terminado.**

@@ -2,8 +2,9 @@
 
 Revisión: 15 de noviembre de 2026. Exclusivamente Route Planner.
 
-Estado: corrección en PR #19, pendiente de CI y publicación. No declarar verificada
-hasta completar navegador y producción.
+Estado: publicada en PR #19 y verificada. CI 43774511555 aprobó 25 casos de
+navegador; producción conservó el marcador de origen centrado al volver desde
+Guía camión. Commit publicado 4d693ab327bff2a759c35702f0295d4c422900be.
 
 Durante la comprobación visual de producción apareció un desplazamiento del
 mapa al abrir el planificador desde una sección donde su contenedor estaba
