@@ -2,11 +2,11 @@
 
 Fecha de revisión: 2026-11-15. Alcance: exclusivamente Route Planner.
 
-Estado vigente: referencias parciales para 15 municipios; cero con validación
-legal automática completa. Chihuahua capital distingue el marco estatal de los
-ejemplos de planeación metropolitana, sin nuevas exclusiones del trazado.
-Los resultados, commits, despliegues, rollback y próxima prioridad están en el
-último cierre al final de este documento. Las entradas anteriores son historial.
+Estado vigente: los manifiestos conservan los pedidos repetidos y permiten
+revisar puntos coincidentes. Web publicada 0f8be4d; API publicada 6fad021.
+Hay 15 municipios con referencias parciales y cero con validación legal completa.
+Resultados, rollback, trabajo en revisión y próxima prioridad en el último cierre
+al final. Las entradas anteriores son historial.
 
 ## Recursos verificados
 
@@ -1479,3 +1479,77 @@ geometrías/sentidos; revisar cambios y fallos del monitor sin activarlos como
 leyes. Faltan cálculos ORS autenticados reales en producción y Android físico.
 Siguiente ciclo: corregir pérdida de pedidos repetidos en manifiestos y facilitar
 su corroboración, conservando todas las entregas intencionales.
+
+## Ciclo: pedidos repetidos y corroboración de manifiestos · 15-11-2026
+
+### Problema, causa y comportamiento
+
+El parser agrupaba direcciones y luego aplicaba un Set. Dos órdenes con texto
+idéntico quedaban reducidas silenciosamente a una entrega. Se retiró esa
+eliminación: cada candidato conserva posición, multiplicidad y texto de origen.
+Se muestran grupos de texto repetido y pares confirmados a 10 m o menos en línea
+recta, sin fusionar, excluir o bloquear pedidos intencionales. La revisión lleva
+el foco a la entrega elegida. Editar invalida la confirmación; excluir retira la
+comparación. Se conserva la confirmación explícita de cada punto.
+
+Archivos: lib/manifest.ts, lib/manifest-review.ts, ManifestImport.tsx, globals.css,
+pruebas de parser/revisión/cuentas/navegador y MANIFEST-DELIVERY-REVIEW.md.
+No cambia API, dependencias, esquema, privacidad del OCR ni el máximo real de
+48 paradas intermedias. Los avisos resumidos no recortan filas adicionales.
+
+### Verificación y publicación
+
+TypeScript, build de producción y 109 pruebas Web aprobados. CI final
+43773112709 sobre head 8a0b389: 109 pruebas, 24 casos de navegador y tres flujos
+con Auth/REST locales reales aprobados; auditoría de dependencias de producción
+sin vulnerabilidades conocidas. El caso móvil importa ambas órdenes coincidentes,
+reabre la segunda, comprueba foco, edición/invalidez, reconfirma y conserva ambas.
+La API main se verificó de nuevo: 66 pruebas, sintaxis/build y auditoría aprobados.
+
+En producción, con coordenadas públicas de prueba y proveedores reales de búsqueda,
+se prepararon dos entradas iguales, se confirmó cada una, apareció el aviso y se
+importaron como parada 1 y destino, ambas con el mismo Plus Code. El documento
+no se guardó ni se crearon cuentas o rutas alojadas. Esto verifica importación;
+no es OCR de un manifiesto de usuario ni cálculo ORS autenticado en producción.
+
+También se repitieron salud, coordenadas, Plus Codes completo/compuesto y búsqueda
+Express: 200; ocho sugerencias en Monterrey, primera a 4,861 m en línea recta del
+origen sintético. Validate: dos puntos y 48 intermedias aceptados, 49 rechazadas;
+plan sin sesión sigue 401. Las integraciones de rutas usan ORS simulado y sesiones
+locales reales; no acreditan navegación Android física ni datos reales de tráfico.
+
+PR #18: https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/18.
+Commit publicado 0f8be4d9a8d8bf68d9d5d7540c1105e553c414dd;
+despliegue dpl_3HBMRwx9kgMtsS4Hk93hYtFGc7qA, READY y alias verificado:
+https://route-planner-web-sand.vercel.app/.
+API permanece en 6fad021 / dpl_FNdvSQM2HMky1kreq84MnQ7cugjc:
+https://route-planner-api.vercel.app/.
+Rollback de este ciclo: Web dpl_4YAb5nFU5bmdHUiWK1Gt4iopbFfZ (191b166), sin
+migraciones que revertir. Git conserva ambos commits y ramas de recuperación.
+
+Supabase se volvió a consultar: ACTIVE_HEALTHY y seis tablas públicas con RLS;
+permanece únicamente el aviso ya registrado de contraseñas filtradas. Sin cambios
+alojados. Vercel no devolvió errores/fatales agregados en la ventana de 30 minutos
+revisada; no es garantía de ausencia permanente de fallos. Gestión y otros
+proyectos no se modificaron; no se generaron servicios o planes de pago.
+
+Completado: preservación de pedidos y revisión de coincidencias. Parcial: precisión
+y cobertura de proveedores. Durante la verificación visual se detectó un fallo
+anterior de centro cartográfico al mostrar el planificador oculto; se aborda en
+el ciclo siguiente. Continúan pendientes permisos, horarios, vigencia y geometrías
+municipales; siguen 15 referencias parciales y cero validaciones legales completas.
+
+
+### Punto de reanudación: centro del mapa en revisión
+
+La corrección está aislada en `fix/map-center-hidden-resize-20261115`, PR #19:
+https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/19. Head de recuperación
+e963e7f4b545f77e56a6334acfefa4d332abd725. No se ha publicado esta corrección.
+TypeScript, build y 109 pruebas locales pasan. El primer caso de navegador se
+detuvo en un selector ambiguo que apuntaba a la opción del vehículo; se acotó a
+las sugerencias del origen. Falta el resultado final de CI antes de fusionar,
+desplegar y comprobar centro cartográfico en producción. Véase MAP-VIEWPORT.md.
+
+Se contrastaron las opciones gratuitas y límites de navegación con documentación
+primaria actual: NAVIGATION-OPTIONS.md. OsmAnd/GPX es un candidato de ensayo, no
+una integración verificada en Android ni una solución a la cobertura legal nacional.
