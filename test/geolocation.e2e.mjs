@@ -699,3 +699,34 @@ test('municipal operational evidence preserves scope and its own dated source on
   }finally{await context.close();}
  }
 });
+
+test('municipal parking annex filters crossings and exact polygon labels without dropping repeated source records',{timeout:60000},async()=>{
+ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
+  const {context,page}=await setup(()=>{},viewport);
+  const schedules=[{days:[1,2,3,4,5],status:'hours_cited',start:'08:00',end:'22:00'},{days:[6],status:'hours_cited',start:'11:00',end:'17:00'},{days:[7],status:'not_applicable_in_source'}];
+  const row=(id,polygon,corridor,betweenStreets,sourcePages)=>({sourceRow:id,polygon,corridor,betweenStreets,sourcePages,schedules,geometry:null,geometryStatus:'not_validated',directionStatus:'not_specified_in_annex',routingEnforced:false});
+  const annex={municipalityId:'21114',activity:'parking_operation',timezone:'America/Mexico_City',status:'reference_only',routingEnforced:false,source:{url:'https://official.gob.mx/annex.pdf',approvedAt:'2025-08-14',consultedAt:'2026-11-15',pages:[80,87,88]},notices:['Operating schedule only.','Not a routing permission.','Polígonos 5 y 6 según la fuente.'],duplicateGroups:[[126,128]],rows:[row(1,'Polígono 1 Centro Histórico','12 Poniente-Oriente','11 Norte y 4 Norte',[80]),row(124,'Polígono 5 San Alejandro - Ortopedia','29 A Norte','8 Poniente y Diagonal de la 10 Poniente',[87,88]),row(126,'Polígono 6 San Alejandro - Ortopedia','Diagonal 10 Poniente','Blvd. Norte y 10 Poniente',[88]),row(128,'Polígono 6 San Alejandro - Ortopedia','Diagonal 10 Poniente','Blvd. Norte y 10 Poniente',[88])]};
+  try{
+   await page.route('**/api/route-planner/**',route=>{
+    const url=new URL(route.request().url());
+    if(url.pathname.endsWith('/source-status'))return route.fulfill({json:{sources:[],intervalHours:6,stale:false}});
+    if(url.pathname.endsWith('/21114'))return route.fulfill({json:{name:'Puebla',status:'reference_only',routingEnforced:false,source:{id:'puebla-carga',url:'https://official.gob.mx/rules',checkedAt:'2026-11-15T00:00:00Z'},notices:['Referencia parcial.'],trunkSegments:[],timeRules:[],rules:[],parkingCorridorReference:annex}});
+    return route.fulfill({json:{states:[{id:'21',name:'Puebla'}],municipalities:[{id:'21114',state:'21',name:'Puebla',coverage:'reference_only'}],totalMunicipalities:2478,municipalitiesWithPartialReference:15}});
+   });
+   await page.goto(base);await page.getByRole('button',{name:'Guía camión',exact:true}).click();
+   await page.getByRole('button',{name:'Consultar cobertura municipal',exact:true}).click();
+   await page.getByLabel('Entidad federativa',{exact:true}).selectOption('21');await page.getByLabel('Municipio o demarcación',{exact:true}).selectOption('21114');
+   await page.getByText('4 registros de corredores · estacionamiento rotativo',{exact:true}).click();
+   await page.locator('.parking-corridors-list>li').first().waitFor();assert.equal(await page.locator('.parking-corridors-list>li').count(),4);
+   await page.getByLabel('Buscar corredor o cruce',{exact:true}).fill('ALEJANDRO');await page.waitForFunction(()=>document.querySelectorAll('.parking-corridors-list>li').length===3);
+   await page.getByLabel('Polígono citado',{exact:true}).selectOption('Polígono 5 San Alejandro - Ortopedia');await page.waitForFunction(()=>document.querySelectorAll('.parking-corridors-list>li').length===1);
+   assert.deepEqual(await page.locator('.parking-corridors-list a').evaluateAll(nodes=>nodes.map(node=>node.getAttribute('href'))),['https://official.gob.mx/annex.pdf#page=87','https://official.gob.mx/annex.pdf#page=88']);
+   await page.getByLabel('Polígono citado',{exact:true}).selectOption('Polígono 6 San Alejandro - Ortopedia');await page.waitForFunction(()=>document.querySelectorAll('.parking-corridors-list>li').length===2);
+   await page.getByLabel('Buscar corredor o cruce',{exact:true}).fill('DIAGONAL 10 poniente');assert.equal(await page.locator('.parking-corridors-list>li').count(),2);
+   await page.getByText('«No aplica» en el anexo',{exact:true}).first().waitFor();
+   await page.getByLabel('Buscar corredor o cruce',{exact:true}).fill('sin coincidencias');await page.getByText('No hay coincidencias. Prueba con otra calle o cambia el polígono.',{exact:true}).waitFor();
+   await page.getByLabel('Buscar corredor o cruce',{exact:true}).fill('');await page.getByLabel('Polígono citado',{exact:true}).selectOption('');await page.waitForFunction(()=>document.querySelectorAll('.parking-corridors-list>li').length===4);
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  }finally{await context.close();}
+ }
+});

@@ -1,6 +1,8 @@
 'use client';
 import React,{useEffect,useRef,useState} from 'react';
 import OfficialSourceMonitor from './OfficialSourceMonitor';
+import MunicipalParkingCorridors from './MunicipalParkingCorridors';
+import type { ParkingCorridorReference } from '@/lib/parking-corridors';
 import VehicleReferenceComparison from './VehicleReferenceComparison';
 import { axleReferenceComparison, comparisonText, reviewedVehicle, type ReviewVehicle, type VehicleReferenceRule } from '@/lib/municipal-vehicle-review';
 import { operatingSummary } from '@/lib/vehicle-operating';
@@ -9,7 +11,7 @@ type Road={road:string;segment:string;page:number;annex:number};
 type TimeRule=Road&{days:number[];start:string;end:string;maximumAxlesExempt:number|null;interpretation:string;interpretationNote:string};
 type ProvisionEvidence={jurisdiction:string;scope:string;consultedAt:string;consolidatedThrough?:string;approvedAt?:string};
 type Rule=VehicleReferenceRule&{id:string;title:string;description:string;citation:string;kind?:string;activity?:'loading'|'parking'|'circulation';evidence?:ProvisionEvidence;actEvidence?:ProvisionEvidence;sourceUrl?:string;page?:number;window?:{start:string;end:string;timezone:string;days:number[]|null;effect:string};vehicleConfigurations?:string[]};
-type Reference={scope?:string;rules?:Rule[];relatedLinks?:Array<{title:string;url:string}>;name:string;status:string;routingEnforced:boolean;source:{id?:string;url:string;checkedAt:string;pages?:number[];legalReview?:string;documentTypeLabel?:string;jurisdictionLabel?:string;publishedAt?:string;consolidatedThrough?:string}|null;trunkSegments:Road[];timeRules:TimeRule[];notices:string[]};
+type Reference={scope?:string;rules?:Rule[];parkingCorridorReference?:ParkingCorridorReference;relatedLinks?:Array<{title:string;url:string}>;name:string;status:string;routingEnforced:boolean;source:{id?:string;url:string;checkedAt:string;pages?:number[];legalReview?:string;documentTypeLabel?:string;jurisdictionLabel?:string;publishedAt?:string;consolidatedThrough?:string}|null;trunkSegments:Road[];timeRules:TimeRule[];notices:string[]};
 const documentDate=(value:string)=>value.split('-').reverse().join('/');
 export default function MunicipalCoverage({ requestedMunicipality, vehicle }: { requestedMunicipality?: { id: string; request: number }; vehicle?: ReviewVehicle }){
  const heading=useRef<HTMLHeadingElement>(null);
@@ -73,6 +75,7 @@ export default function MunicipalCoverage({ requestedMunicipality, vehicle }: { 
      <p className="hint">{rule.citation} · {rule.kind==='planning_proposal'?'no se aplica al cálculo':'aplicación automática pendiente'}</p>
      {rule.page&&reference.source&&<a href={`${rule.sourceUrl||reference.source.url}#page=${rule.page}`} target="_blank" rel="noreferrer">Consultar página {rule.page} ↗</a>}
     </article>;})}</div>}
+    {reference.parkingCorridorReference&&<MunicipalParkingCorridors reference={reference.parkingCorridorReference}/>}
     {!!reference.trunkSegments.length&&<><label>Buscar vialidad o tramo<input type="search" value={roadSearch} onChange={event=>setRoadSearch(event.target.value)} placeholder="Nombre de calle, avenida o tramo"/></label>
      <details><summary>{reference.trunkSegments.length} {reference.source?.id==='monterrey-transito'?'tramos de red troncal · Anexo 1':'vialidades citadas en la fuente'}</summary><div className="municipal-table"><table><thead><tr><th>Vialidad</th><th>Tramo y sentido de la fuente</th></tr></thead><tbody>{reference.trunkSegments.filter(matches).map((row,index)=><tr key={index}><td>{row.road}</td><td>{row.segment} <a href={`${reference.source?.url}#page=${row.page}`} target="_blank" rel="noreferrer">Pág. {row.page} ↗</a></td></tr>)}</tbody></table></div></details>
      {!!reference.timeRules.length&&<details><summary>{reference.timeRules.length} registros de horarios · Anexos 2 y 3</summary><div className="municipal-time-rules">{reference.timeRules.filter(matches).map((rule,index)=><article key={index}><strong>{rule.road} · {rule.start}–{rule.end}</strong><p>{rule.days.includes(1)?'Lunes a viernes':'Sábado y domingo'} · hora de Monterrey</p><p>{rule.segment}</p><p className="hint">{rule.interpretationNote}</p><a href={`${reference.source?.url}#page=${rule.page}`} target="_blank" rel="noreferrer">Fuente, pág. {rule.page} ↗</a></article>)}</div></details>}
