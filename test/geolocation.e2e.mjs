@@ -275,6 +275,70 @@ test('mobile manifest preserves repeated deliveries and makes coincident points 
   } finally { await context.close(); }
 });
 
+test('mobile manifest uses central-map branches for the correct row and clears closed previews', {timeout:60000}, async()=>{
+  const {context,page}=await setup(()=>{});page.setDefaultTimeout(15000);
+  const origin={label:'Origen de prueba',lat:25.68,lng:-100.31};
+  const north={label:'Express Norte seleccionado',lat:25.6812,lng:-100.3112,kind:'venue',numberMatch:'missing',requestedHouseNumber:'123'};
+  const south={label:'Express Sur seleccionado',lat:25.6822,lng:-100.3122};
+  const queries=[];
+  try{
+    await page.route('**/api/route-planner/**',route=>{
+      const url=new URL(route.request().url()),q=url.searchParams.get('q');
+      if(q?.includes('Express'))queries.push(url);
+      return route.fulfill({json:{ok:true,suggestions:q==='Origen de prueba'?[origin]:q?.includes('Norte')?[{label:'Otra sucursal',lat:25.69,lng:-100.32},north]:[south]}});
+    });
+    await page.goto(base);await page.getByRole('combobox',{name:'Origen',exact:true}).fill('Origen de prueba');
+    await page.getByRole('listbox',{name:'Sugerencias para Origen',exact:true}).getByRole('option').click();
+    await page.getByRole('button',{name:'Confirmar punto',exact:true}).click();
+    await page.getByRole('button',{name:'Escanear o pegar manifiesto'}).click();
+    await page.getByRole('textbox',{name:'Texto del manifiesto'}).fill('Express Norte\nExpress Sur');
+    await page.getByRole('button',{name:'Preparar direcciones para revisar'}).click();
+    await page.getByRole('button',{name:'S2',exact:true}).click();
+    await page.getByRole('button',{name:'Cerrar manifiesto',exact:false}).click();
+    assert.equal(await page.locator('.map-candidate-confirm').count(),0);
+    assert.equal(await page.getByRole('button',{name:'S2',exact:true}).count(),0);
+    await page.getByRole('button',{name:'Escanear o pegar manifiesto'}).click();
+    await page.getByRole('button',{name:'S2',exact:true}).click();
+    await page.getByText(/No se encontró el número 123/).waitFor();
+    await page.getByText(/El proveedor no informa la calle de esta sucursal/).waitFor();
+    await page.getByRole('button',{name:'Usar como Entrega 1 del manifiesto',exact:true}).click();
+    assert.equal(await page.getByRole('combobox',{name:'Destino',exact:true}).inputValue(),'');
+    assert.equal(await page.getByRole('combobox',{name:'PARADA 1',exact:true}).count(),0);
+    await page.getByRole('button',{name:'S1',exact:true}).click();
+    await page.getByRole('button',{name:'Usar como Entrega 2 del manifiesto',exact:true}).click();
+    await page.getByRole('button',{name:'Añadir 2 entregas confirmadas',exact:true}).click();
+    assert.equal(await page.getByRole('combobox',{name:'PARADA 1',exact:true}).inputValue(),north.label);
+    assert.equal(await page.getByRole('combobox',{name:'Destino',exact:true}).inputValue(),south.label);
+    const href=new URL(await page.getByRole('link',{name:/Abrir puntos en Google Maps/}).getAttribute('href'));
+    assert.equal(href.searchParams.get('waypoints'),`${north.lat}, ${north.lng}`);
+    assert.equal(href.searchParams.get('destination'),`${south.lat}, ${south.lng}`);
+    assert.ok(queries.length>=2);assert.ok(queries.every(q=>q.searchParams.get('lat')===String(origin.lat)&&q.searchParams.get('lng')===String(origin.lng)));
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+  }finally{await context.close();}
+});
+
+test('manifest map review preserves a calculated route and stops active GPS without a new calculation',{timeout:60000},async()=>{
+  const {context,page,calculations}=await navigationSetup(15000);
+  try{
+    await page.getByRole('checkbox',{name:/Revisé los accesos y permisos/}).check();
+    await page.getByRole('button',{name:'Iniciar navegación en la app',exact:true}).click();
+    const before=await page.locator('.metrics').innerText();
+    await page.route('**/v1/locations/suggest?*',route=>route.fulfill({json:{ok:true,suggestions:[{label:'Entrega de revisión',lat:25.001,lng:-99.998}]}}));
+    await page.getByRole('button',{name:'Escanear o pegar manifiesto'}).click();
+    await page.getByRole('textbox',{name:'Texto del manifiesto'}).fill('Entrega de revisión');
+    await page.getByRole('button',{name:'Preparar direcciones para revisar'}).click();
+    await page.getByRole('button',{name:'S1',exact:true}).click();
+    await page.getByRole('button',{name:'Usar como Entrega 1 del manifiesto',exact:true}).click();
+    assert.equal(await page.locator('.metrics').innerText(),before);assert.equal(calculations(),1);
+    assert.deepEqual(await page.evaluate(()=>window.__gps.cleared),[1]);
+    assert.equal(await page.getByRole('combobox',{name:'Destino',exact:true}).inputValue(),'Destino de prueba');
+    await page.getByRole('button',{name:'Cerrar manifiesto',exact:false}).click();
+    assert.equal(await page.locator('.metrics').innerText(),before);assert.equal(calculations(),1);
+    assert.equal(await page.getByRole('button',{name:'Iniciar navegación en la app',exact:true}).count(),1);
+    assert.equal(await page.evaluate(()=>window.__gps.started),1,'closing review never restarts GPS automatically');
+  }finally{await context.close();}
+});
+
 test('mobile numbered-address search exposes a street fallback without claiming an exact house', async () => {
   const { context, page } = await setup(() => {});
   try {
