@@ -419,3 +419,18 @@ permite filtrar calle/cruce y polígono sin fusionar registros. El importador se
 detiene si cambia el hash del PDF oficial. Evidencia y reproducción en
 [PUEBLA-PARKING-CORRIDORS.md](PUEBLA-PARKING-CORRIDORS.md). Permanecen 15 municipios
 con referencia parcial y cero con validación legal automática completa.
+
+
+## Publicación y precisión de la consulta · 16-11-2026
+
+API PR #19 (241b966) y Web PR #23/#24 (final 6c6be58) publicaron la consulta
+de los 128 registros del anexo. En producción se verificaron búsqueda por
+cruces, duplicados, ausencia de resultados y recuperación del total. «29 A
+Norte» selecciona sólo el registro 124, con páginas 87/88: números y sufijos
+no coinciden dentro de otro número o palabra. No cambian los datos oficiales.
+
+CI final: 70 pruebas API y RLS en Postgres desechable; 121 pruebas Web, 29
+casos de navegador y tres flujos Auth locales, aprobados. Producción pública
+y fixtures se documentan por separado en ENGINEERING-STATUS.md, junto con
+alias y rollback. Siguen 15 municipios parciales, cero con validación legal
+completa y ninguna geometría municipal nueva aplicada a Directions.

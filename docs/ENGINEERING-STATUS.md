@@ -1,14 +1,15 @@
 # Route Planner — estado de ingeniería
 
-Fecha de revisión: 2026-11-15. Alcance: exclusivamente Route Planner.
+Fecha de revisión: 2026-11-16. Alcance: exclusivamente Route Planner.
 
-Estado vigente: se conserva la corroboración del manifiesto en el mapa central.
-Puebla añade siete disposiciones parciales, separando circulación, maniobras y
-estacionamiento, con ámbito, fuente y fecha por ficha. La capacidad inclusiva se
-compara sólo cuando el texto la declara. Web publicada b0cab98; API 7510d45.
+Estado vigente: la guía permite buscar los 128 registros citados del anexo de
+estacionamiento de Puebla por calle, cruce y polígono, con horarios y páginas.
+Se conservaron duplicados, discrepancias y publicación/vigencia pendientes;
+no son geometrías ni permisos para camiones. Se corrigieron accesibilidad y
+coincidencias de números/sufijos. Web publicada 6c6be58; API 241b966.
 Hay 15 municipios con referencias parciales y cero con validación legal completa.
-Resultados, rollback, trabajo en revisión y próxima prioridad en el último cierre
-al final. Las entradas anteriores son historial.
+Resultados, commits, rollback y próxima prioridad en el último cierre al final.
+Las entradas anteriores son historial. El programa maestro sigue incompleto.
 
 ## Recursos verificados
 
@@ -1957,3 +1958,132 @@ exclusión sin evidencia suficiente. OJP, fuentes intermitentes y permisos
 individuales siguen pendientes. Continúan ORS autenticado real en producción,
 Android físico, enlaces compartidos con permisos y las demás funciones abiertas
 del programa. **El programa maestro no está terminado.**
+
+
+## Cierre: corredores citados de Puebla y búsqueda precisa · 16-11-2026
+
+### Diagnóstico, evidencia y alcance
+
+Se retomó main Web 42f149f y API 5249294, conservando el nuevo reporte técnico
+de fuentes. Producción seguía en b0cab98/7510d45. La consulta de Puebla mostraba
+las 12 fichas legales parciales, pero no permitía buscar los corredores del
+anexo. Se extrajeron 128 registros del acta C26/11, páginas 80–88, por separado
+de las ventanas de maniobras y las prohibiciones de estacionamiento.
+
+Descarga oficial real repetida el 16-11: HTTP 200, 2,395,402 bytes, SHA-256
+0917dc30ac70594a6e954243800bc5219d7ea3f2bc8017f7ea532b8ec510555c. El JSON se
+reprodujo sin diferencias. La revisión inicial y de las nueve páginas fue del
+15-11 y se conserva esa fecha de consulta. Un archivo controlado con otra huella
+se rechazó con SOURCE_CHANGED antes de producir datos. No se autoaprueban cambios.
+
+Se conservan seis etiquetas de polígono, los duplicados 10/15 y 126/128, la
+discrepancia de numeración 5/6 para San Alejandro y ambas páginas del registro
+124. El Transitorio Primero exige publicación en Gaceta: no se conoce aún la
+fecha efectiva verificada. Horarios de operación no son ventanas de descarga,
+ni «No aplica» equivale a permiso. No hay sentidos/geometrías viales validados.
+Siguen 15 municipios parciales y cero con validación legal completa.
+
+La Web consulta bajo demanda, filtra por calle/cruce y polígono, muestra número
+original, horarios, alcance y enlace por página. La API omite las celdas crudas
+del payload pero mantiene esa evidencia versionada. El campo opcional preserva
+compatibilidad con las versiones anteriores. No cambia Directions/timeRules.
+
+Durante CI se detectó que el selector heredaba un nombre accesible que incluía
+sus opciones. Se corrigió con aria-label explícito antes de publicar. Después,
+la verificación real detectó que «29 A Norte» coincidía con «29 Norte» por la
+A de Alejandro: se exigió palabra completa para números y sufijos de una letra.
+Los nombres restantes conservan búsqueda parcial y acentos normalizados; los
+cruces siguen siendo consultables. Se añadió regresión para A/B y 12/112/129.
+
+Archivos principales API: lib/municipal-regulations.js,
+data/mx/21114-parking-corridors.json, scripts/import-puebla-parking.py y
+test/municipal-regulations.test.js. Web: MunicipalParkingCorridors.tsx,
+MunicipalCoverage.tsx, lib/parking-corridors.ts, globals.css, pruebas de
+parking-corridors y geolocation.e2e. Ambos: PUEBLA-PARKING-CORRIDORS.md,
+PUEBLA-OPERATIONS-REFERENCE.md y MEXICO-COVERAGE.md. Sin dependencias nuevas.
+
+### Pruebas y resultados
+
+API: build y 70 pruebas locales aprobados; auditoría cero vulnerabilidades
+conocidas. CI 43897992427 aprobó código 1b97114, 70 pruebas, migraciones y RLS
+en Postgres desechable. El commit posterior ceaab4c sólo documentó la nueva
+descarga; no cambió código. La lista de runs por SHA aparecía vacía: se localizó
+el run real en Actions y se confirmaron sus jobs/logs. No se sustituyó esa
+comprobación por un estado supuesto.
+
+Web: primer CI 43897438763 aprobó Auth local pero detectó el selector; no se
+publicó esa versión defectuosa. e98f4e6 pasó CI 43898376913 con 120 pruebas,
+29 casos de navegador y tres flujos con Auth/REST locales reales. El ajuste
+posterior de búsqueda pasó localmente 121 pruebas, typecheck y build.
+CI final 43899967824 sobre 007b330: 121 pruebas, 29 casos de navegador,
+tres flujos Auth locales y auditoría sin vulnerabilidades, todos aprobados.
+El caso ampliado incluye una calle similar y exige sólo el registro 124 para
+«29 A Norte». Se publicaron únicamente versiones con CI funcional aprobado.
+
+Los casos de interfaz prueban 390×844 y 1280×900 con respuestas controladas.
+Auth usa una instancia local desechable y API fijada en 27e8082; los proveedores
+y GPS de integración no son una ruta ORS autenticada de producción ni sensores
+de Android físico. No se presenta esa prueba como verificación de navegación
+real. Supabase alojado respondió ACTIVE_HEALTHY y seis tablas públicas con RLS;
+no se cambiaron esquema, políticas ni datos alojados.
+
+Comprobación pública en navegador, sin respuestas inyectadas: 128 registros
+iniciales; consulta por cruce preservó 125/126/128 (incluidas las dos repeticiones).
+Tras publicar el ajuste, «29 A Norte» y polígono 5 devolvieron únicamente 124,
+con enlaces exactos a páginas 87 y 88. Se comprobó el estado sin coincidencias y
+la recuperación de los 128 al limpiar filtros. Sin desbordamiento horizontal en
+escritorio. Se guardó captura y pestaña de evidencia; no se crearon datos de
+usuario ni se ejecutó un cálculo alojado. El Android físico sigue pendiente.
+
+Sondas públicas: salud, coordenadas, Plus Code completo/compuesto y ocho
+coincidencias Express próximas HTTP 200. Validación de dos puntos y 48 entregas
+200; 49 entregas 400; cálculo sin sesión 401 AUTH_REQUIRED. Validar no equivale
+a calcular. Dos sondas iniciales tuvieron timeout de lectura; al repetirlas
+respondieron correctamente. No se atribuye ese timeout aislado a un defecto
+del servicio sin evidencia. CORS autorizado 204 con origen Web; origen ajeno
+404 sin cabecera de autorización. API pública: 128 registros, duplicados y
+páginas 87/88 conservados, ninguna celda cruda expuesta, geometrías nulas,
+timeRules vacío, catálogo 15 parciales/0 completas.
+
+Logs Web/API: ninguna agrupación error/fatal en los 30 minutos finales
+consultados; esto no garantiza ausencia permanente de fallos. El endpoint de
+fuentes devolvió HTTP 200, siete fuentes y evidencia del 16-11-2026 07:02:16 UTC,
+sin marca de antigüedad; es seguimiento técnico, no revisión legal.
+
+### Publicación y recuperación
+
+API PR #19: https://github.com/FernandoBalsimelli/Route-Planner-API/pull/19.
+Commit publicado 241b96686cd6e63f78f668de2c2fb806f0124505, deployment
+dpl_8HxcehAAZHLwsHTwKBbPMLzmtBAJ, READY, alias comprobado:
+https://route-planner-api.vercel.app/.
+Web PR #23: https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/23,
+primera versión 9899a1d8a6e7aa884b34bb5ca0d92207ac6cb2ae, deployment
+dpl_7Nw3FKdiwNHgMkzBucKPnXmeNxwY.
+Web final PR #24: https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/24.
+Commit 6c6be580881f958bdde2eb34d164329e07675836, deployment
+dpl_DYpnRq1tErfEETKeFGUM28TJpnZA. READY y alias verificado con ese commit:
+https://route-planner-web-sand.vercel.app/.
+
+Rollback a la entrada del ciclo: Web dpl_DFZkDGST4Soa4PhgDt6TcDFbiXQ5
+(b0cab98) y API dpl_HhqaKtVHeyK7JEub8X7fQSEp13mn (7510d45). Se conserva
+también la primera Web de este ciclo. No hay migraciones/datos que revertir;
+no se ejecutó un rollback de producción. El cierre documental posterior en
+main no cambia el código publicado. Historial y ramas de recuperación en GitHub.
+Sólo se modificaron los dos repositorios y proyectos de Route Planner. No se
+accedió ni modificó Gestión u otros proyectos, ni se activaron gastos/servicios.
+
+### Estado y siguiente prioridad
+
+Completado/publicado: extracción trazable del anexo, consulta por calle/cruce,
+filtros, accesibilidad y corrección de sufijos/números. Parcial: cobertura legal,
+vigencia documental y precisión geográfica. Pendiente P1: reconstruir publicación
+y entrada en vigor del acta, actos posteriores de 2026, resolver oficialmente
+5/6 y contrastar sentidos/extremos con geometrías verificadas antes de aplicar
+restricciones. No usar centroides geocodificados como geometría legal.
+
+El PDF ya pertenece al monitor existente de Puebla; no se creó otro servicio.
+Sus cambios técnicos requieren revisión y no alteran normas automáticamente.
+Google Maps no recibe dimensiones HGV ni conserva obligatoriamente el trazado.
+Continúan pendientes ORS autenticado real en producción, Android físico,
+funciones de compartir con permisos y los demás pendientes del programa.
+**El prompt maestro no está terminado; no se declara cobertura nacional completa.**
