@@ -71,3 +71,15 @@ test('each operational reference keeps its own jurisdiction, dates, activity and
  assert.equal(card.querySelector('.vehicle-reference-comparison'),null,'an unspecified tonnage never compares against gross weight or capacity');
  assert.equal(container.querySelector('h3').textContent,'Puebla');
 });
+
+test('dated acts show approval separately from consolidation and inclusive matching never becomes a permit',async()=>{
+ const source=reference('21114','Puebla','puebla-carga');
+ source.rules=[{id:'loading',title:'Ventana de prueba con permiso',activity:'loading',description:'Requiere permiso previo y revisión del corredor.',citation:'Acto sintético',sourceUrl:'https://official.gob.mx/act.pdf',page:70,evidence:{jurisdiction:'Municipio de Puebla',scope:'Corredores del programa',consultedAt:'2026-11-15',approvedAt:'2025-08-14'},vehicleConditions:{payloadCapacityT:{lte:3.5}},window:{start:'08:00',end:'20:59',timezone:'America/Mexico_City',days:null}}];
+ globalThis.fetch=async url=>url.includes('?')?catalog():url.endsWith('/source-status')?Response.json({sources:[],intervalHours:6}):Response.json(source);
+ await render({id:'21114',request:1});
+ await act(async()=>root.render(React.createElement(Coverage,{requestedMunicipality:{id:'21114',request:1},vehicle:{grossWeightT:40,payloadCapacityT:3.5}})));
+ const card=container.querySelector('.municipal-time-rules article');
+ assert.match(card.textContent,/14\/08\/2025 · publicación y vigencia posterior por comprobar/);assert.doesNotMatch(card.textContent,/Consolidación indicada/);
+ assert.match(card.textContent,/hasta 3.5 t · coincide sólo este dato/);assert.match(card.textContent,/08:00–20:59 · America\/Mexico_City · días y excepciones por comprobar/);
+ assert.match(container.textContent,/Coincidir con un dato no autoriza la circulación/);assert.equal(card.querySelector('a').href,'https://official.gob.mx/act.pdf#page=70');
+});

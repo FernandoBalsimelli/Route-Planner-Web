@@ -1,7 +1,7 @@
 import { VEHICLE_CONFIGURATIONS, type VehicleOperatingInput } from './vehicle-operating';
 export type ReviewVehicle = VehicleOperatingInput & { heightM?: number; widthM?: number; lengthM?: number; grossWeightT?: number; axleWeightT?: number };
 export type VehicleReferenceRule = {
-  vehicleConditions?: { payloadCapacityT?: { lt?: number; gt?: number } };
+  vehicleConditions?: { payloadCapacityT?: { lt?: number; lte?: number; gt?: number } };
   vehicleConfigurations?: string[];
   limits?: Record<string, number>;
   lengthWithoutSpecialAuthorizationM?: number;
@@ -38,11 +38,16 @@ export function compareVehicleRule(rule: VehicleReferenceRule, vehicle?: ReviewV
   vehicle = reviewedVehicle(vehicle);
   const checks: VehicleComparison[] = [];
   const condition = rule.vehicleConditions?.payloadCapacityT;
-  if (condition && (typeof condition.lt === 'number' || typeof condition.gt === 'number')) {
-    const limit = condition.lt ?? condition.gt!;
-    if (!Number.isFinite(limit) || limit <= 0 || (condition.lt !== undefined && condition.gt !== undefined)) return { checks, note: 'Comparador de la fuente pendiente de revisión.' };
+  if (condition) {
+    const operators = (['lt', 'lte', 'gt'] as const).filter(key => condition[key] !== undefined);
+    if (operators.length !== 1) return { checks, note: 'Comparador de la fuente pendiente de revisión.' };
+    const operator = operators[0];
+    const limit = condition[operator]!;
+    if (!Number.isFinite(limit) || limit <= 0) return { checks, note: 'Comparador de la fuente pendiente de revisión.' };
     const value = capacity(vehicle?.payloadCapacityT);
-    checks.push({ label: 'Capacidad de carga', value, unit: 't', reference: `${condition.lt !== undefined ? 'menor' : 'mayor'} que ${limit} t`, result: value === undefined ? 'unknown' : value === limit ? 'boundary' : (condition.lt !== undefined ? value < limit : value > limit) ? 'matches' : 'differs' });
+    const reference = operator === 'lte' ? `hasta ${limit} t` : `${operator === 'lt' ? 'menor' : 'mayor'} que ${limit} t`;
+    const matches = value !== undefined && (operator === 'lt' ? value < limit : operator === 'lte' ? value <= limit : value > limit);
+    checks.push({ label: 'Capacidad de carga', value, unit: 't', reference, result: value === undefined ? 'unknown' : value === limit && operator !== 'lte' ? 'boundary' : matches ? 'matches' : 'differs' });
   }
   if (rule.limits) {
     if (rule.vehicleConfigurations?.length && !rule.vehicleConfigurations.includes(vehicle?.configuration || '')) return {
