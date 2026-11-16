@@ -13,7 +13,14 @@ export type ParkingCorridorReference = {
 const normalized = (value: string) => value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 export function filterParkingCorridors(rows: ParkingCorridor[], query: string, polygon: string): ParkingCorridor[] {
   const terms = normalized(query).split(/\s+/).filter(Boolean);
-  return rows.filter(row => (!polygon || row.polygon === polygon) && terms.every(term => normalized(`${row.polygon} ${row.corridor} ${row.betweenStreets}`).includes(term)));
+  return rows.filter(row => {
+    if (polygon && row.polygon !== polygon) return false;
+    const text = normalized(`${row.polygon} ${row.corridor} ${row.betweenStreets}`);
+    const words = new Set(text.split(' '));
+    // Street numbers and one-letter suffixes must be complete words: 29 A
+    // must not match 129 or the A inside the polygon name Alejandro.
+    return terms.every(term => term.length === 1 || /^\d+$/.test(term) ? words.has(term) : text.includes(term));
+  });
 }
 export function citedParkingHours(schedule: ParkingSchedule): string {
   if (schedule.status === 'not_applicable_in_source') return '«No aplica» en el anexo';
