@@ -24,14 +24,17 @@ export default function ManifestImport({ apiUrl, reference, remaining, hasDestin
   const [forceOcr, setForceOcr] = useState(false);
   const scan = useRef<AbortController | null>(null);
   const candidateNodes = useRef(new Map<string, HTMLDivElement>());
-  const [reviewRequest, setReviewRequest] = useState<{ id: string } | null>(null);
+  const [reviewRequest, setReviewRequest] = useState<{ id: string; finish?: boolean } | null>(null);
+  const importButton = useRef<HTMLButtonElement>(null);
   const mapRequest = useRef<ManifestMapSearch | null>(null);
   const mapCallback = useRef(onMapSearch); mapCallback.current = onMapSearch;
   const activeCandidate = candidates.find(row => row.id === activeId);
   function clearMap() { mapRequest.current = null; mapCallback.current?.(null); }
-  function confirmCandidate(id: string, point: LocationSelection) {
+  function confirmCandidate(id: string, point: LocationSelection, fromMap = false) {
     setCandidates(rows => rows.map(row => row.id === id ? { ...row, value: point.label, selected: point } : row));
-    setActiveId(candidates.find(row => row.id !== id && row.enabled && !row.selected)?.id || id);
+    const next = candidates.find(row => row.id !== id && row.enabled && !row.selected);
+    setActiveId(next?.id || id);
+    if (fromMap && !next) setReviewRequest({ id, finish: true });
     clearMap();
   }
   useEffect(() => {
@@ -41,7 +44,7 @@ export default function ManifestImport({ apiUrl, reference, remaining, hasDestin
   useEffect(() => {
     if (!mapSelection) return;
     const point = manifestMapPoint(mapRequest.current, mapSelection, candidates, activeId, open && active);
-    if (point) confirmCandidate(activeId, point);
+    if (point) confirmCandidate(activeId, point, true);
   }, [mapSelection]);
   useEffect(() => {
     if (open && active) candidateNodes.current.get(activeId)?.querySelector<HTMLInputElement>('input[role="combobox"]')?.focus({ preventScroll: true });
@@ -50,8 +53,9 @@ export default function ManifestImport({ apiUrl, reference, remaining, hasDestin
   useEffect(() => {
     if (!reviewRequest) return;
     const input = candidateNodes.current.get(reviewRequest.id)?.querySelector<HTMLInputElement>('input[role="combobox"]');
-    input?.focus({ preventScroll: true });
-    input?.scrollIntoView?.({ block: 'center', behavior: 'instant' });
+    const target = reviewRequest.finish && importButton.current && !importButton.current.disabled ? importButton.current : input;
+    target?.focus({ preventScroll: true });
+    target?.scrollIntoView?.({ block: 'center', behavior: 'instant' });
   }, [reviewRequest]);
   const selected = candidates.filter(candidate => candidate.enabled);
   const points = selected.flatMap(candidate => candidate.selected && candidate.selected.label === candidate.value ? [candidate.selected] : []);
@@ -91,7 +95,7 @@ export default function ManifestImport({ apiUrl, reference, remaining, hasDestin
     } catch (error) { if (!controller.signal.aborted && scan.current === controller) setMessage(error instanceof Error ? error.message : 'No se pudo leer el documento. Puedes pegar el texto.'); }
     finally { if (scan.current === controller) setBusy(false); }
   }
-  return <div className="manifest-import"><button type="button" className="manifest-toggle" aria-expanded={open} onClick={() => { if (open) { scan.current?.abort(); setBusy(false); setPdfFile(null); } setOpen(value => !value); }}>▣ {open ? 'Cerrar manifiesto' : 'Escanear o pegar manifiesto'}</button>
+  return <div className="manifest-import"><button type="button" className="manifest-toggle" aria-expanded={open} onClick={() => { if (open) { clearMap(); scan.current?.abort(); setBusy(false); setPdfFile(null); } setOpen(value => !value); }}>▣ {open ? 'Cerrar manifiesto' : 'Escanear o pegar manifiesto'}</button>
     {open && <div className="manifest-body"><h3>Del manifiesto a tus entregas</h3><p>1. Lee una foto, un PDF o pega el texto. 2. Revisa las direcciones. 3. Confirma cada sucursal antes de añadirla.</p>{onMapSearch && <p className="hint">Las sugerencias de la entrega activa también aparecen en el mapa central. Elige su marcador y confirma; las entregas se añaden al recorrido sólo al terminar la revisión.</p>}
       <div className="manifest-document-choices"><label className="manifest-file manifest-photo-file">Elegir foto o tomar una foto<input type="file" accept="image/jpeg,image/png,image/webp,image/bmp" disabled={busy} onChange={event => { void readDocument(event.target.files?.[0]); event.target.value = ''; }}/></label><label className="manifest-file manifest-pdf-file">Elegir PDF<input type="file" accept="application/pdf,.pdf" disabled={busy} onChange={event => { void readDocument(event.target.files?.[0]); event.target.value = ''; }}/></label></div>
       {pdfFile && <details className="manifest-pdf-options"><summary>Páginas del PDF</summary><p>Hasta 10 páginas por lectura y 20 MB. Deja la última página vacía para leer hasta el final. Para un documento largo, selecciona un rango y prepara un recorrido por sección.</p><div className="manifest-page-range"><label>Primera página<input type="number" min="1" step="1" value={firstPage} disabled={busy} onChange={event => setFirstPage(event.target.value)}/></label><label>Última página (opcional)<input type="number" min="1" step="1" value={lastPage} disabled={busy} onChange={event => setLastPage(event.target.value)}/></label></div><label className="manifest-include"><input type="checkbox" checked={forceOcr} disabled={busy} onChange={event => setForceOcr(event.target.checked)}/>Usar OCR en todas las páginas seleccionadas</label><button type="button" disabled={busy} onClick={() => void readDocument(pdfFile)}>Volver a leer el PDF</button></details>}
@@ -112,7 +116,7 @@ export default function ManifestImport({ apiUrl, reference, remaining, hasDestin
         {nearbyPairs.length > 0 && <div className="manifest-review-notice" role="status" aria-label="Puntos cercanos entre entregas"><strong>Revisa estos puntos confirmados</strong><p>Están a 10 m o menos en línea recta. No significa que sean la misma sucursal ni un error; comprueba que cada pedido corresponda al acceso elegido. No eliminamos ninguna entrega.</p><ul>{nearbyPairs.slice(0, 6).map(pair => <li key={`${pair.first}-${pair.second}`}>Entregas {pair.first} y {pair.second}: {pair.distanceMeters < 1 ? 'puntos prácticamente coincidentes' : `${Math.ceil(pair.distanceMeters)} m entre puntos`}. <button type="button" className="map-open-button" onClick={() => { const id = candidates[pair.second - 1].id; setActiveId(id); setReviewRequest({ id }); }}>Revisar entrega {pair.second}</button></li>)}</ul>{nearbyPairs.length > 6 && <p>Hay {nearbyPairs.length - 6} pares cercanos adicionales. Revisa también las demás entregas confirmadas.</p>}</div>}
         <p role="status">{points.length} de {selected.length} entregas confirmadas. Espacio para {capacity} entregas en este recorrido.</p>
         {selected.length > capacity && <p className="location-search-error">Excluye entregas para respetar el máximo de {MAX_INTERMEDIATE_STOPS} paradas intermedias y un destino.</p>}
-        <button type="button" className="primary-button" disabled={!points.length || points.length !== selected.length || points.length > capacity} onClick={() => { onImport(points, useLast); setCandidates([]); setText(''); setPdfFile(null); setOpen(false); }}>Añadir {points.length} entregas confirmadas</button>
+        <button type="button" ref={importButton} className="primary-button" disabled={!points.length || points.length !== selected.length || points.length > capacity} onClick={() => { onImport(points, useLast); setCandidates([]); setText(''); setPdfFile(null); setOpen(false); }}>Añadir {points.length} entregas confirmadas</button>
       </>}
     </div>}
   </div>;

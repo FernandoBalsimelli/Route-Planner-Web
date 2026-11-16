@@ -6,7 +6,8 @@ Las sugerencias de la entrega activa aparecen como S1, S2… en el mismo mapa de
 planificador, conservando el orden del buscador y su referencia de proximidad.
 El operador abre un marcador, consulta dirección/distancia y avisos de número
 aproximado o acceso de descarga, y pulsa «Usar como Entrega N del manifiesto».
-Se confirma esa fila y se avanza a la siguiente. Se mantiene la selección desde
+Se confirma esa fila y se avanza a la siguiente. Tras la última, el foco vuelve
+al botón de importación para no recorrer otra vez una lista larga. Se mantiene la selección desde
 la lista y el selector de punto individual existentes.
 
 Los puntos siguen en revisión: no cambian origen, destino ni paradas hasta

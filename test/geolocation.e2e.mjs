@@ -295,6 +295,7 @@ test('mobile manifest uses central-map branches for the correct row and clears c
     await page.getByRole('button',{name:'Preparar direcciones para revisar'}).click();
     await page.getByRole('button',{name:'S2',exact:true}).click();
     await page.getByRole('button',{name:'Cerrar manifiesto',exact:false}).click();
+    await page.locator('.map-candidate-confirm').waitFor({state:'detached'});
     assert.equal(await page.locator('.map-candidate-confirm').count(),0);
     assert.equal(await page.getByRole('button',{name:'S2',exact:true}).count(),0);
     await page.getByRole('button',{name:'Escanear o pegar manifiesto'}).click();
@@ -306,6 +307,8 @@ test('mobile manifest uses central-map branches for the correct row and clears c
     assert.equal(await page.getByRole('combobox',{name:'PARADA 1',exact:true}).count(),0);
     await page.getByRole('button',{name:'S1',exact:true}).click();
     await page.getByRole('button',{name:'Usar como Entrega 2 del manifiesto',exact:true}).click();
+    await page.waitForFunction(()=>document.activeElement===document.querySelector('.manifest-body .primary-button'),{},{timeout:5000});
+    assert.ok(await page.getByRole('button',{name:'Añadir 2 entregas confirmadas',exact:true}).evaluate(node=>node===document.activeElement),'the last map confirmation returns focus to explicit import');
     await page.getByRole('button',{name:'Añadir 2 entregas confirmadas',exact:true}).click();
     assert.equal(await page.getByRole('combobox',{name:'PARADA 1',exact:true}).inputValue(),north.label);
     assert.equal(await page.getByRole('combobox',{name:'Destino',exact:true}).inputValue(),south.label);
