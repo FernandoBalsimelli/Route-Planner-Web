@@ -2,11 +2,11 @@
 
 Fecha de revisión: 2026-11-16. Alcance: exclusivamente Route Planner.
 
-Estado vigente: la guía permite buscar los 128 registros citados del anexo de
-estacionamiento de Puebla por calle, cruce y polígono, con horarios y páginas.
-Se conservaron duplicados, discrepancias y publicación/vigencia pendientes;
-no son geometrías ni permisos para camiones. Se corrigieron accesibilidad y
-coincidencias de números/sufijos. Web publicada 6c6be58; API 241b966.
+Estado vigente: Puebla añade historial documental seleccionado de RES. 2025/148
+y 162 con publicación histórica, fecha de sanciones sustituida y fuentes propias.
+Se distingue de vigencia actual y publicación íntegra de reglas/anexo, que siguen
+pendientes. Se conservan los 128 registros y filtros. Web publicada b0fdba8;
+API b21e389. Monitor técnico actualizado, sin aprobación automática de normas.
 Hay 15 municipios con referencias parciales y cero con validación legal completa.
 Resultados, commits, rollback y próxima prioridad en el último cierre al final.
 Las entradas anteriores son historial. El programa maestro sigue incompleto.
@@ -2087,3 +2087,124 @@ Google Maps no recibe dimensiones HGV ni conserva obligatoriamente el trazado.
 Continúan pendientes ORS autenticado real en producción, Android físico,
 funciones de compartir con permisos y los demás pendientes del programa.
 **El prompt maestro no está terminado; no se declara cobertura nacional completa.**
+
+
+## Cierre: publicación histórica y cambios de sanciones en Puebla · 16-11-2026
+
+### Diagnóstico y cambio implementado
+
+Se revisó main Web 716cf90 y API 241b966, con producción 6c6be58/241b966. Los informes mantenían pendiente la cadena de publicación
+del estacionamiento rotativo. Las sondas públicas de búsqueda, confirmación y
+validación respondieron correctamente; no se reprodujo un nuevo P0 de red.
+
+Se descargaron realmente cuatro páginas de Gaceta municipal, todas HTTP 200:
+RES. 2025/148 y Tomo LXXXIII núm. 1, y RES. 2025/162 y Tomo LXXXIV núm. 1.
+La primera reforma se aprobó/publicó el 14-08-2025; el considerando X de la
+segunda corrobora la publicación en esa fecha. La segunda se aprobó/publicó el
+18-09-2025. No se usaron fechas del buscador, creación técnica de PDF ni firma
+del dictamen en comisión como sustitutos de la aprobación/publicación.
+
+La fecha inicialmente citada de sanciones del Polígono 5 San Alejandro–Ortopedia
+era 01-10-2025; RES. 2025/162 la cambió a 01-11-2025. La aplicación muestra la
+primera como sustituida y la segunda como fecha histórica modificada, sin
+declarar vigencia actual o permiso de circulación/descarga. No se extienden esas
+fechas a los demás polígonos o a todo Puebla. No se interpreta una fecha de
+sanciones como horario diario ni se resuelve por analogía la discrepancia 5/6.
+
+El hallazgo sólo corrobora publicación de la reforma RES. 2025/148. La
+publicación íntegra de todas las reglas/anexo y la vigencia de cada disposición
+siguen pendientes. Se mantuvo intacto el snapshot reproducible del PDF, incluido
+source.entryIntoForce.publicationDate=null; publicationReview conserva la
+evidencia nueva por separado. No se asignó al texto íntegro la fecha de otra
+resolución. Continúan 128 registros, 15 municipios parciales y cero con validación
+legal completa; no hay geometrías, timeRules o exclusiones nuevas de Directions.
+
+API añade data/mx/21114-parking-publications.json, el campo opcional de revisión,
+pruebas y cuatro URL al monitor existente de Puebla. Cada fuente conserva
+tamaño, SHA-256, fecha y apartados seleccionados. Las huellas de HTML pueden
+variar por elementos del sitio y no prueban una reforma. La Web añade
+MunicipalPublicationHistory.tsx, tipo opcional en parking-corridors, presentación
+en MunicipalParkingCorridors, CSS, pruebas de componente/navegador y fixture.
+API modifica además lib/municipal-regulations.js, test/municipal-regulations.test.js
+y data/mx/national-references.json. Web modifica lib/parking-corridors.ts,
+app/globals.css, test/parking-corridors.test.mjs y test/geolocation.e2e.mjs,
+y añade test/fixtures/parking-publications.mjs. Ambos repositorios incluyen PUEBLA-PUBLICATION-HISTORY.md y actualizan los
+documentos de anexo y cobertura nacional. No hay dependencias o servicios nuevos.
+
+### Pruebas, producción y límites
+
+Locales: build y 71 pruebas API; TypeScript, build y 122 pruebas Web, auditorías
+sin vulnerabilidades conocidas. CI API 43936692406 sobre 899a3e7 aprobó 71 pruebas,
+migraciones y aislamiento RLS en Postgres desechable, más build/auditoría.
+CI Web 43936697921 sobre 0a443bc aprobó 122 pruebas, 30 casos de navegador,
+tres flujos Auth/REST locales y auditoría sin vulnerabilidades conocidas.
+
+Las pruebas de navegador usan respuestas controladas en 390×844 y 1280×900.
+Auth local usa backend fijado en 27e8082, sesiones reales desechables y proveedores
+controlados. No son cálculos ORS autenticados de producción ni navegación física
+Android. Supabase alojado se inspeccionó sólo en lectura: ACTIVE_HEALTHY y seis
+tablas públicas con RLS; no se cambió esquema, política o dato alojado.
+
+La API pública respondió 200 con partial_history, publicación de la reforma
+14-08-2025, dos resoluciones, cuatro fuentes y las dos fechas de sanciones con
+sus estados. Conserva 128 registros, publicación íntegra desconocida y timeRules
+vacío. Con la API nueva se probó Web anterior 6c6be58 en navegador sin recargar
+código: el anexo conservó un único resultado para 29 A Norte y sin desbordar.
+Comprobación final con Web nueva y datos públicos reales, sin respuestas
+inyectadas: historial con dos resoluciones, fechas de aprobación/publicación,
+01-10-2025 marcada sustituida y 01-11-2025 marcada como fecha modificada,
+cuatro enlaces exactos a resoluciones/tomos y ámbito sólo Polígono 5. Se
+conservaron el aviso de publicación íntegra/vigencia pendiente y la consulta
+de un único registro 124 para 29 A Norte, sin desbordamiento horizontal en
+escritorio. Se capturó evidencia visual y se dejó la pestaña de consulta.
+No se crearon usuarios, vehículos o rutas en la base alojada.
+
+Sondas finales de producción: salud, coordenadas, Plus Codes completo/compuesto
+y ocho coincidencias Express cercanas HTTP 200. Validación de dos puntos y
+48 entregas 200, 49 entregas 400; plan sin sesión 401 AUTH_REQUIRED. Son
+validaciones, no cálculos reales de esos recorridos. CORS Web autorizado 204
+con su origen; origen ajeno 404 sin cabecera de autorización. El catálogo
+público conserva 15 referencias parciales y cero validaciones completas.
+El monitor automático guardó 15680f98a9d284678db6ad349767c29a88780b22 con
+comprobación real 16-11-2026 19:12:43 UTC. Puebla conserva nueve documentos;
+las cuatro páginas nuevas se descargaron y quedan unreviewed como evidencia
+técnica, no como aprobación de vigencia. El endpoint público devolvió ese mismo
+reporte, nueve documentos y las cuatro URL nuevas, sin marca de antigüedad.
+No se sobrescribió el reporte automático; la programación existente puede
+demorarse y no actualiza normas automáticamente.
+Logs Web/API finales: sin agrupaciones error/fatal en los 30 minutos
+consultados. Es una comprobación de esa ventana y no una garantía permanente.
+
+### Publicación y recuperación
+
+API PR #20: https://github.com/FernandoBalsimelli/Route-Planner-API/pull/20.
+Commit b21e3890bb47626ddabc847e0f9428807aa16d2e, deployment
+dpl_6VZgRhbt2Xy7XsPBEEop9vn1S3Yi, READY y alias verificado:
+https://route-planner-api.vercel.app/.
+Web PR #25: https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/25.
+Commit b0fdba8f8b45584331aa8a037f878f358edb82bb, deployment
+dpl_J5bcCTDMz13zUxhkw9ahUNrZgFvS, READY y alias verificado:
+https://route-planner-web-sand.vercel.app/.
+
+Rollback a la entrada del ciclo: Web dpl_DYpnRq1tErfEETKeFGUM28TJpnZA (6c6be58)
+y API dpl_8HxcehAAZHLwsHTwKBbPMLzmtBAJ (241b966). Sin migraciones ni datos que
+revertir; no se ejecutó rollback. El cierre documental posterior de main no
+cambia el código verificado de producción. Historial y ramas en GitHub.
+Sólo se modificaron Route-Planner-Web/API y sus proyectos Vercel autorizados;
+no se modificó Gestión ni otros recursos. No se activaron pagos, servicios,
+variables ni secretos nuevos.
+
+### Estado y próxima prioridad
+
+Completado/publicado: historial documental parcial con fuentes propias y fechas
+sustituidas visibles, compatibilidad y vigilancia de las cuatro páginas. Parcial:
+publicación íntegra y vigencia de reglas/anexo. Pendiente P1: contrastar texto
+publicado completo, actos posteriores de 2026, sentidos/geometrías de corredores
+y resolución oficial de discrepancias antes de aplicar restricciones. La
+búsqueda dirigida no demuestra ausencia de otras reformas. Mantener separado
+estacionamiento, maniobras, circulación y permiso individual.
+
+Google Maps no recibe HGV ni queda obligado a mantener el trazado por puntos
+guía. Continúan pendientes ORS autenticado de producción, Android físico,
+compartición con permisos y los demás requisitos abiertos. El programa maestro
+no está terminado y no se declara cobertura nacional completa.

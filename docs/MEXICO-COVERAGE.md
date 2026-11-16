@@ -450,3 +450,12 @@ del snapshot del PDF y se vigilan las cuatro páginas en el monitor ya existente
 No cambia ninguna geometría, permiso o exclusión de ruteo; continúan 15 municipios
 parciales y cero con validación legal completa. Véase
 [PUEBLA-PUBLICATION-HISTORY.md](PUEBLA-PUBLICATION-HISTORY.md).
+
+
+Publicación del ciclo de historial: API PR #20 (b21e389) y Web PR #25 (b0fdba8),
+ambos READY en producción con alias comprobados. CI: 71 pruebas API/RLS,
+122 pruebas Web, 30 casos de navegador y tres flujos Auth locales aprobados.
+El monitor descargó las cuatro páginas nuevas y el endpoint público reflejó
+el reporte técnico de las 19:12:43 UTC del 16-11-2026. La consulta real mostró
+fechas, ámbitos y fuentes sin respuestas inyectadas. Evidencia, límites y
+rollback en ENGINEERING-STATUS.md. La cobertura legal nacional sigue incompleta.
