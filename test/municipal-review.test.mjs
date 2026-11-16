@@ -74,7 +74,7 @@ test('each operational reference keeps its own jurisdiction, dates, activity and
 
 test('dated acts show approval separately from consolidation and inclusive matching never becomes a permit',async()=>{
  const source=reference('21114','Puebla','puebla-carga');
- source.rules=[{id:'loading',title:'Ventana de prueba con permiso',activity:'loading',description:'Requiere permiso previo y revisión del corredor.',citation:'Acto sintético',sourceUrl:'https://official.gob.mx/act.pdf',page:70,evidence:{jurisdiction:'Municipio de Puebla',scope:'Corredores del programa',consultedAt:'2026-11-15',approvedAt:'2025-08-14'},vehicleConditions:{payloadCapacityT:{lte:3.5}},window:{start:'08:00',end:'20:59',timezone:'America/Mexico_City',days:null}}];
+ source.rules=[{id:'loading',title:'Ventana de prueba con permiso',activity:'loading',description:'Requiere permiso previo y revisión del corredor.',citation:'Acto sintético',sourceUrl:'https://official.gob.mx/act.pdf',page:70,actEvidence:{jurisdiction:'Municipio de Puebla',scope:'Corredores del programa',consultedAt:'2026-11-15',approvedAt:'2025-08-14'},vehicleConditions:{payloadCapacityT:{lte:3.5}},window:{start:'08:00',end:'20:59',timezone:'America/Mexico_City',days:null}}];
  globalThis.fetch=async url=>url.includes('?')?catalog():url.endsWith('/source-status')?Response.json({sources:[],intervalHours:6}):Response.json(source);
  await render({id:'21114',request:1});
  await act(async()=>root.render(React.createElement(Coverage,{requestedMunicipality:{id:'21114',request:1},vehicle:{grossWeightT:40,payloadCapacityT:3.5}})));
