@@ -6,7 +6,7 @@ import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, useMap 
 import 'leaflet/dist/leaflet.css';
 import { TILE_ATTRIBUTION, TILE_URL } from '@/lib/map-config';
 import { decodePolyline } from '@/lib/polyline';
-import type { Coordinates, LocationSelection } from '@/lib/locations';
+import { addressNumberNotice, businessLocationNotice, type Coordinates, type LocationSelection } from '@/lib/locations';
 import { candidateMapPoints } from '@/lib/map-locations';
 
 type Waypoint = { lat: number; lng: number; label?: string; type: string; sequence?: number };
@@ -76,7 +76,7 @@ export default function RouteMap({ polyline, waypoints, planning = false, candid
           <Popup>{point.label || (kind === 'origin' ? 'Origen' : kind === 'destination' ? 'Destino' : `Parada ${index}`)}</Popup>
         </Marker>;
       })}
-      {candidates.map((point, index) => <Marker key={`candidate-${point.lat}-${point.lng}-${index}`} title={`Sugerencia ${index + 1}: ${point.label}`} position={[point.lat, point.lng]} icon={markerIcon(`S${index + 1}`, 'candidate')}><Popup><strong>{point.label}</strong>{point.distanceMeters != null && <p>{(point.distanceMeters / 1000).toFixed(1)} km del origen, en línea recta</p>}{onChooseCandidate && <button type="button" className="map-candidate-confirm" onClick={() => onChooseCandidate(point)}>Usar como {targetTitle || 'punto'}</button>}</Popup></Marker>)}
+      {candidates.map((point, index) => <Marker key={`candidate-${point.lat}-${point.lng}-${index}`} title={`Sugerencia ${index + 1}: ${point.label}`} position={[point.lat, point.lng]} icon={markerIcon(`S${index + 1}`, 'candidate')}><Popup><strong>{point.label}</strong>{point.distanceMeters != null && <p>{(point.distanceMeters / 1000).toFixed(1)} km del origen, en línea recta</p>}{addressNumberNotice(point) && <p>{addressNumberNotice(point)}</p>}{businessLocationNotice(point) && <p>{businessLocationNotice(point)}</p>}{onChooseCandidate && <button type="button" className="map-candidate-confirm" onClick={() => onChooseCandidate(point)}>Usar como {targetTitle || 'punto'}</button>}</Popup></Marker>)}
       <FitRoute points={allPoints} />
       {livePosition && <LivePosition point={livePosition} follow={followPosition}/>}
     </MapContainer>

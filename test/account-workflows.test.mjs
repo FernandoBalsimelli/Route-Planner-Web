@@ -115,6 +115,33 @@ test('manifest retains separate repeated orders and flags coincident confirmatio
   await act(async()=>button('Añadir 2 entregas').click());
   assert.equal(imported.length,2);assert.deepEqual(imported[0],imported[1]);
 });
+test('manifest map batches confirm only the active delivery and retire on edits, exclusions and closing', async () => {
+  let currentSearch,selectOnMap;
+  const suggestions=[{label:'Primera sucursal',lat:25.68,lng:-100.31},{label:'Segunda sucursal',lat:25.69,lng:-100.32}];
+  globalThis.fetch=async()=>Response.json({suggestions});
+  function Harness(){const [mapSelection,setMapSelection]=useState();selectOnMap=setMapSelection;return React.createElement(ManifestImport,{apiUrl:'/api',reference:null,remaining:48,hasDestination:false,onImport(){},onMapSearch:search=>{currentSearch=search;},mapSelection});}
+  await render(React.createElement(Harness));await act(async()=>button('Escanear o pegar').click());
+  const area=container.querySelector('textarea');
+  await act(async()=>{Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype,'value').set.call(area,'Express primera\nExpress segunda');area.dispatchEvent(new window.Event('input',{bubbles:true}));});
+  await act(async()=>button('Preparar direcciones').click());
+  await act(async()=>new Promise(resolve=>setTimeout(resolve,360)));
+  const first=currentSearch;assert.equal(first.title,'Entrega 1 del manifiesto');
+  await act(async()=>selectOnMap({requestId:first.requestId,point:suggestions[1]}));
+  assert.match(container.querySelector('.manifest-candidate').textContent,/Segunda sucursal.*Confirmada/);
+  await act(async()=>new Promise(resolve=>setTimeout(resolve,360)));
+  const second=currentSearch;assert.equal(second.title,'Entrega 2 del manifiesto');
+  await act(async()=>selectOnMap({requestId:first.requestId,point:suggestions[0]}));
+  assert.equal(container.querySelectorAll('.manifest-candidate > p > strong').length,1);
+  await fill(container.querySelector('input[role="combobox"]'),'Consulta corregida');
+  assert.equal(currentSearch,null);
+  await act(async()=>selectOnMap({requestId:second.requestId,point:suggestions[0]}));
+  assert.equal(container.querySelectorAll('.manifest-candidate > p > strong').length,1);
+  await act(async()=>new Promise(resolve=>setTimeout(resolve,360)));
+  assert.ok(currentSearch);
+  await act(async()=>container.querySelectorAll('.manifest-candidate .manifest-include input')[1].click());
+  assert.equal(currentSearch,null);
+  await act(async()=>button('Cerrar manifiesto').click());assert.equal(currentSearch,null);
+});
 test('nearby input forwards the reference and lets the operator disable proximity', async () => {
   const urls = []; globalThis.fetch = async url => { urls.push(new URL(url, window.location.href)); return Response.json({ suggestions: [] }); };
   await render(React.createElement(LocationInput, { title: 'Entrega', color: 'green', value: 'Bodega Aurrera Express', apiUrl: '/api', placeholder: '', mapReference: { lat: 25.68, lng: -100.31 }, onChange() {}, onConfirm() {} }));
