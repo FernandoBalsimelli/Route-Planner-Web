@@ -7,7 +7,7 @@ import { operatingSummary } from '@/lib/vehicle-operating';
 type Municipality={id:string;name:string;state:string;coverage:string;routingEnforced:boolean};
 type Road={road:string;segment:string;page:number;annex:number};
 type TimeRule=Road&{days:number[];start:string;end:string;maximumAxlesExempt:number|null;interpretation:string;interpretationNote:string};
-type Rule=VehicleReferenceRule&{id:string;title:string;description:string;citation:string;kind?:string;sourceUrl?:string;page?:number;window?:{start:string;end:string;timezone:string;days:number[]|null;effect:string};vehicleConfigurations?:string[]};
+type Rule=VehicleReferenceRule&{id:string;title:string;description:string;citation:string;kind?:string;activity?:'loading'|'parking'|'circulation';evidence?:{jurisdiction:string;scope:string;consultedAt:string;consolidatedThrough:string};sourceUrl?:string;page?:number;window?:{start:string;end:string;timezone:string;days:number[]|null;effect:string};vehicleConfigurations?:string[]};
 type Reference={scope?:string;rules?:Rule[];relatedLinks?:Array<{title:string;url:string}>;name:string;status:string;routingEnforced:boolean;source:{id?:string;url:string;checkedAt:string;pages?:number[];legalReview?:string;documentTypeLabel?:string;jurisdictionLabel?:string;publishedAt?:string;consolidatedThrough?:string}|null;trunkSegments:Road[];timeRules:TimeRule[];notices:string[]};
 const documentDate=(value:string)=>value.split('-').reverse().join('/');
 export default function MunicipalCoverage({ requestedMunicipality, vehicle }: { requestedMunicipality?: { id: string; request: number }; vehicle?: ReviewVehicle }){
@@ -58,8 +58,15 @@ export default function MunicipalCoverage({ requestedMunicipality, vehicle }: { 
     {axleCheck && <div className="vehicle-reference-comparison" aria-label="Comparación de ejes con artículo 39"><p data-comparison={axleCheck.result}>{comparisonText(axleCheck)}</p><p>Artículo 39: sólo se contrasta el criterio de ejes de la excepción horaria en red troncal. No acredita acceso a otras vías ni resuelve la discrepancia de días con los anexos.</p><a href={`${reference.source?.url}#page=20`} target="_blank" rel="noreferrer">Consultar artículo 39, pág. 20 ↗</a></div>}
     {!!reference.rules?.length&&<div className="municipal-time-rules">{reference.rules.map(rule=><article key={rule.id} data-evidence-kind={rule.kind}>
      <strong>{rule.title}</strong>
+     {rule.activity&&<p className="coverage-status">{{loading:'Carga y descarga',parking:'Estacionamiento · no es permiso de circulación',circulation:'Circulación · autorizaciones por comprobar'}[rule.activity]}</p>}
      {rule.kind==='planning_proposal'&&<p className="coverage-status">Propuesta de planeación · no es un horario vigente</p>}
      <p>{rule.description}</p>
+     {rule.evidence&&<dl className="municipal-source-details" aria-label="Ámbito y fecha de esta disposición">
+      <div><dt>Jurisdicción</dt><dd>{rule.evidence.jurisdiction}</dd></div>
+      <div><dt>Ámbito específico</dt><dd>{rule.evidence.scope}</dd></div>
+      <div><dt>Consulta de esta disposición</dt><dd>{documentDate(rule.evidence.consultedAt)}</dd></div>
+      <div><dt>Consolidación indicada en el documento</dt><dd>{documentDate(rule.evidence.consolidatedThrough)} · vigencia posterior pendiente de comprobar</dd></div>
+     </dl>}
      {rule.kind!=='planning_proposal'&&<><VehicleReferenceComparison rule={rule} vehicle={vehicle}/>{rule.window&&<p className="hint">{rule.window.start}–{rule.window.end} · {rule.window.timezone} · {rule.window.days?'días según fuente':'días y excepciones por comprobar'}</p>}{rule.vehicleConfigurations&&<p className="hint">Configuraciones: {rule.vehicleConfigurations.join(', ')}</p>}</>}
      <p className="hint">{rule.citation} · {rule.kind==='planning_proposal'?'no se aplica al cálculo':'aplicación automática pendiente'}</p>
      {rule.page&&reference.source&&<a href={`${rule.sourceUrl||reference.source.url}#page=${rule.page}`} target="_blank" rel="noreferrer">Consultar página {rule.page} ↗</a>}

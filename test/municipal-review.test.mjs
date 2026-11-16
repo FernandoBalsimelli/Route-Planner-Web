@@ -55,3 +55,19 @@ test('planning evidence shows its own source and never renders an operational wi
  assert.equal(proposal.querySelector('a').href,'https://official.gob.mx/plan.pdf#page=390');
  const provenance=container.querySelector('[aria-label="Procedencia de la referencia"]');assert.match(provenance.textContent,/08\/08\/2026/);assert.match(provenance.textContent,/20\/09\/2006/);assert.match(provenance.textContent,/marco estatal/);
 });
+
+test('each operational reference keeps its own jurisdiction, dates, activity and PDF page without a vehicle inference',async()=>{
+ const source=reference('21114','Puebla','puebla-carga');
+ source.rules=[{id:'parking',title:'Estacionamiento de prueba',activity:'parking',description:'Magnitud de tonelaje no especificada en el artículo; horario pendiente.',citation:'Artículo sintético',sourceUrl:'https://official.gob.mx/coremun.pdf',page:176,evidence:{jurisdiction:'Municipio de Puebla · INEGI 21114',scope:'Sólo perímetro rotativo de prueba',consultedAt:'2026-11-15',consolidatedThrough:'2025-12-10'}}];
+ globalThis.fetch=async url=>url.includes('?')?catalog():url.endsWith('/source-status')?Response.json({sources:[],intervalHours:6}):Response.json(source);
+ await render({id:'21114',request:1});
+ const card=container.querySelector('.municipal-time-rules article');
+ assert.match(card.textContent,/Estacionamiento · no es permiso de circulación/);
+ const evidence=card.querySelector('[aria-label="Ámbito y fecha de esta disposición"]');
+ assert.match(evidence.textContent,/Municipio de Puebla · INEGI 21114/);assert.match(evidence.textContent,/Sólo perímetro rotativo/);
+ assert.match(evidence.textContent,/15\/11\/2026/);assert.match(evidence.textContent,/10\/12\/2025 · vigencia posterior pendiente de comprobar/);
+ assert.equal(card.querySelector('a').href,'https://official.gob.mx/coremun.pdf#page=176');
+ await act(async()=>root.render(React.createElement(Coverage,{requestedMunicipality:{id:'21114',request:1},vehicle:{grossWeightT:40,payloadCapacityT:20,configuration:'T3-S2',axleCount:5}})));
+ assert.equal(card.querySelector('.vehicle-reference-comparison'),null,'an unspecified tonnage never compares against gross weight or capacity');
+ assert.equal(container.querySelector('h3').textContent,'Puebla');
+});
