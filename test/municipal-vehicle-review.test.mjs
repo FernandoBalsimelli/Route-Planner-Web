@@ -39,3 +39,12 @@ test('length thresholds and axle criteria never produce a legal authorization st
   assert.deepEqual(compareVehicleRule({}),{checks:[]});
   assert.match(compareVehicleRule({vehicleConditions:{payloadCapacityT:{gt:3.5,lt:4}}},{payloadCapacityT:3.7}).note,/pendiente/);
 });
+
+test('inclusive capacity applies only to an explicitly inclusive reference and never substitutes gross weight',()=>{
+ const inclusive={vehicleConditions:{payloadCapacityT:{lte:3.5}}};
+ for(const [value,result] of [[3.499,'matches'],[3.5,'matches'],[3.501,'differs']])assert.equal(compareVehicleRule(inclusive,{payloadCapacityT:value,grossWeightT:40}).checks[0].result,result);
+ assert.equal(compareVehicleRule(inclusive,{grossWeightT:3.5}).checks[0].result,'unknown');
+ assert.equal(compareVehicleRule(inclusive,{payloadCapacityT:3.5}).checks[0].reference,'hasta 3.5 t');
+ for(const op of ['lt','gt'])assert.equal(compareVehicleRule({vehicleConditions:{payloadCapacityT:{[op]:3.5}}},{payloadCapacityT:3.5}).checks[0].result,'boundary');
+ const mixed=compareVehicleRule({vehicleConditions:{payloadCapacityT:{lt:3.5,lte:3.5}}},{payloadCapacityT:3.5});assert.equal(mixed.checks.length,0);assert.match(mixed.note,/pendiente de revisión/);
+});

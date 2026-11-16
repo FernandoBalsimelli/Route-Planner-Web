@@ -680,7 +680,7 @@ test('municipal operational evidence preserves scope and its own dated source on
    await page.route('**/api/route-planner/**',route=>{
     const url=new URL(route.request().url());
     if(url.pathname.endsWith('/source-status'))return route.fulfill({json:{sources:[],intervalHours:6,stale:false}});
-    if(url.pathname.endsWith('/21114'))return route.fulfill({json:{name:'Puebla',status:'reference_only',routingEnforced:false,source:{id:'puebla-carga',url:'https://official.gob.mx/amendment',checkedAt:'2026-11-10T00:00:00Z'},notices:['Referencia parcial; falta vigencia.'],trunkSegments:[],timeRules:[],rules:[{id:'parking',title:'Estacionamiento de prueba',activity:'parking',description:'Horario y tonelaje sin interpretación automática.',citation:'Fuente sintética',evidence,sourceUrl:'https://official.gob.mx/coremun.pdf',page:176}]}});
+    if(url.pathname.endsWith('/21114'))return route.fulfill({json:{name:'Puebla',status:'reference_only',routingEnforced:false,source:{id:'puebla-carga',url:'https://official.gob.mx/amendment',checkedAt:'2026-11-10T00:00:00Z'},notices:['Referencia parcial; falta vigencia.'],trunkSegments:[],timeRules:[],rules:[{id:'parking',title:'Estacionamiento de prueba',activity:'parking',description:'Horario y tonelaje sin interpretación automática.',citation:'Fuente sintética',evidence,sourceUrl:'https://official.gob.mx/coremun.pdf',page:176},{id:'act',title:'Acto operativo de prueba',activity:'loading',description:'Permiso y corredor pendientes.',citation:'Acto sintético',actEvidence:{...evidence,consolidatedThrough:undefined,approvedAt:'2025-08-14'},sourceUrl:'https://official.gob.mx/act.pdf',page:70}]}});
     return route.fulfill({json:{states:[{id:'21',name:'Puebla'}],municipalities:[{id:'21114',state:'21',name:'Puebla',coverage:'reference_only'}],totalMunicipalities:2478,municipalitiesWithPartialReference:15}});
    });
    await page.goto(base);await page.getByRole('button',{name:'Guía camión',exact:true}).click();
@@ -688,11 +688,13 @@ test('municipal operational evidence preserves scope and its own dated source on
    await page.getByLabel('Entidad federativa',{exact:true}).selectOption('21');
    await page.getByLabel('Municipio o demarcación',{exact:true}).selectOption('21114');
    await page.getByText('Estacionamiento · no es permiso de circulación',{exact:true}).waitFor();
-   const details=page.getByLabel('Ámbito y fecha de esta disposición',{exact:true});
+   const details=page.getByLabel('Ámbito y fecha de esta disposición',{exact:true}).first();
    await details.getByText('Sólo perímetro rotativo de prueba',{exact:true}).waitFor();
    await details.getByText('15/11/2026',{exact:true}).waitFor();
    await details.getByText('10/12/2025 · vigencia posterior pendiente de comprobar',{exact:true}).waitFor();
    assert.equal(await page.getByRole('link',{name:'Consultar página 176 ↗',exact:true}).getAttribute('href'),'https://official.gob.mx/coremun.pdf#page=176');
+   await page.getByText('14/08/2025 · publicación y vigencia posterior por comprobar',{exact:true}).waitFor();
+   assert.equal(await page.getByRole('link',{name:'Consultar página 70 ↗',exact:true}).getAttribute('href'),'https://official.gob.mx/act.pdf#page=70');
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   }finally{await context.close();}
  }
