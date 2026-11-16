@@ -434,3 +434,19 @@ casos de navegador y tres flujos Auth locales, aprobados. Producción pública
 y fixtures se documentan por separado en ENGINEERING-STATUS.md, junto con
 alias y rollback. Siguen 15 municipios parciales, cero con validación legal
 completa y ninguna geometría municipal nueva aplicada a Directions.
+
+
+## Puebla · distinguir publicación y cambios de sanciones · 16-11-2026
+
+Cuatro páginas oficiales corroboran la publicación histórica de RES. 2025/148
+en Gaceta del 14-08-2025 y el acto posterior RES. 2025/162, publicado el
+18-09-2025. El segundo cambia la fecha citada de sanciones del Polígono 5
+San Alejandro–Ortopedia de 01-10 a 01-11-2025. La interfaz muestra la fecha
+sustituida y el cambio con fuentes propias, sin declararlos vigentes hoy.
+
+La publicación íntegra de las reglas/anexo, todos los actos posteriores de
+2026 y la discrepancia 5/6 siguen pendientes. La evidencia se añade por separado
+del snapshot del PDF y se vigilan las cuatro páginas en el monitor ya existente.
+No cambia ninguna geometría, permiso o exclusión de ruteo; continúan 15 municipios
+parciales y cero con validación legal completa. Véase
+[PUEBLA-PUBLICATION-HISTORY.md](PUEBLA-PUBLICATION-HISTORY.md).

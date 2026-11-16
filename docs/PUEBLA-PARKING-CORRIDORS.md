@@ -97,3 +97,12 @@ letra se comparan como palabras completas. Así, «29 A Norte» no coincide con
 búsqueda parcial, acentos normalizados y coincidencias por cruce. La regresión
 de navegador incluye la calle parecida y comprueba que sólo queda el registro
 124 con sus enlaces a páginas 87 y 88.
+
+
+## Revisión documental separada · 16-11-2026
+
+Se corroboró la publicación histórica de la reforma RES. 2025/148 (14-08-2025)
+y se identificó RES. 2025/162, que sustituye el inicio citado de sanciones del
+Polígono 5 de 01-10 a 01-11-2025. No se equipara con publicación íntegra ni
+vigencia actual de todas las reglas/anexo; el snapshot reproducible no se altera.
+Detalles, fuentes y límites: [PUEBLA-PUBLICATION-HISTORY.md](PUEBLA-PUBLICATION-HISTORY.md).
