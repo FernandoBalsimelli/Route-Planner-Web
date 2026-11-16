@@ -17,7 +17,7 @@ export default function MunicipalParkingCorridors({ reference }: { reference: Pa
       {reference.notices.slice(2).map(notice => <p className="hint" key={notice}>{notice}</p>)}
       <div className="municipal-selectors">
         <label>Buscar corredor o cruce<input type="search" value={query} maxLength={160} onChange={event => setQuery(event.target.value)} placeholder="Calle, cruce o polígono"/></label>
-        <label>Polígono citado<select value={polygon} onChange={event => setPolygon(event.target.value)}><option value="">Todos los polígonos citados</option>{polygons.map(item => <option key={item} value={item}>{item}</option>)}</select></label>
+        <label>Polígono citado<select aria-label="Polígono citado" value={polygon} onChange={event => setPolygon(event.target.value)}><option value="">Todos los polígonos citados</option>{polygons.map(item => <option key={item} value={item}>{item}</option>)}</select></label>
       </div>
       <p role="status">{rows.length} de {reference.rows.length} registros del anexo. Se conserva el orden y las repeticiones de la fuente.</p>
       {rows.length ? <ol className="parking-corridors-list" aria-label="Corredores del anexo de estacionamiento">{rows.map(row => <li key={row.sourceRow} aria-label={`Registro ${row.sourceRow}: ${row.corridor}`}>
