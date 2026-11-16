@@ -17,6 +17,14 @@ test('parking hours preserve no-applies and unknown states without implying free
  assert.equal(citedParkingHours(hours[0]),'08:00–22:00');assert.equal(citedParkingHours(hours[2]),'«No aplica» en el anexo');
  for(const item of [{days:[7],status:'unknown'},{days:[7],status:'hours_cited',start:'oops',end:'17:00'},{days:[7],status:'hours_cited',start:'25:00',end:'17:00'}])assert.equal(citedParkingHours(item),'Sin horario verificado');
 });
+test('street numbers and single-letter suffixes do not match inside another number or polygon name',()=>{
+ const polygon='Polígono 5 San Alejandro - Ortopedia';
+ const records=[row(122,polygon,'29 Norte','4 Poniente y Diagonal de la 10 Poniente'),row(123,polygon,'8 Poniente','29 Norte y 29 B Norte'),row(124,polygon,'29 A Norte','8 Poniente y Diagonal de la 10 Poniente'),row(200,polygon,'129 A Norte','112 Poniente y 4 Norte')];
+ assert.deepEqual(filterParkingCorridors(records,'29 A Norte',polygon).map(r=>r.sourceRow),[124]);
+ assert.deepEqual(filterParkingCorridors(records,'29 B',polygon).map(r=>r.sourceRow),[123]);
+ assert.deepEqual(filterParkingCorridors(records,'12 poniente',polygon),[]);
+ assert.deepEqual(filterParkingCorridors(records,'diagon',polygon).map(r=>r.sourceRow),[122,124]);
+});
 const dom=new JSDOM('<!doctype html><body></body>',{url:'https://route-planner.example.test'});
 Object.defineProperties(globalThis,{window:{value:dom.window,configurable:true},document:{value:dom.window.document,configurable:true},React:{value:React,configurable:true}});globalThis.IS_REACT_ACT_ENVIRONMENT=true;
 const {createRoot}=await import('react-dom/client');const {default:Corridors}=await import('../components/MunicipalParkingCorridors.tsx');

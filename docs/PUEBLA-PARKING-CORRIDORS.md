@@ -89,3 +89,11 @@ geometrías verificadas, excepciones y permisos individuales. El PDF ya pertenec
 al monitor de Puebla; no se crea otro servicio, cuota ni programación. El monitor
 detecta cambios técnicos por documento, no los aprueba como reformas. Toda
 actualización del anexo exige nueva revisión y cambio versionado del hash.
+
+
+Corrección de precisión del 16-11-2026: los números y sufijos de una
+letra se comparan como palabras completas. Así, «29 A Norte» no coincide con
+«29 Norte» por la A de Alejandro, ni 12 con 112. Los demás términos conservan
+búsqueda parcial, acentos normalizados y coincidencias por cruce. La regresión
+de navegador incluye la calle parecida y comprueba que sólo queda el registro
+124 con sus enlaces a páginas 87 y 88.
