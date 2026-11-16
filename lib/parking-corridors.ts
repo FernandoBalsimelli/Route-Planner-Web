@@ -9,6 +9,15 @@ export type ParkingCorridorReference = {
   status: 'reference_only'; routingEnforced: false;
   source: { url: string; approvedAt: string; consultedAt: string; pages: number[]; reviewStatus: string; publicationAndCurrentValidity: string };
   notices: string[]; duplicateGroups: number[][]; rows: ParkingCorridor[];
+  publicationReview?: ParkingPublicationReview;
+};
+export type ParkingPublicationReview = {
+  status: 'partial_history'; reviewedAt: string; routingEnforced: false;
+  publication: { date: string; status: 'corroborated_in_official_gazette' };
+  sources: { id: string; title: string; url: string }[];
+  records: { id: string; resolution: string; title: string; description: string; scope: string; approvedAt: string; publishedAt: string; sourceIds: string[];
+    sanctions: { fromDate: string; status: 'superseded' | 'amended_date_cited'; label: string; supersededBy?: string } }[];
+  notices: string[];
 };
 const normalized = (value: string) => value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 export function filterParkingCorridors(rows: ParkingCorridor[], query: string, polygon: string): ParkingCorridor[] {

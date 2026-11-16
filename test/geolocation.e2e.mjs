@@ -732,3 +732,29 @@ test('municipal parking annex filters crossings and exact polygon labels without
   }finally{await context.close();}
  }
 });
+
+test('municipal publication history distinguishes historical publication and superseded sanctions on mobile and desktop',{timeout:60000},async()=>{
+ const {parkingPublicationFixture}=await import('./fixtures/parking-publications.mjs');
+ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
+  const {context,page}=await setup(()=>{},viewport);
+  try{
+   await page.route('**/api/route-planner/**',route=>{
+    const path=new URL(route.request().url()).pathname;
+    if(path.endsWith('/source-status'))return route.fulfill({json:{sources:[],intervalHours:6,stale:false}});
+    if(path.endsWith('/21114'))return route.fulfill({json:{name:'Puebla',status:'reference_only',routingEnforced:false,source:{id:'puebla-carga',url:'https://official.example.test/source',checkedAt:'2026-11-16T00:00:00Z'},notices:[],trunkSegments:[],timeRules:[],rules:[],parkingCorridorReference:{municipalityId:'21114',activity:'parking_operation',timezone:'America/Mexico_City',status:'reference_only',routingEnforced:false,source:{url:'https://official.example.test/annex',approvedAt:'2025-08-14',consultedAt:'2026-11-15',pages:[87,88]},notices:[],duplicateGroups:[],rows:[],publicationReview:parkingPublicationFixture}}});
+    return route.fulfill({json:{states:[{id:'21',name:'Puebla'}],municipalities:[{id:'21114',state:'21',name:'Puebla',coverage:'reference_only'}],totalMunicipalities:2478,municipalitiesWithPartialReference:15}});
+   });
+   await page.goto(base);await page.getByRole('button',{name:'Guía camión',exact:true}).click();await page.getByRole('button',{name:'Consultar cobertura municipal',exact:true}).click();
+   await page.getByLabel('Entidad federativa',{exact:true}).selectOption('21');await page.getByLabel('Municipio o demarcación',{exact:true}).selectOption('21114');
+   await page.getByText('0 registros de corredores · estacionamiento rotativo',{exact:true}).click();
+   await page.getByText(/Publicación histórica de la reforma corroborada: 14\/08\/2025/).waitFor();
+   await page.getByText('Publicación y cambios revisados',{exact:true}).click();
+   const history=page.locator('.publication-history');
+   await history.getByText('01/10/2025 · sustituida por RES. 2025/162',{exact:true}).waitFor();
+   await history.getByText('01/11/2025 · no es una comprobación de vigencia actual',{exact:true}).waitFor();
+   assert.equal(await history.getByRole('link').count(),4);assert.match(await history.innerText(),/Sólo Polígono 5; no todo el municipio/);
+   assert.deepEqual(await history.locator('a').evaluateAll(nodes=>nodes.map(n=>n.href)),parkingPublicationFixture.sources.map(s=>s.url));
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  }finally{await context.close();}
+ }
+});

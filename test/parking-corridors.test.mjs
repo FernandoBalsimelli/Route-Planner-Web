@@ -42,3 +42,15 @@ test('annex is initially folded, filters both names and polygons, preserves spli
  assert.deepEqual([...container.querySelectorAll('a')].map(a=>a.href),['https://official.gob.mx/annex.pdf#page=87','https://official.gob.mx/annex.pdf#page=88']);
  assert.match(container.textContent,/«No aplica» en el anexo/);assert.match(container.textContent,/Sentido de circulación sin especificar/);
 });
+
+test('publication history keeps publication, replaced sanctions and present validity separate without changing corridor rows',async()=>{
+ const {parkingPublicationFixture}=await import('./fixtures/parking-publications.mjs');
+ container=document.createElement('div');document.body.append(container);root=createRoot(container);await act(async()=>root.render(React.createElement(Corridors,{reference:{...reference,publicationReview:parkingPublicationFixture}})));
+ await act(async()=>{const details=container.querySelector('details');details.open=true;details.dispatchEvent(new dom.window.Event('toggle'));});
+ assert.match(container.textContent,/Publicación histórica de la reforma corroborada: 14\/08\/2025/);
+ const history=container.querySelector('.publication-history');assert.equal(history.open,false);assert.equal(history.querySelectorAll('ol>li').length,2);
+ assert.match(history.textContent,/01\/10\/2025 · sustituida por RES\. 2025\/162/);assert.match(history.textContent,/01\/11\/2025 · no es una comprobación de vigencia actual/);
+ assert.match(history.textContent,/Sólo Polígono 5; no todo el municipio/);assert.match(history.textContent,/actos posteriores de 2026/);
+ assert.deepEqual([...history.querySelectorAll('a')].map(a=>a.href),parkingPublicationFixture.sources.map(s=>s.url));
+ assert.equal(container.querySelectorAll('.parking-corridors-list>li').length,4);
+});

@@ -1,6 +1,7 @@
 'use client';
 import React, { useMemo, useState } from 'react';
 import { citedParkingHours, filterParkingCorridors, type ParkingCorridorReference } from '@/lib/parking-corridors';
+import MunicipalPublicationHistory from './MunicipalPublicationHistory';
 const date = (value: string) => value.split('-').reverse().join('/');
 const dayLabel = (days: number[]) => days.join(',') === '1,2,3,4,5' ? 'Lunes a viernes' : days.join(',') === '6' ? 'Sábado' : days.join(',') === '7' ? 'Domingo' : 'Días por comprobar';
 export default function MunicipalParkingCorridors({ reference }: { reference: ParkingCorridorReference }) {
@@ -13,7 +14,8 @@ export default function MunicipalParkingCorridors({ reference }: { reference: Pa
     <summary>{reference.rows.length} registros de corredores · estacionamiento rotativo</summary>
     {open && <>
       <p className="coverage-status">Horarios citados de operación del estacionamiento. Consulta por separado las maniobras de carga y sus permisos. Esta lista no acredita circulación ni estacionamiento autorizado para tu camión.</p>
-      <p>Acta {date(reference.source.approvedAt)} · consulta {date(reference.source.consultedAt)} · {reference.timezone}. Publicación, vigencia posterior y geometrías pendientes de verificar.</p>
+      <p>Acta {date(reference.source.approvedAt)} · consulta del anexo {date(reference.source.consultedAt)} · {reference.timezone}. {reference.publicationReview?.publication.status === 'corroborated_in_official_gazette' ? `Publicación histórica de la reforma corroborada: ${date(reference.publicationReview.publication.date)}. Publicación íntegra de las reglas/anexo, vigencia posterior y geometrías pendientes de verificar.` : 'Publicación, vigencia posterior y geometrías pendientes de verificar.'}</p>
+      {reference.publicationReview && <MunicipalPublicationHistory review={reference.publicationReview}/>}
       {reference.notices.slice(2).map(notice => <p className="hint" key={notice}>{notice}</p>)}
       <div className="municipal-selectors">
         <label>Buscar corredor o cruce<input type="search" value={query} maxLength={160} onChange={event => setQuery(event.target.value)} placeholder="Calle, cruce o polígono"/></label>
