@@ -2,10 +2,10 @@
 
 Fecha de revisión: 2026-11-15. Alcance: exclusivamente Route Planner.
 
-Estado vigente: las entregas del manifiesto se corroboran desde las sugerencias
-del mapa central, por fila y con importación explícita. Se conservan pedidos
-repetidos y revisión de coincidencias. El monitor de Puebla comprueba directamente
-el PDF de COREMUN. Web publicada b99253c; API publicada 1e3482b.
+Estado vigente: se conserva la corroboración del manifiesto en el mapa central.
+Puebla añade siete disposiciones parciales, separando circulación, maniobras y
+estacionamiento, con ámbito, fuente y fecha por ficha. La capacidad inclusiva se
+compara sólo cuando el texto la declara. Web publicada b0cab98; API 7510d45.
 Hay 15 municipios con referencias parciales y cero con validación legal completa.
 Resultados, rollback, trabajo en revisión y próxima prioridad en el último cierre
 al final. Las entradas anteriores son historial.
@@ -1771,3 +1771,189 @@ comprobables. Continuar las geometrías oficiales verificables y pruebas reales
 ORS/Android cuando exista sesión/dispositivo autorizado disponible, sin presentar
 fixtures como sustituto. Quedan también enlaces compartidos con permisos y las
 otras funciones abiertas del programa maestro. **El programa no está terminado.**
+
+
+## Ciclo: ámbito y procedencia por disposición de Puebla · 15-11-2026
+
+### Diagnóstico, cambios y alcance
+
+Se retomaron main Web e2ff1e9 y API f2b56fd, leyendo ENGINEERING-STATUS y
+MEXICO-COVERAGE de main y comprobando los alias READY b99253c/1e3482b. Las
+búsquedas públicas respondieron y no se reprodujo un nuevo P0 de red. Supabase
+Route Planner estaba ACTIVE_HEALTHY, con seis tablas públicas y RLS activo;
+la inspección fue de sólo lectura, sin modificar datos o configuración alojada.
+
+La revisión seleccionada de COREMUN separa materias que no deben confundirse:
+298 I–III (horas/zonas y maniobras), 299 I–III (transporte y autorizaciones),
+323 Quindecies (duración/espacios de maniobras) y Sexdecies (estacionamiento
+rotativo por tonelaje). Se añadieron cuatro referencias con actividad,
+jurisdicción, ámbito específico, consulta, consolidación indicada, hash y página
+propia. El tonelaje no precisado por Sexdecies no se asigna al peso bruto o
+capacidad del perfil. No se inventa una ventana del artículo 298 ni una
+prohibición municipal general de circulación.
+
+La portada informativa indica consolidación al 10-12-2025 y remite al Periódico
+Oficial. Son disposiciones seleccionadas, con publicación y vigencia posterior
+pendientes; no una revisión íntegra de los 1,166 folios. Se conservan las cinco
+fichas previas de RES. 2021/49. La descarga consolidada de OJP volvió a fallar
+(502 en el lector web); no se reemplaza por texto de 2020 de los buscadores.
+
+Archivos API: data/mx/national-references.json, test/municipal-regulations.test.js,
+docs/MEXICO-COVERAGE.md y nuevo docs/PUEBLA-OPERATIONS-REFERENCE.md.
+Archivos Web: components/MunicipalCoverage.tsx, test/municipal-review.test.mjs,
+test/geolocation.e2e.mjs y esos dos documentos. La interfaz distingue la actividad
+y las fechas/ámbitos por ficha en lugar de atribuirles la fecha de otra fuente.
+
+### Verificación y publicación del primer avance
+
+Build, 68 pruebas API y auditoría sin vulnerabilidades conocidas aprobados. CI
+43805379458, head 6716d11, aprobó además migraciones e aislamiento RLS en
+Postgres desechable. Web: TypeScript, build y 115 pruebas locales; CI 43805380626,
+head e12d250, aprobó 115 pruebas, 28 casos de navegador y tres flujos con sesiones
+Auth/REST locales reales, más auditoría sin vulnerabilidades conocidas.
+El caso de guía verifica ámbito, fechas, enlace propio y ausencia de desbordamiento
+en escritorio y viewport móvil. No equivale a Android físico ni ORS real.
+
+API pública/proxy: cuatro registros nuevos con páginas 159, 160 y 176,
+consulta 15-11-2026 y routingEnforced:false, HTTP 200. En navegador de producción
+se consultó Puebla, se leyeron las cuatro procedencias y se comprobó el orden
+alfabético de las entidades. No se guardó ni calculó una ruta alojada.
+
+PR API #17: https://github.com/FernandoBalsimelli/Route-Planner-API/pull/17.
+Código publicado **4255ad7ea68a5e0285f9f97ac49fa04d6f8895fc**,
+despliegue **dpl_5TTHpaqDKNXcNmQWiP6Sc4XSk54Q**, READY.
+PR Web #21: https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/21.
+Código publicado **1ceb953f50d3798a35292960d44298d5aca9c424**,
+despliegue **dpl_F4Q2itcRPFpuTCnMeWWe9o89HPw4**, READY.
+Alias verificados: https://route-planner-api.vercel.app/ y
+https://route-planner-web-sand.vercel.app/.
+Rollback de ese primer avance: API dpl_7yJT4EeyGrXPQX7T2s3guv3huJSg (1e3482b)
+y Web dpl_BJ6evNZR9k4rM7W3CTrYEX3efhcA (b99253c), sin migraciones.
+El reporte automático 369c049 posterior al merge se preservó.
+
+
+## Ciclo: ventanas citadas, capacidad inclusiva y compatibilidad · 15-11-2026
+
+### Fuente, implementación y causa del ajuste
+
+La búsqueda en fuentes oficiales localizó RES. 2025/88 y el acta C26/11 del
+14-08-2025. La página PDF 70 del acta contiene arts. 11–13 de las reglas del
+programa: distingue capacidad hasta 3.5 t de capacidad mayor, cita una ventana
+nocturna y exige permiso previo/duración. Se descargó el PDF oficial real,
+HTTP 200, 2,395,402 bytes, hash
+`0917dc30ac70594a6e954243800bc5219d7ea3f2bc8017f7ea532b8ec510555c`,
+y se revisó visualmente la página 70. La creación técnica del PDF en 2026 no se
+utiliza como fecha del acto ni publicación legal.
+
+Se añaden tres fichas separadas para corredores del programa: capacidad hasta
+3.5 t inclusive, capacidad mayor con cruce de medianoche y permiso/duración.
+Se conservan días en null, zona America/Mexico_City, excepción por sustancias,
+permiso requerido, fuente/hash y fecha del acto. Las ventanas son referencias
+de maniobras, no autorización de circulación/estacionamiento ni exclusiones de
+calles en Directions. Faltan publicación/vigencia completa, actos posteriores,
+corredores y geometrías oficiales verificadas.
+
+El comparador Web admite lte sólo cuando la fuente lo declara. Con capacidad
+3.5 t coincide únicamente ese dato del art. 11 a; los comparadores estrictos
+anteriores conservan el caso de frontera. No se sustituye capacidad por peso
+bruto ni se acepta un comparador contradictorio. La guía diferencia fecha del
+acto y consolidación documental.
+
+Antes de publicar se detectó que clientes anteriores esperaban una consolidación
+en evidence. Se conservaron esas fichas y se añadió actEvidence para las actas.
+La nueva Web lee ambos tipos; la anterior conserva texto/enlaces de las actas.
+El problema potencial no se publicó. No se inventó una fecha de consolidación
+para adaptar los datos a un cliente antiguo. API y Web mantienen rollback.
+
+Archivos adicionales: Web lib/municipal-vehicle-review.ts y su prueba,
+MunicipalCoverage.tsx, pruebas de componente/navegador y documentos de Puebla.
+API: registro, reporte técnico de fuentes, prueba municipal y documentos. El
+nuevo PDF quedó en relatedUrls del monitor existente, sin proveedor, servicio,
+cron o dependencia adicional. Siguen siete fuentes principales y 15 municipios
+con referencias parciales; cero con validación legal automática completa.
+
+### Pruebas finales y transición pública
+
+TypeScript/build y 117 pruebas Web locales aprobados. API build y 69 pruebas
+aprobados. CI final Web **43806800084**, head **41ae4a2**: 117 pruebas,
+28 casos de navegador, tres flujos Auth/REST locales reales y auditoría sin
+vulnerabilidades conocidas, todos aprobados. CI final API **43806797041**,
+head **14c1417**: 69 pruebas, migraciones/aislamiento RLS en Postgres desechable
+y auditoría sin vulnerabilidades conocidas. Las primeras versiones 539452d y
+f54e83c también pasaron CI, pero se corrigió la compatibilidad antes de publicar.
+
+La regresión distingue un umbral inclusivo de los estrictos, capacidad de peso
+bruto, comparadores malformados, fecha del acto y consolidación. La prueba de
+navegador verifica ambos tipos documentales en móvil/escritorio. ORS y sensores
+son controlados en las integraciones; no son cálculos autenticados reales de
+producción ni navegación Android física.
+
+Se publicó la API y se probó una pestaña ya abierta con Web 1ceb953: al volver
+a consultar Puebla mostró las 12 fichas y tres enlaces a página 70, sin recarga,
+fallo ni respuestas inyectadas. La Web anterior mostraba las cuatro procedencias
+de COREMUN y el texto/enlaces nuevos; no se afirmó que presentara los nuevos
+metadatos de acta. Después se publicó la Web final y se recargó esa pestaña.
+
+La comprobación final pública, con datos manuales sintéticos de camión (capacidad
+3.5 t, peso bruto de ejemplo 40 t), mostró 12 fichas y siete procedencias: cuatro
+con consolidación 10-12-2025 y tres con acto 14-08-2025. El comparador inclusivo
+mostró «coincide sólo este dato» para capacidad 3.5 t, conservando advertencias
+de permiso, días, ámbito y vigencia. Se verificaron los tres enlaces propios a
+página 70 y ausencia de desbordamiento horizontal en escritorio. Se capturó
+pantalla. No se guardó vehículo/ruta ni se hizo un cálculo alojado.
+
+### Publicación, monitor y rollback
+
+PR API #18: https://github.com/FernandoBalsimelli/Route-Planner-API/pull/18.
+Código publicado **7510d45854830c5c1baeed01132394b78fe74d58**,
+despliegue **dpl_HhqaKtVHeyK7JEub8X7fQSEp13mn**, READY y alias verificado:
+https://route-planner-api.vercel.app/.
+PR Web #22: https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/22.
+Código publicado **b0cab9823ba6d0cd13c78e647d1b8ebd95f18846**,
+despliegue **dpl_DFZkDGST4Soa4PhgDt6TcDFbiXQ5**, READY y alias verificado:
+https://route-planner-web-sand.vercel.app/.
+
+Rollback inmediato: API **dpl_5TTHpaqDKNXcNmQWiP6Sc4XSk54Q** (4255ad7) y
+Web **dpl_F4Q2itcRPFpuTCnMeWWe9o89HPw4** (1ceb953). Sin migraciones o datos
+que revertir. La compatibilidad con esa Web anterior y API nueva se verificó
+públicamente; no se ejecutó un rollback de producción. Los commits y ramas de
+ambos ciclos quedan en GitHub. El cierre documental posterior de main no cambia
+el código comprobado en los alias.
+
+El informe automático **62f901e0a1a0cb6aac13875825ca7d24873c9f8a**, 04:56:11 UTC
+del 16-11 (15-11, Chihuahua), conservó el mismo hash del acta, sin revisión legal
+completa. No se sobrescribió. La comprobación pública servía el reporte 04:46:25
+con el PDF recuperado y OJP 503; era evidencia técnica fresca y no validación
+legal. El reporte remoto y la caché de 15 min se distinguen; no se inventa que
+la recuperación más reciente de OJP ya esté reflejada en el endpoint. La
+programación del monitor puede demorarse y no actualiza reglas automáticamente.
+
+El proxy público volvió a responder 200 a salud, coordenadas, Plus Code completo
+y compuesto y ocho coincidencias Express cercanas. Validación: dos puntos y
+48 intermedias 200, 49 intermedias 400; plan sin sesión 401 AUTH_REQUIRED.
+Validar entradas no equivale a calcular esos recorridos. CORS respondió 204 con
+el origen Web autorizado; un origen ajeno obtuvo 404 en OPTIONS sin cabecera de
+autorización. El script de la comprobación negativa se ajustó para inspeccionar
+la respuesta HTTP rechazada, no tratarla como fallo de conexión. Los logs Web/API no
+mostraron errores/fatales agregados en los 30 minutos revisados, sin garantía
+permanente. No se modificó Gestión ni otros proyectos; no se contrataron ni
+activaron servicios de pago, ni se cambiaron secretos, variables, esquema o RLS
+alojados. El trabajo quedó limitado a los dos repositorios y proyectos autorizados.
+
+### Estado y próxima prioridad
+
+Completados/publicados: cuatro referencias seleccionadas de COREMUN, tres del
+acta, comparador inclusivo, fechas/ámbitos por ficha, compatibilidad con clientes
+anteriores y seguimiento del PDF nuevo. Parciales: cobertura/precisión de fuentes
+y vigencia normativa. El catálogo nacional continúa separado de la validación
+legal; no se añadieron geometrías municipales al motor ni se certificó una ruta.
+Google Maps sigue sin recibir parámetros HGV y puede recalcular su trazado.
+
+Próxima prioridad P1: extraer y contrastar los corredores/anexos del acta de
+Puebla, su cadena de publicación/entrada en vigor y actos de 2026, diferenciando
+horas de estacionamiento de maniobras. Conservar fuente/página/extremos/sentidos;
+no usar centroides de geocodificación como geometrías legales ni activar una
+exclusión sin evidencia suficiente. OJP, fuentes intermitentes y permisos
+individuales siguen pendientes. Continúan ORS autenticado real en producción,
+Android físico, enlaces compartidos con permisos y las demás funciones abiertas
+del programa. **El programa maestro no está terminado.**

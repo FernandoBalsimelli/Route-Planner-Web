@@ -392,3 +392,12 @@ corredores y geometrías continúan por comprobar. No se aplican estas ventanas
 a Directions. PDF oficial añadido al monitor existente; detalle y hash en
 [PUEBLA-OPERATIONS-REFERENCE.md](PUEBLA-OPERATIONS-REFERENCE.md). Continúan
 15 municipios con referencia parcial y cero validaciones legales completas.
+
+
+Publicación y pruebas de los dos ciclos de Puebla: Web PR #21/#22 y API
+PR #17/#18. Web final b0cab98, API 7510d45; 117 pruebas Web, 28 casos de
+navegador, 69 pruebas API y tres flujos con Auth local aprobados. Consulta
+pública de las 12 fichas y comprobación de compatibilidad con una pestaña
+anterior, sin crear rutas o vehículos alojados. Detalles, límites, despliegues
+y rollback en el cierre de ENGINEERING-STATUS.md. Continúan cero municipios
+con validación automática completa; siete nuevas fichas no son siete municipios.
