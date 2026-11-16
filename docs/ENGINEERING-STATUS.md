@@ -2,9 +2,10 @@
 
 Fecha de revisión: 2026-11-15. Alcance: exclusivamente Route Planner.
 
-Estado vigente: los manifiestos conservan los pedidos repetidos y permiten
-revisar puntos coincidentes. El mapa conserva su centro al mostrar/redimensionar
-el planificador. Web publicada 4d693ab; API publicada 6fad021.
+Estado vigente: las entregas del manifiesto se corroboran desde las sugerencias
+del mapa central, por fila y con importación explícita. Se conservan pedidos
+repetidos y revisión de coincidencias. El monitor de Puebla comprueba directamente
+el PDF de COREMUN. Web publicada b99253c; API publicada 1e3482b.
 Hay 15 municipios con referencias parciales y cero con validación legal completa.
 Resultados, rollback, trabajo en revisión y próxima prioridad en el último cierre
 al final. Las entradas anteriores son historial.
@@ -1626,3 +1627,147 @@ cancelación de búsquedas obsoletas. Después, completar acuerdos locales,
 permisos/excepciones y geometrías/sentidos oficiales verificables. Siguen
 pendientes ORS autenticado real en producción, Android físico, enlaces compartidos
 con permisos y otras funciones del programa maestro. **El programa no está terminado.**
+
+
+## Ciclo: corroboración del manifiesto en el mapa central · 15-11-2026
+
+### Diagnóstico y alcance
+
+Se retomó main Web db6715d y API 669579a, leyendo ambos informes de main y
+comprobando los alias READY. La revisión del manifiesto usaba su propio buscador,
+pero no trasladaba sus sugerencias al mapa principal: comparar sucursales obligaba
+a cambiar de contexto. No había un nuevo fallo P0 reproducible en las búsquedas
+públicas. No se sobrescribieron cambios de otras ejecuciones.
+
+Ahora la entrega activa muestra S1, S2… con el mismo orden y referencia cercana
+del buscador. El popup conserva avisos de número aproximado y de acceso de
+carga. Confirmar afecta únicamente a la fila vigente y avanza a la siguiente;
+tras la última, vuelve el foco al botón de importación. Editar, excluir, cambiar
+fila/referencia/sección o cerrar invalida el lote. Se exige coincidencia de token,
+fila, consulta y punto canónico, conservando metadatos del proveedor.
+
+Las entregas sólo pasan al recorrido con «Añadir entregas confirmadas». Revisar
+conserva geometría y métricas del resultado previo; importar sí lo invalida para
+recalcular. La navegación activa se detiene durante la revisión y no se reanuda
+sola. Se reutilizan debounce, caché y cancelación existentes, sin consultas masivas,
+servicios o dependencias adicionales. No se restaura un límite de ocho entregas.
+
+Archivos: app/page.tsx, components/ManifestImport.tsx, components/RouteMap.tsx,
+lib/manifest-map.ts, test/manifest-map.test.mjs, test/account-workflows.test.mjs,
+test/geolocation.e2e.mjs y docs/MANIFEST-CENTRAL-MAP.md. Este informe y
+MEXICO-COVERAGE.md contienen el cierre persistente.
+
+### Pruebas y comprobación pública
+
+TypeScript, build, 114 pruebas Web y auditoría sin vulnerabilidades conocidas
+aprobados localmente. La primera CI encontró una aserción inmediata al retirar
+el popup: se hizo explícita la limpieza al cerrar y la prueba espera la retirada
+DOM de Leaflet. CI final 43803464845, head 87ae649: 114 pruebas, 27 casos de
+navegador y tres flujos Auth/REST locales reales, todos aprobados. Las regresiones
+nuevas prueban selección de la fila correcta, eventos atrasados, cierre, avisos,
+proximidad, foco final, conservación de ruta/métricas y detención del GPS.
+
+La comprobación en navegador de producción usó coordenadas públicas de prueba
+en Monterrey y proveedores reales, sin inyectar respuestas ni usar la ubicación
+del propietario. «Bodega Aurrera Express» devolvió ocho sugerencias a 4.2–9.3 km
+en línea recta. Se abrió S1 (José Timoteo Rosales), se vio el aviso de acceso de
+descarga y se cerró el manifiesto: cero popups y marcadores de sugerencia. Al
+reabrir se confirmó desde el mapa; el destino seguía vacío hasta la importación.
+El foco terminó en «Añadir 1 entregas confirmadas» y la importación conservó el
+origen, la sucursal seleccionada, Plus Code y coordenadas del enlace de Google.
+No hubo desbordamiento horizontal en esa vista de escritorio. Se capturó evidencia
+visual del mapa y la lista. No se calculó ni guardó una ruta alojada.
+
+El proxy público respondió 200 para salud, coordenadas, Plus Code completo y
+compuesto y ocho resultados Express. Validó dos puntos y 48 intermedias; rechazó
+49 con 400 y plan sin sesión con 401 AUTH_REQUIRED. Validar entradas no equivale
+a calcular esas rutas. Las integraciones calculan dos/múltiples puntos con ORS
+controlado y sesiones locales; no acreditan un cálculo autenticado real en
+producción. Los viewport móviles de CI no son navegación Android física.
+
+### Publicación y rollback
+
+PR Web #20: https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/20.
+Commits de trabajo 95afe67 y 87ae649; merge publicado
+**b99253cdb6bc567a1c71218a5cf63ada5b590ba2**.
+Despliegue **dpl_BJ6evNZR9k4rM7W3CTrYEX3efhcA**, READY y alias con ese SHA:
+https://route-planner-web-sand.vercel.app/.
+Rollback: **dpl_GckiwsqF2o53gixMS7pZ19aXoEos** (4d693ab). Sin migraciones
+ni datos que revertir. Los commits y la rama de trabajo quedan en GitHub.
+
+
+## Ciclo: PDF municipal de Puebla bajo vigilancia · 15-11-2026
+
+### Causa, implementación y límites
+
+COREMUN carga un visor PDF; vigilar sólo su página HTML no detectaba cambios
+independientes del documento. Se siguió el enlace del visor oficial y se añadió
+https://gaceta.pueblacapital.gob.mx/media/k2/attachments/COREMUN.pdf al registro
+de Puebla y a los enlaces públicos de la guía. Se conserva el monitor existente,
+con host oficial permitido, límite de descarga y evidencia por documento. No se
+modifica ninguna norma, ventana horaria, umbral, geometría ni permiso.
+
+La descarga real dio HTTP 200 y 8,017,957 bytes, hash
+`b8015929109522726f95e0d9278564592757bcd2a690abe0a326e898ae1c891f`.
+La portada se declara informativa, consolidada al 10-12-2025 y remite al Periódico
+Oficial. Localizar artículos en ella no valida íntegramente el código ni actos
+posteriores; el PDF permanece `unreviewed`. Se mantienen 15 municipios con alguna
+referencia parcial y cero con validación legal automática completa.
+
+Archivos API: data/mx/national-references.json, data/mx/source-status.json,
+test/source-monitor.test.js y docs/MEXICO-COVERAGE.md. Se incorpora a este cierre
+la comprobación del monitor automático posterior sin sobrescribir su reporte.
+
+### Pruebas, publicación y seguimiento
+
+67 pruebas API, build y auditoría sin vulnerabilidades conocidas aprobados.
+CI 43804005124 (head 92b13b2) aprobó además migraciones y aislamiento RLS en
+Postgres desechable. La prueba nueva cambia sólo el PDF detrás de páginas
+idénticas y verifica evidencia pública de cambio sin aprobación legal.
+
+La ejecución real de las 04:23 UTC del 16-11 (15-11, Chihuahua) registró OJP con
+503, sin ocultar el PDF recuperado. Después del merge, el monitor automático
+creó **f2b56fdf6b303c84e8f13a7215c4845ddc41822f**, reporte 04:27:52 UTC,
+con el mismo hash del PDF; OJP volvió a responder. Puebla mantiene cambios en
+sus páginas y el PDF sin revisión legal. La programación solicita seis horas,
+pero los tiempos de GitHub pueden demorarse; no es vigilancia en tiempo real
+ni actualización automática de reglas. Cambios de HTML no prueban reformas.
+
+PR API #16: https://github.com/FernandoBalsimelli/Route-Planner-API/pull/16.
+Merge publicado **1e3482b282d3aaa55c840f37ed492e1d4d41dcb4**, despliegue
+**dpl_7yJT4EeyGrXPQX7T2s3guv3huJSg**, READY y alias con ese SHA:
+https://route-planner-api.vercel.app/.
+La API directa y el proxy devolvieron 200 y el PDF correcto (`unreviewed`, hash
+anterior), con `routingEnforced:false` y sin actualización legal automática. En
+esa comprobación aún sirvieron el reporte 04:23:34 UTC y OJP 503; la evidencia
+04:27:52 está confirmada en GitHub, no se presenta como ya refrescada en el
+endpoint. La caché de consulta remota es de 15 minutos y conserva el snapshot
+local ante un fallo. CORS respondió 204 con el origen Web autorizado.
+El commit automático posterior sólo actualiza esa evidencia; no sustituye el
+SHA del código desplegado. Rollback API:
+**dpl_FNdvSQM2HMky1kreq84MnQ7cugjc** (6fad021), sin migraciones alojadas.
+El cierre documental posterior en Web tampoco cambia su código publicado.
+
+Los logs agregados Web/API no devolvieron errores ni fatales en los 30 minutos
+revisados; no es garantía permanente. La consulta inicial de Supabase mostró
+ACTIVE_HEALTHY y seis tablas públicas con RLS, con el aviso previo de protección
+de contraseñas filtradas desactivada. No se modificaron datos, configuración,
+variables o políticas alojadas. No se modificó Gestión ni otros proyectos y no
+se contrataron o activaron servicios de pago.
+
+### Estado y punto de reanudación
+
+Completados/publicados: corroboración central del manifiesto y vigilancia directa
+del PDF de Puebla. Parciales: precisión/cobertura del proveedor y normativa.
+Pendientes: contraste de COREMUN/Periódico Oficial y actos posteriores, acuerdos
+de horarios/permisos, excepciones, sentidos y geometrías oficiales; siguen cero
+municipios con validación automática completa. Google Maps puede recalcular y
+no recibe parámetros HGV; los puntos guía no fijan un trazado exacto.
+
+Próxima prioridad P1: revisar la fuente consolidada de Puebla con sus actos
+posteriores, separando maniobras/estacionamiento de circulación y sin interpretar
+el umbral ambiguo de 3.5 t; incorporar sólo evidencia con ámbito y fechas
+comprobables. Continuar las geometrías oficiales verificables y pruebas reales
+ORS/Android cuando exista sesión/dispositivo autorizado disponible, sin presentar
+fixtures como sustituto. Quedan también enlaces compartidos con permisos y las
+otras funciones abiertas del programa maestro. **El programa no está terminado.**
