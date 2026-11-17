@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import type { User } from '@supabase/supabase-js';
 import AccountPanel from '@/components/AccountPanel';
@@ -91,6 +91,28 @@ export default function Home() {
   const planningRequest = useRef<AbortController | null>(null);
   const [mapSearch, setMapSearch] = useState<{ target: string; title: string; points: LocationSelection[]; manifest?: ManifestMapSearch } | null>(null);
   const [manifestMapSelection, setManifestMapSelection] = useState<ManifestMapSelection>();
+  const accountScope = useRef<{ ownerId: string | null; version: number }>({ ownerId: null, version: 0 });
+  const restoreGeneration = useRef(0);
+  const changeUser = useCallback((nextUser: User | null) => {
+    const previous = accountScope.current;
+    const ownerId = nextUser?.id || null;
+    if (previous.ownerId !== ownerId) {
+      accountScope.current = { ownerId, version: previous.version + 1 };
+      planningRequest.current?.abort();
+      setLoading(false); setSaving(false); setSaveMessage(''); saveIntent.current = null;
+      // Preserve a guest's draft on first sign-in; clear private state when
+      // leaving an identified account, including A -> signed out -> A.
+      if (previous.ownerId) {
+        setOrigin(''); setDestination(''); setSelectedOrigin(null); setSelectedDestination(null); setStops([]);
+        setResult(null); setRouteChoices([]); setAlternativeNotice(''); setError(''); setRouteName('');
+        setMode('delivery'); setPreferences(DEFAULT_ROUTE_PREFERENCES); setOptimizeStops(false); setRequestAlternatives(false);
+        setOperating(EMPTY_OPERATING_FORM); setVehicle({ height: '4.0', width: '2.5', length: '18', grossWeight: '40', axleWeight: '10' });
+        setSearchArea(null); setMapSearch(null); setManifestMapSelection(undefined); setMunicipalReview(undefined); setStopOrderMessage('');
+        setVehicleProfiles([]); setSelectedVehicleProfileId(''); setVehicleProfileMessage(''); setNavigationPosition(null); setNavigationFollow(false);
+      }
+    }
+    setUser(nextUser);
+  }, []);
   useEffect(() => { if (workspace !== 'planner') setMapSearch(null); }, [workspace]);
   useEffect(() => setMapSearch(null), [selectedOrigin, selectedDestination, stops]);
   const previewWaypoints = useMemo(() => [
@@ -100,9 +122,10 @@ export default function Home() {
   ], [selectedOrigin, selectedDestination, stops]);
   useEffect(() => {
     planningRequest.current?.abort();
+    restoreGeneration.current += 1;
     setLoading(false);
   }, [origin, destination, selectedOrigin, selectedDestination, stops, mode, vehicle, operating, optimizeStops, preferences, requestAlternatives]);
-  useEffect(() => () => planningRequest.current?.abort(), []);
+  useEffect(() => () => { planningRequest.current?.abort(); accountScope.current.version += 1; restoreGeneration.current += 1; }, []);
   const canPlan = origin.trim().length > 2 && destination.trim().length > 2 && !loading;
   const navigationPoints = useMemo(() => {
     return result?.waypoints?.length
@@ -168,11 +191,15 @@ export default function Home() {
   }
 
   async function restoreSavedRoute(route: SavedRoute) {
-    if (!supabase) return;
+    if (!supabase || !user || accountScope.current.ownerId !== user.id) return;
+    const version = accountScope.current.version;
+    const generation = ++restoreGeneration.current;
     const { data, error } = await supabase.from('route_stops')
       .select('sequence,location')
       .eq('route_id', route.id)
+      .eq('owner_id', user.id)
       .order('sequence', { ascending: true });
+    if (accountScope.current.version !== version || restoreGeneration.current !== generation) return;
     if (error) throw new Error('No se pudieron cargar las paradas: ' + error.message);
     const label = (point: SavedRoute['origin']) => point?.label || (point?.lat != null && point?.lng != null ? `${point.lat}, ${point.lng}` : '');
     setOrigin(label(route.origin));
@@ -202,6 +229,7 @@ export default function Home() {
 
   async function planRoute() {
     if (!canPlan) return;
+    const version = accountScope.current.version;
     planningRequest.current?.abort();
     const controller = new AbortController();
     planningRequest.current = controller;
@@ -218,6 +246,7 @@ export default function Home() {
         throw new Error('No se pudo comprobar tu sesión con Supabase. Comprueba tu conexión e inicia sesión nuevamente.');
       }
       if (!sessionData.session) throw new Error('Inicia sesión para calcular una ruta.');
+      if (controller.signal.aborted || accountScope.current.version !== version) return;
       let response: Response;
       try {
         response = await fetch(`${API_URL}/v1/routes/plan`, {
@@ -229,7 +258,7 @@ export default function Home() {
         throw new Error('No se pudo conectar con Route Planner API. La conexión fue interrumpida antes de recibir respuesta.');
       }
       const payload = await response.json().catch(() => ({}));
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || accountScope.current.version !== version) return;
       if (!response.ok) { if (payload.code === 'ORS_API_KEY_MISSING') setProviderStatus('missing'); throw new Error(payload.message || 'No se pudo calcular la ruta.'); }
       setResult(payload.route); setProviderStatus('ready');
       if (requestAlternatives) {
@@ -240,16 +269,18 @@ export default function Home() {
       }
       document.getElementById('mapa-planificacion')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
     } catch (e) {
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || accountScope.current.version !== version) return;
       const message = e instanceof Error ? e.message : 'Error inesperado al calcular la ruta.';
       setError(message);
       if (message.toLowerCase().includes('ors_api_key_missing')) setProviderStatus('missing');
-    } finally { if (planningRequest.current === controller) setLoading(false); }
+    } finally { if (planningRequest.current === controller && accountScope.current.version === version) setLoading(false); }
   }
 
   async function saveRoute() {
     if (!user || !supabase) { setSaveMessage('Inicia sesión para guardar tus recorridos.'); return; }
+    if (accountScope.current.ownerId !== user.id) return;
     if (!result) return;
+    const version = accountScope.current.version;
     setSaving(true); setSaveMessage('');
     try {
       const data = routeSaveData(result, {
@@ -261,11 +292,12 @@ export default function Home() {
       const signature = JSON.stringify(data);
       if (!saveIntent.current || saveIntent.current.signature !== signature) saveIntent.current = { signature, id: crypto.randomUUID() };
       await persistRoute(supabase, data, saveIntent.current.id);
+      if (accountScope.current.version !== version) return;
       setSaveMessage('Ruta guardada en tu cuenta.');
       setRoutesRevision(value => value + 1);
     } catch (error) {
-      setSaveMessage(error instanceof Error ? error.message : 'No se pudo guardar la ruta.');
-    } finally { setSaving(false); }
+      if (accountScope.current.version === version) setSaveMessage(error instanceof Error ? error.message : 'No se pudo guardar la ruta.');
+    } finally { if (accountScope.current.version === version) setSaving(false); }
   }
 
   const confirmedCount = previewWaypoints.length;
@@ -274,7 +306,7 @@ export default function Home() {
     <header className="topbar">
       <a className="brand" href="#planificador" onClick={() => setWorkspace('planner')} aria-label="Route Planner, inicio"><span className="brand-mark"><AppIcon name="route" size={25}/></span><span>Routes<small>ROUTE PLANNER</small></span></a>
       <span className="workspace-label">Tu día, en ruta.</span>
-      <div className="topbar-actions"><ThemeToggle/><AccountPanel onUserChange={setUser}/></div>
+      <div className="topbar-actions"><ThemeToggle/><AccountPanel onUserChange={changeUser}/></div>
     </header>
     <nav className="app-nav" aria-label="Secciones de Route Planner">
       {([['planner', 'plan', 'Planificar'], ['saved', 'saved', 'Mis rutas'], ['vehicles', 'truck', 'Vehículos'], ['guide', 'shield', 'Guía camión']] as const).map(([id, icon, title]) => <button type="button" key={id} aria-current={workspace === id ? 'page' : undefined} onClick={() => openWorkspace(id)}><AppIcon name={icon}/><span>{title}</span>{id === 'saved' && user && <i className="nav-dot"/>}</button>)}
