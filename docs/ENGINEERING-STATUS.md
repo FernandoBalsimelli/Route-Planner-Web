@@ -2,11 +2,11 @@
 
 Fecha de revisión: 2026-11-16. Alcance: exclusivamente Route Planner.
 
-Estado vigente: Puebla añade historial documental seleccionado de RES. 2025/148
-y 162 con publicación histórica, fecha de sanciones sustituida y fuentes propias.
-Se distingue de vigencia actual y publicación íntegra de reglas/anexo, que siguen
-pendientes. Se conservan los 128 registros y filtros. Web publicada b0fdba8;
-API b21e389. Monitor técnico actualizado, sin aprobación automática de normas.
+Estado vigente: corregido aislamiento del planificador al cerrar/cambiar cuenta.
+Se retiran datos privados de la interfaz y respuestas pendientes de una sesión
+anterior no pueden restaurar rutas, resultados, mensajes o vehículos en la nueva.
+Borrador invitado y refresco del mismo usuario se conservan. Web publicada
+91c5324; API conserva b21e389. Sin cambios de esquema/RLS ni datos alojados.
 Hay 15 municipios con referencias parciales y cero con validación legal completa.
 Resultados, commits, rollback y próxima prioridad en el último cierre al final.
 Las entradas anteriores son historial. El programa maestro sigue incompleto.
@@ -2208,3 +2208,139 @@ Google Maps no recibe HGV ni queda obligado a mantener el trazado por puntos
 guía. Continúan pendientes ORS autenticado de producción, Android físico,
 compartición con permisos y los demás requisitos abiertos. El programa maestro
 no está terminado y no se declara cobertura nacional completa.
+
+
+## Cierre de ciclo — 16-11-2026: aislamiento de sesión y respuestas tardías (P0)
+
+Revisión final: 16-11-2026, aproximadamente 18:22 America/Chihuahua
+(17-11-2026 00:22 UTC). Alcance exclusivo Route Planner Web.
+
+### Diagnóstico y causa
+
+Se partió de main Web 711fde3a3d33bd6b4e8093b1cb577a6a9589fb3d y API
+31e458c8802dfc43d4a37012fcce23a6c4a90901 (reporte automático). Los alias
+apuntaban a Web b0fdba8 / dpl_J5bcCTDMz13zUxhkw9ahUNrZgFvS y API b21e389 /
+dpl_6VZgRhbt2Xy7XsPBEEop9vn1S3Yi. Se leyeron ENGINEERING-STATUS.md y
+MEXICO-COVERAGE.md de main. Los directorios previos conservaban cambios de
+otra ejecución: no se sobrescribieron; se trabajó en worktrees aislados.
+
+El componente principal conservaba puntos, entregas, resultado y configuración
+privada después de salir de la cuenta. Una respuesta pendiente de route_stops
+podía restaurar datos autorizados previamente en otro contexto. Comparar sólo
+user.id no distingue A → fuera → A. Además, getUser inicial podía imponerse a
+un evento de sesión posterior, y un editor de vehículos desmontado podía llamar
+onSaved y seleccionar su unidad en la cuenta siguiente. Guardados/cálculos
+pendientes podían mostrar mensajes o resultados después del cambio.
+
+Se reprodujo con datos sintéticos; no se afirma un acceso entre cuentas en la
+base alojada ni una vulneración de RLS. El fallo era aplicar datos ya autorizados
+de una sesión anterior a la interfaz actual. Supabase se inspeccionó sólo en
+lectura: ACTIVE_HEALTHY y seis tablas públicas con RLS. No hubo escrituras de
+cuentas, vehículos, rutas o favoritos en producción durante esta verificación.
+
+### Implementación y archivos
+
+- app/page.tsx: transición central de identidad con versión de contexto; limpia
+  borrador privado, resultados/alternativas, nombre, parámetros de vehículo y
+  preferencias, búsquedas/mapa/manifiesto y mensajes. Invalida restauraciones,
+  cálculos y guardados tardíos, incluso A → fuera → A. Añade owner_id a la consulta
+  de paradas. Preserva el borrador de invitado al primer acceso y el recorrido
+  cuando sólo se refresca el token del mismo usuario.
+- components/AccountPanel.tsx: eventos de sesión recientes tienen prioridad
+  sobre getUser inicial; descarta respuestas/eventos tras desmontaje. Callback
+  de sesión síncrono, sin introducir llamadas Auth dentro del callback.
+- components/SavedRoutesPanel.tsx y components/VehicleManager.tsx: versión de
+  instancia/identidad para respuestas, errores y finalizaciones pendientes;
+  un panel desmontado no puede cargar rutas ni seleccionar vehículos. Se limpian
+  formularios de perfil/unidad/flota al cambiar de dueño.
+- test/session-isolation.test.mjs: ocho regresiones de componentes.
+- test/geolocation.e2e.mjs: cierre de sesión elimina el resultado y termina GPS.
+- test/integration/authenticated.e2e.mjs: retiene una respuesta REST auténtica
+  de route_stops de la cuenta uno hasta haber entrado en la segunda cuenta y
+  escrito un nuevo borrador; no puede sobrescribirlo.
+- docs/SESSION-ISOLATION.md: causa, comportamiento, pruebas y alcance.
+
+Son ocho archivos en el PR, más este cierre documental. No se borran datos
+persistidos ni todo localStorage. Una escritura ya enviada puede terminar en la
+cuenta original: se descarta su efecto tardío en la interfaz nueva, sin fingir
+cancelación/reversión del servidor. No se modifican esquema, RLS, variables,
+secretos, dependencias, catálogo municipal, normativa, geometrías, límites de
+paradas ni enlaces Google.
+
+### Pruebas ejecutadas
+
+Las ocho regresiones nuevas fallaron sobre main anterior 711fde3 y pasaron con
+la corrección. Local: 130 pruebas Web, TypeScript y build aprobados; auditoría
+sin vulnerabilidades conocidas. API sin cambios: build y 71 pruebas aprobados,
+auditoría sin vulnerabilidades conocidas. Los ocho archivos locales se
+compararon byte por byte con el commit fusionado; coincidieron.
+
+CI Web 43985877121 sobre e92e890ea9edab03a7648c9997a30a016c42ada9:
+https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/43985877121.
+Ambos trabajos aprobados: 130 pruebas Web, 31 casos de navegador, tres flujos
+Auth/REST/Postgres locales, TypeScript, build y auditoría 0. Jobs 133713759109
+(Web) y 133713758616 (authenticated-integration). En la primera ejecución
+43985251992, Web pasó y la integración falló porque la prueba buscaba Origen
+mientras estaba abierta Mis rutas; se corrigió la navegación de la prueba y se
+repitió CI completo. No se ocultó un error de aplicación con una excepción.
+
+Los casos de navegador usan datos controlados y vistas móvil 390×844/escritorio
+1280×900. Auth/REST/Postgres local usa sesiones reales desechables y RLS activa;
+el backend de integración sigue fijado en 27e8082, con ORS controlado. La prueba
+de GPS utiliza sensor simulado. No son cálculos ORS autenticados de producción,
+una prueba de sesiones alojadas ni navegación física Android. Esas comprobaciones
+siguen pendientes; no se crearon credenciales ni se solicitó acceso adicional.
+
+Después del despliegue se recargó el alias y se probó el flujo público real,
+sin respuestas inyectadas: coordenadas de un punto público, confirmación del
+origen, ocho recomendaciones Express con distancias en línea recta, selección
+Bodega Aurrera Express/José Timoteo Rosales, corroboración y confirmación del
+destino. Ambos marcadores y el enlace Google conservan las coordenadas exactas.
+Se verificó ausencia de desbordamiento horizontal en esa vista de escritorio.
+Se guardó evidencia visual pública y se dejó la pestaña de comprobación.
+Esta captura acredita búsqueda/confirmación pública, no cierre de sesión real.
+
+Sondas públicas posteriores: salud, coordenadas y Plus Codes completo/compuesto
+HTTP 200; ocho coincidencias Express cercanas (primera a 4,157 m en línea recta).
+Validación de dos puntos y 48 entregas 200; 49 entregas 400. Plan sin sesión
+401 AUTH_REQUIRED. Son validaciones de payload, no cálculos de esos recorridos.
+CORS directo API: origen Web autorizado 204 con su cabecera; origen ajeno 404
+sin cabecera de autorización. Catálogo conserva 15 referencias parciales y cero
+municipios con validación completa. Monitor público: siete grupos, checkedAt
+2026-11-16T22:25:21.781Z, stale=false, legalRulesAutomaticallyUpdated=false.
+No se sobrescribió su reporte automático. Logs Web/API: sin agrupaciones de
+error/fatal en los 30 minutos consultados; no equivale a monitoreo permanente.
+
+### Publicación, recuperación y continuidad
+
+Web PR #26: https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/26.
+Implementación eab5b904f93e1309eed8d6c508bf25a4423339ec; ajuste de prueba
+e92e890ea9edab03a7648c9997a30a016c42ada9; merge publicado
+91c5324a7291ad6cb775f1234068da2832c10c94. Deployment
+**dpl_6Azm4VAoqXuUczZ4jeti3QrWxdbG**, READY, target production y alias
+https://route-planner-web-sand.vercel.app/ comprobado con ese SHA.
+API conserva **b21e3890bb47626ddabc847e0f9428807aa16d2e** /
+**dpl_6VZgRhbt2Xy7XsPBEEop9vn1S3Yi**, READY, alias
+https://route-planner-api.vercel.app/. No se desplegó API en este ciclo.
+
+Rollback Web disponible: **dpl_J5bcCTDMz13zUxhkw9ahUNrZgFvS (b0fdba8)**.
+API no cambió. Sin migraciones/datos que revertir; no se ejecutó rollback.
+El commit documental posterior con [skip ci] conserva el código publicado;
+main puede ir por delante del SHA del alias sólo por documentación. El PR y
+sus commits conservan el historial y el punto de recuperación. Se mantienen
+los directorios anteriores intactos y el trabajo actual en worktree separado.
+No se modificó Gestión ni otros proyectos, ni se activaron pagos o servicios.
+
+Completado/publicado: aislamiento de identidad y respuestas tardías descrito,
+regresión de cierre de GPS e integración local entre dos cuentas. Parcial:
+verificación pública de producción, sin sesión alojada ni Android físico.
+P1 siguiente: completar comprobaciones de campo/autenticación de producción
+cuando existan medios, y retomar la publicación íntegra/actos municipales
+posteriores de 2026, sentidos y geometrías verificadas antes de aplicar normas.
+Quedan compartición con permisos y demás requisitos abiertos del programa.
+
+Puebla y las otras referencias siguen siendo parciales; catálogo/documento no
+equivale a permiso legal. Google no recibe dimensiones/peso HGV y los puntos
+guía no bloquean su trazado. No se declara ruta legal/segura ni cobertura
+nacional completa. El PROMPT MAESTRO sigue abierto y la automatización existente
+se mantiene activa; no se crea, elimina ni reprograma en este ciclo.
