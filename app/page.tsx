@@ -12,6 +12,8 @@ import { MAX_INTERMEDIATE_STOPS } from '@/lib/route-limits';
 import NavigationLinks from '@/components/NavigationLinks';
 import VehicleManager from '@/components/VehicleManager';
 import SavedRoutesPanel, { type SavedRoute } from '@/components/SavedRoutesPanel';
+import SharedRouteReview from '@/components/SharedRouteReview';
+import { shareTokenFromHash, type SharedRouteDraft } from '@/lib/route-sharing';
 import ManifestImport from '@/components/ManifestImport';
 import type { ManifestMapSearch, ManifestMapSelection } from '@/lib/manifest-map';
 import { VEHICLE_COLUMNS, type VehicleProfile } from '@/lib/vehicles';
@@ -38,10 +40,14 @@ function formatDuration(seconds: number) { const mins = Math.round(seconds / 60)
 
 export default function Home() {
   const [municipalReview, setMunicipalReview] = useState<{ id: string; request: number } | undefined>();
+  const [sharedToken, setSharedToken] = useState<string | null>(null);
   const [workspace, setWorkspace] = useState<'planner' | 'saved' | 'vehicles' | 'guide'>('planner');
   useEffect(() => {
     const sync = () => {
       const target = window.location.hash;
+      const token = shareTokenFromHash(target);
+      setSharedToken(token);
+      if (token !== null) { planningRequest.current?.abort(); restoreGeneration.current++; setLoading(false); setWorkspace('planner'); return; }
       if (target === '#mi-perfil') setWorkspace('vehicles');
       else if (target === '#mis-rutas') setWorkspace('saved');
       else if (target === '#guia-camion') setWorkspace('guide');
@@ -51,6 +57,7 @@ export default function Home() {
     return () => window.removeEventListener('hashchange', sync);
   }, []);
   function openWorkspace(next: typeof workspace) {
+    setSharedToken(null);
     setWorkspace(next);
     const target = { planner: 'planificador', saved: 'mis-rutas', vehicles: 'mi-perfil', guide: 'guia-camion' }[next];
     window.history.replaceState(null, '', `#${target}`);
@@ -191,6 +198,20 @@ export default function Home() {
     setOptimizeStops(false); setResult(null); setStopOrderMessage(`${points.length} entregas confirmadas añadidas desde el manifiesto. Se conserva su orden.`);
   }
 
+  function useSharedPoints(draft: SharedRouteDraft) {
+    planningRequest.current?.abort(); restoreGeneration.current++;
+    setLoading(false); setResult(null); setRouteChoices([]); setAlternativeNotice(''); setMapSearch(null);
+    setOrigin(draft.origin.label); setSelectedOrigin(draft.origin); setSearchArea(draft.origin);
+    setDestination(draft.destination.label); setSelectedDestination(draft.destination);
+    setStops(draft.stops.map(point => ({ id: crypto.randomUUID(), value: point.label, selected: point })));
+    setMode(draft.mode); setPreferences(draft.preferences); setOptimizeStops(false); setRequestAlternatives(false);
+    setOperating(operatingForm(draft.vehicle)); setSelectedVehicleProfileId(''); setVehicleProfileMessage('');
+    if (draft.vehicle) setVehicle({ height: String(draft.vehicle.heightM), width: String(draft.vehicle.widthM), length: String(draft.vehicle.lengthM), grossWeight: String(draft.vehicle.grossWeightT), axleWeight: String(draft.vehicle.axleWeightT) });
+    setRouteName(('Copia · ' + draft.name).slice(0, 120)); setError(''); setSaveMessage(''); saveIntent.current = null;
+    setStopOrderMessage('Puntos compartidos importados en su orden. Corrobora ubicaciones, vehículo y restricciones; calcula un recorrido nuevo.');
+    openWorkspace('planner');
+  }
+
   async function restoreSavedRoute(route: SavedRoute) {
     if (!supabase || !user || accountScope.current.ownerId !== user.id) return;
     const version = accountScope.current.version;
@@ -312,7 +333,8 @@ export default function Home() {
     <nav className="app-nav" aria-label="Secciones de Route Planner">
       {([['planner', 'plan', 'Planificar'], ['saved', 'saved', 'Mis rutas'], ['vehicles', 'truck', 'Vehículos'], ['guide', 'shield', 'Guía camión']] as const).map(([id, icon, title]) => <button type="button" key={id} aria-current={workspace === id ? 'page' : undefined} onClick={() => openWorkspace(id)}><AppIcon name={icon}/><span>{title}</span>{id === 'saved' && user && <i className="nav-dot"/>}</button>)}
     </nav>
-    <section className="planner workspace" id="planificador" hidden={workspace !== 'planner'} aria-label="Planificador de rutas">
+    {sharedToken !== null && <SharedRouteReview key={sharedToken} token={sharedToken} onUse={useSharedPoints} onClose={() => openWorkspace('planner')}/>}
+    <section className="planner workspace" id="planificador" hidden={workspace !== 'planner' || sharedToken !== null} aria-label="Planificador de rutas">
       <div className="planner-grid">
         <div className="route-form" id="puntos-ruta">
           <div className="planner-heading"><div><p className="eyebrow">TU RECORRIDO</p><h1>{result ? 'Ruta preparada' : 'Nueva ruta'}</h1></div><span className="point-count">{confirmedCount} puntos listos</span></div>
@@ -321,7 +343,7 @@ export default function Home() {
           <div className="delivery-points">
             <LocationInput title="Origen" color="green" allowCurrentLocation onSuggestions={points => setMapSearch({ target: 'origin', title: 'Origen', points })} mapReference={searchArea} value={origin} placeholder="¿Dónde empieza tu recorrido?" apiUrl={API_URL} selected={selectedOrigin} onChange={value => { setOrigin(value); setSelectedOrigin(null); setResult(null); }} onConfirm={location => { setSelectedOrigin(location); setSearchArea(location); setResult(null); }}/>
             <div className="stops-head"><span>ENTREGAS <b>{stops.length}/{MAX_INTERMEDIATE_STOPS}</b></span><button type="button" className="text-button" onClick={addStop} disabled={stops.length >= MAX_INTERMEDIATE_STOPS}>＋ Agregar parada</button></div>
-            <ManifestImport apiUrl={API_URL} reference={selectedOrigin || searchArea} remaining={MAX_INTERMEDIATE_STOPS - stops.length} hasDestination={Boolean(destination.trim())} onImport={importDeliveries} active={workspace === 'planner'} mapSelection={manifestMapSelection} onMapSearch={search => setMapSearch(current => search ? { target: 'manifest', title: search.title, points: search.points, manifest: search } : current?.manifest ? null : current)}/>
+            <ManifestImport apiUrl={API_URL} reference={selectedOrigin || searchArea} remaining={MAX_INTERMEDIATE_STOPS - stops.length} hasDestination={Boolean(destination.trim())} onImport={importDeliveries} active={workspace === 'planner' && sharedToken === null} mapSelection={manifestMapSelection} onMapSearch={search => setMapSearch(current => search ? { target: 'manifest', title: search.title, points: search.points, manifest: search } : current?.manifest ? null : current)}/>
             <RouteStops onSuggestions={(id, title, points) => setMapSearch({ target: id, title, points })} stops={stops} apiUrl={API_URL} mapReference={selectedOrigin || searchArea} onChange={updateStop} onConfirm={(id, location) => { setStops(items => items.map(item => item.id === id ? { ...item, value: location.label, selected: location } : item)); setResult(null); }} onMove={reorderStop} onRemove={removeStop}/>
             {stopOrderMessage && <p className="stop-order-message" role="status">{stopOrderMessage}</p>}
             <LocationInput onSuggestions={points => setMapSearch({ target: 'destination', title: 'Destino', points })} title="Destino" color="orange" mapReference={selectedOrigin || searchArea} value={destination} placeholder="¿Dónde termina tu recorrido?" apiUrl={API_URL} selected={selectedDestination} onChange={value => { setDestination(value); setSelectedDestination(null); setResult(null); }} onConfirm={location => { setSelectedDestination(location); setResult(null); }}/>
@@ -348,7 +370,7 @@ export default function Home() {
             {result.preferences && hasRoadPreferences(result.preferences) && <p className="optimized-note">Preferencias del cálculo: {roadPreferencesLabel(result.preferences)}. Según los datos del proveedor.</p>}
             {result.vehicleContext && operatingSummary(result.vehicleContext) && <p className="optimized-note">Datos de la unidad: {operatingSummary(result.vehicleContext)}. Pendientes de validación normativa.</p>}
             {result.optimized && <p className="optimized-note"><AppIcon name="check" size={16}/>Orden de entregas optimizado por tiempo de viaje.</p>}
-            <RouteNavigator key={user?.id || 'anonymous'} active={workspace === 'planner' && !mapSearch?.manifest} route={result} truck={mode === 'truck'} onPosition={setNavigationPosition} onFollow={setNavigationFollow}/>{mode==='truck'&&<RouteCoverageReport coverage={result.regulatoryCoverage} onOpenGuide={id=>{setMunicipalReview(id?{id,request:Date.now()}:undefined);openWorkspace('guide');}}/>}<h2>Detalle del recorrido</h2><div className="route-line">{(result.waypoints || []).map((point,index) => <div className="route-point" key={index}><i className={point.type === 'origin' ? 'dot green' : point.type === 'destination' ? 'dot orange' : 'stop-number'}>{point.type === 'stop' ? index : ''}</i><span><b>{point.type === 'origin' ? 'Origen' : point.type === 'destination' ? 'Destino' : `Entrega ${index}`}</b><small>{point.label || `${point.lat}, ${point.lng}`}</small></span></div>)}</div>
+            <RouteNavigator key={user?.id || 'anonymous'} active={workspace === 'planner' && sharedToken === null && !mapSearch?.manifest} route={result} truck={mode === 'truck'} onPosition={setNavigationPosition} onFollow={setNavigationFollow}/>{mode==='truck'&&<RouteCoverageReport coverage={result.regulatoryCoverage} onOpenGuide={id=>{setMunicipalReview(id?{id,request:Date.now()}:undefined);openWorkspace('guide');}}/>}<h2>Detalle del recorrido</h2><div className="route-line">{(result.waypoints || []).map((point,index) => <div className="route-point" key={index}><i className={point.type === 'origin' ? 'dot green' : point.type === 'destination' ? 'dot orange' : 'stop-number'}>{point.type === 'stop' ? index : ''}</i><span><b>{point.type === 'origin' ? 'Origen' : point.type === 'destination' ? 'Destino' : `Entrega ${index}`}</b><small>{point.label || `${point.lat}, ${point.lng}`}</small></span></div>)}</div>
             <details className="instructions"><summary>Indicaciones de conducción</summary>{result.sections.flatMap(section => section.actions || []).filter(action => action.instruction).slice(0, 12).map((action, index) => <p key={index}>{index + 1}. {action.instruction}</p>)}</details>
             {(result.notices || []).length > 0 && <div className="notice-box"><strong>Avisos de ruta</strong>{result.notices?.map((notice,index) => <p key={index}>{notice.title || notice.details || notice.code}</p>)}</div>}
             <div className="save-route-area"><label className="route-save-name">Nombre del recorrido<input maxLength={120} value={routeName} onChange={event => setRouteName(event.target.value)} placeholder="Ej. Express · entregas de la mañana"/></label><button type="button" className="primary-button save-button" disabled={saving} onClick={saveRoute}><AppIcon name="saved"/>{saving ? 'Guardando…' : 'Guardar esta ruta'}</button>{saveMessage && <p className="save-message" role="status">{saveMessage}</p>}</div>
