@@ -812,3 +812,17 @@ test('mobile stalled search stops loading at the client deadline and can be retr
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  }finally{release?.();await context.close();}
 });
+
+for(const width of [390,1280])test(`Google links block an incomplete delivery instead of silently skipping it at width ${width}`,async()=>{
+ const {context,page}=await setup(()=>{},{width,height:844});
+ try{
+  await page.route('**/api/route-planner/**',route=>route.fulfill({json:{ok:true,suggestions:[]}}));await page.goto(base);
+  await page.getByRole('combobox',{name:'Origen',exact:true}).fill('Origen público de prueba');await page.getByRole('combobox',{name:'Destino',exact:true}).fill('Destino público de prueba');
+  await page.getByRole('link',{name:'Abrir puntos en Google Maps ↗',exact:true}).waitFor();
+  await page.getByRole('button',{name:/Agregar parada/}).click();await page.getByRole('alert').filter({hasText:'Revisa el punto 2'}).waitFor();assert.equal(await page.locator('.navigation-segments a').count(),0);
+  await page.getByRole('combobox',{name:'PARADA 1',exact:true}).fill('Sucursal | otra parada');await page.getByRole('alert').filter({hasText:'Revisa el punto 2'}).waitFor();assert.equal(await page.locator('.navigation-segments a').count(),0);
+  await page.getByRole('combobox',{name:'PARADA 1',exact:true}).fill('Sucursal pública de prueba');const link=page.getByRole('link',{name:'Abrir puntos en Google Maps ↗',exact:true});await link.waitFor();
+  assert.equal(new URL(await link.getAttribute('href')).searchParams.get('waypoints'),'Sucursal pública de prueba');
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ }finally{await context.close();}
+});

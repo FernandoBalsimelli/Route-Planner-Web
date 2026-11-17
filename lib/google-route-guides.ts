@@ -2,7 +2,7 @@ import type { RouteResult } from './routes';
 import { prepareTrack } from './route-following';
 import type { Coordinates } from './locations';
 
-export type GoogleGuidePoint = Coordinates & { navigationLabel: string };
+export type GoogleGuidePoint = Coordinates & { navigationLabel: string; waypointIndex?: number };
 // These anchors influence Google's recalculation; they do not transfer a route
 // token, restrictions, or a promise that Google will follow the same roads.
 export function googleRouteGuides(route: RouteResult): { points: GoogleGuidePoint[]; guideCount: number } {
@@ -23,7 +23,7 @@ export function googleRouteGuides(route: RouteResult): { points: GoogleGuidePoin
   let guideCount=0;
   for(let leg=0;leg<stops.length-1;leg++) {
     const start=positions[leg], end=positions[leg+1];
-    if(!leg) points.push({...stops[0],navigationLabel:'Origen'});
+    if(!leg) points.push({...stops[0],navigationLabel:'Origen',waypointIndex:0});
     const anchors = new Set<number>();
     // A point after each maneuver favours the chosen exit instead of a stop
     // exactly in an intersection. Spacing also guides long uninterrupted legs.
@@ -35,7 +35,7 @@ export function googleRouteGuides(route: RouteResult): { points: GoogleGuidePoin
       if(guideCount>=5000) throw new Error('Este recorrido requiere demasiados puntos guía para revisarlo con comodidad. Divide el recorrido antes de abrirlo en Google Maps.');
       points.push({...at(distance),navigationLabel:`Guía ${++guideCount}`}); previous=distance;
     }
-    points.push({...stops[leg+1],navigationLabel:leg+1===stops.length-1?'Destino':`Entrega ${leg+1}`});
+    points.push({...stops[leg+1],navigationLabel:leg+1===stops.length-1?'Destino':`Entrega ${leg+1}`,waypointIndex:leg+1});
   }
   return {points,guideCount};
 }
