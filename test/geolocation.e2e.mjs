@@ -773,3 +773,42 @@ test('signing out clears the account route and stops active GPS on mobile',{time
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  }finally{await context.close();}
 });
+
+for(const width of [390,1280])test(`search recovery preserves the typed branch and confirmation at width ${width}`,{timeout:60000},async()=>{
+ const {context,page}=await setup(()=>{}, {width,height:844});
+ try{
+  let calls=0;const query='Bodega Aurrera Express';const point={label:'Bodega Aurrera Express, Sucursal pública de prueba',lat:25.72,lng:-100.32,kind:'venue'};
+  await page.route('**/api/route-planner/v1/locations/suggest?**',async route=>{
+   assert.equal(new URL(route.request().url()).searchParams.get('q'),query);calls++;
+   if(calls===1)return route.abort('failed');
+   if(calls===2)return route.fulfill({status:503,json:{ok:false,code:'PHOTON_UNAVAILABLE',message:'Proveedor alterno temporalmente no disponible.'}});
+   if(calls===3)return route.fulfill({status:200,contentType:'text/html',body:'<html>Unavailable</html>'});
+   return route.fulfill({json:{ok:true,suggestions:[point]}});
+  });
+  await page.goto(base);const input=page.getByRole('combobox',{name:'Origen',exact:true});await input.fill(query);
+  const error=page.locator('.location-search-error'),retry=page.getByRole('button',{name:'Reintentar búsqueda de origen',exact:true});
+  await error.waitFor();assert.equal(await error.getAttribute('data-error-code'),'LOCATION_NETWORK_ERROR');assert.equal(await input.inputValue(),query);assert.equal(calls,1);
+  await retry.click();assert.equal(await input.evaluate(node=>document.activeElement===node),true);await error.filter({hasText:'Proveedor alterno temporalmente no disponible.'}).waitFor();assert.equal(await error.getAttribute('data-error-code'),'PHOTON_UNAVAILABLE');assert.equal(calls,2);
+  await retry.click();await error.filter({hasText:'respuesta no válida'}).waitFor();assert.equal(await error.getAttribute('data-error-code'),'LOCATION_INVALID_RESPONSE');assert.equal(calls,3);
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await retry.click();await page.getByRole('option').filter({hasText:point.label}).click();assert.equal(calls,4);assert.equal(await input.inputValue(),query);assert.equal(await page.locator('.location-confirmed').count(),0);
+  await page.getByRole('button',{name:'Confirmar punto',exact:true}).click();assert.equal(await input.inputValue(),point.label);assert.equal(await page.locator('.location-confirmed').count(),1);assert.equal(await error.count(),0);
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ }finally{await context.close();}
+});
+
+test('mobile stalled search stops loading at the client deadline and can be retried',{timeout:60000},async()=>{
+ const {context,page}=await setup(()=>{});let release;
+ try{
+  let calls=0;
+  await page.route('**/api/route-planner/v1/locations/suggest?**',async route=>{
+   calls++;if(calls===1){await new Promise(resolve=>{release=resolve;});await route.abort().catch(()=>{});return;}
+   return route.fulfill({json:{ok:true,suggestions:[{label:'Sucursal después del tiempo límite',lat:25.7,lng:-100.3}]}});
+  });
+  await page.goto(base);const input=page.getByRole('combobox',{name:'Origen',exact:true});await input.fill('Bodega Aurrera Express');
+  const error=page.locator('.location-search-error');await error.waitFor({timeout:40000});
+  assert.equal(await error.getAttribute('data-error-code'),'LOCATION_SEARCH_TIMEOUT');assert.equal(await input.getAttribute('aria-busy'),'false');assert.equal(await input.inputValue(),'Bodega Aurrera Express');assert.equal(calls,1);
+  await page.getByRole('button',{name:'Reintentar búsqueda de origen',exact:true}).click();await page.getByRole('option').filter({hasText:'Sucursal después del tiempo límite'}).waitFor();assert.equal(calls,2);assert.equal(await error.count(),0);
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ }finally{release?.();await context.close();}
+});

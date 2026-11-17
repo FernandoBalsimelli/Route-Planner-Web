@@ -176,3 +176,27 @@ test('business selection asks to verify the branch and access and confirms only 
  const link=[...container.querySelectorAll('a')].find(node=>node.textContent==='Ver mapa ↗');assert.equal(new URL(link.href).searchParams.get('query'),'25.6801,-100.31');
  await act(async()=>button('Confirmar punto').click());assert.deepEqual(confirmed,point);assert.equal(container.querySelector('input').value,point.label);
 });
+
+test('network search failure preserves the address and manual retry requires explicit confirmation',async()=>{
+ await render(success);let calls=0;
+ const point={label:'Sucursal recuperada',lat:25.72,lng:-100.32};
+ globalThis.fetch=async()=>{calls++;if(calls===1)throw new TypeError('Failed to fetch');return Response.json({ok:true,suggestions:[point]});};
+ await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));
+ const error=container.querySelector('.location-search-error');
+ assert.equal(error?.getAttribute('data-error-code'),'LOCATION_NETWORK_ERROR');assert.match(error.textContent,/No se pudo conectar con la búsqueda/);assert.doesNotMatch(error.textContent,/Failed to fetch/);
+ assert.equal(container.querySelector('input').value,'Origen anterior');assert.equal(calls,1);
+ await act(async()=>button('Reintentar búsqueda').click());assert.equal(document.activeElement,container.querySelector('input'));await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));
+ assert.equal(calls,2);assert.equal(container.querySelector('.location-search-error'),null);assert.equal(container.querySelector('.location-confirmed'),null);
+ await act(async()=>container.querySelector('[role="option"]').click());assert.equal(container.querySelector('input').value,'Origen anterior');
+ await act(async()=>button('Confirmar punto').click());assert.equal(container.querySelector('input').value,point.label);assert.ok(container.querySelector('.location-confirmed'));
+});
+
+test('provider rejection retains its cause and malformed JSON is not presented as a missing place',async()=>{
+ await render(success);let calls=0;
+ globalThis.fetch=async()=>++calls===1?Response.json({ok:false,code:'PHOTON_UNAVAILABLE',message:'El proveedor alterno no está disponible.'},{status:503}):new Response('<html>Unavailable</html>',{status:200});
+ await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));
+ assert.equal(container.querySelector('.location-search-error')?.getAttribute('data-error-code'),'PHOTON_UNAVAILABLE');assert.match(container.textContent,/El proveedor alterno no está disponible/);
+ await act(async()=>button('Reintentar búsqueda').click());await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));
+ assert.equal(container.querySelector('.location-search-error')?.getAttribute('data-error-code'),'LOCATION_INVALID_RESPONSE');
+ assert.match(container.textContent,/respuesta no válida/);assert.doesNotMatch(container.textContent,/Sin coincidencias|Unexpected token/);assert.equal(container.querySelector('input').value,'Origen anterior');
+});
