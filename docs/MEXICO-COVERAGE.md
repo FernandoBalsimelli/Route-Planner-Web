@@ -1,6 +1,6 @@
 # Cobertura municipal mexicana y navegación
 
-Revisión: 2026-11-15. Exclusivamente Route Planner. El programa general sigue abierto.
+Revisión: 2026-11-17. Exclusivamente Route Planner. El programa general sigue abierto.
 
 ## Qué existe realmente
 
@@ -469,3 +469,20 @@ añadir reglas al cálculo ni ampliar la validación legal. El intento automáti
 directa 200. Fuente, huella y límites:
 [JUAREZ-OPERATIONS-MONITOR.md](https://github.com/FernandoBalsimelli/Route-Planner-API/blob/main/docs/JUAREZ-OPERATIONS-MONITOR.md).
 Permanecen 15 municipios parciales y cero con validación legal completa.
+
+
+## Copias compartidas y vigencia documental · 17-11-2026
+
+Compartir puntos no transmite la polilínea ni la cobertura normativa del cálculo.
+El receptor revisa las ubicaciones, conserva el orden y calcula de nuevo con los
+parámetros recibidos o corregidos. Coincidir con medidas, capacidad, ejes o una
+referencia municipal sigue sin acreditar circulación, permisos, horarios o acceso.
+Los enlaces a Google Maps conservan sus limitaciones: no reciben restricciones
+HGV ni bloquean su trazado mediante puntos guía. No se amplía la cobertura legal.
+
+El último reporte automático de main consultado en este ciclo corresponde a
+08:18:41 UTC del 17-11-2026. Juárez continúa `unavailable` por respuestas HTTP 403;
+se conserva la evidencia anterior y el aviso operativo de 2026 pendiente de revisión.
+Este seguimiento técnico no sustituye la comprobación de vigencia, actos posteriores
+ni geometrías. Permanecen 15 municipios con referencias parciales y cero con
+validación legal automática completa. No se afirma cobertura nacional completa.

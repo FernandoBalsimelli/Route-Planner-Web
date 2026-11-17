@@ -1,12 +1,13 @@
 # Route Planner — estado de ingeniería
 
-Fecha de revisión: 2026-11-16. Alcance: exclusivamente Route Planner.
+Fecha de revisión: 2026-11-17. Alcance: exclusivamente Route Planner.
 
-Estado vigente: Mis rutas busca nombres literales en activas y papelera, consulta
-al entrar y descarta cargas al salir. Se conservan aislamiento de sesión,
-reintento de ubicaciones y todos los puntos. Web publicada 90f61e8; API 10c5c7e.
-Juárez añade vigilancia separada de un aviso operativo de 2026; el primer intento
-automático recibió HTTP 403 y se muestra como fallo, sin aprobar vigencia.
+Estado vigente: enlaces de puntos compartidos con consentimiento, caducidad,
+revocación y revisión explícita del receptor. Se conservan búsqueda por nombre,
+papelera, aislamiento de sesión, GPS y todas las entregas. Web publicada 0909fae;
+API f5c9b18; esquema alojado 20261117102944_route_share_links. El recorrido se
+vuelve a calcular al importar; compartir puntos no transmite geometría ni permisos.
+Juárez sigue con HTTP 403 en el reporte automático de 08:18:41 UTC del 17-11.
 Hay 15 municipios con referencias parciales y cero con validación legal completa.
 Resultados, commits, rollback y próxima prioridad en el último cierre al final.
 Las entradas anteriores son historial. El programa maestro sigue incompleto.
@@ -2659,3 +2660,153 @@ el límite real del proveedor y todos los puntos, y continuar revisión municipa
 trazable. Google no recibe restricciones HGV ni queda obligado por puntos guía.
 No se declara cobertura nacional, ruta segura/legal ni programa maestro completo.
 Se conserva la tarea periódica existente; no se crea otra ni se desactiva.
+
+
+## Cierre de ciclo · enlaces compartidos revocables · 17-11-2026
+
+### Diagnóstico y causas
+
+Se consultaron main y ambos alias antes de editar. Entrada Web main
+909fe00ac858de2d0dd13137312e57d7cde0a41b, producción 90f61e81e44efa600cea8cf6ab3338c71c135fb6;
+API main 81d39d0beef555aa37279e47f7e00958521633b0, producción 10c5c7ee2968aee41b3292b2f8348cd5ee5a0fc0.
+Se leyeron ambos informes actuales y se preservó el reporte automático nuevo.
+No se reprodujo un P0 de red: salud, búsquedas y validaciones respondieron.
+Compartir rutas seguía pendiente: no existía un permiso revocable/caducable para
+que un receptor recibiera los puntos sin acceder a la cuenta del dueño.
+
+Durante CI, una prueba municipal antigua encontró dos comparaciones válidas
+sobre capacidad en Puebla al actualizar el backend fijado para integración:
+la disposición de maniobras de 2021 y la del programa de corredores de 2025.
+El selector suponía una sola coincidencia. Ahora verifica ambas por su disposición;
+no se eliminó ni fusionó evidencia. El primer candidato no se publicó.
+Antes de aplicar también se corrigieron una expresión CASE PL/pgSQL y dos
+supuestos del fixture SQL (JSON frente a texto; lectura posterior a la revocación).
+La migración aplicada es la versión que pasó la suite PostgreSQL y Auth/REST.
+
+### Función y archivos
+
+Completado y publicado: **Mis rutas → Compartir puntos**. Consentimiento obligatorio,
+1/24/72/168 horas, enlace sólo mostrado al crearlo, copiar con alternativa manual,
+lista de administración y revocación. El token viaja en el fragmento, se guarda
+sólo su hash y no se persiste en localStorage. Sólo el dueño puede crear/revocar
+los enlaces de su ruta y consultar sus metadatos. Diez enlaces activos por ruta
+no limita sus entregas. La lista prioriza los potencialmente activos para no
+ocultar controles de revocación tras mucho historial; se puede revocar incluso
+si el reloj del dispositivo considera que ya caducó.
+
+Receptor: mapa, puntos ordenados, medidas/pesos y preferencias. No importa nada
+hasta **Usar estos puntos**; en ese instante vuelve a comprobar el enlace. Sustituye
+el borrador sólo tras esa acción, preserva 48 paradas más origen/destino y exige
+un nuevo cálculo. No copia IDs privados, flotas, resultados, métricas, geometría,
+instrucciones ni supuesta cobertura legal. Cerrar sin importar conserva el borrador.
+Se cancelan solicitudes obsoletas, salidas y cambios de cuenta, con timeout de 30 s.
+Archivar revoca permanentemente los enlaces anteriores aunque se recupere la ruta.
+Las copias ya importadas no pueden borrarse remotamente.
+
+Web: app/page.tsx, app/globals.css, components/SavedRoutesPanel.tsx,
+components/RouteShareLinks.tsx, components/SharedRouteReview.tsx,
+lib/route-sharing.ts, lib/use-share-request.ts, test/route-sharing.test.mjs,
+test/share-links.test.mjs, test/integration/authenticated.e2e.mjs y
+.github/workflows/checks.yml. API: migración, test/sql/route-sharing.sql,
+.github/workflows/checks.yml y docs/ROUTE-SHARING.md. Este informe y
+MEXICO-COVERAGE.md cierran el ciclo documental.
+
+### Pruebas y resultados
+
+- Web: TypeScript, compilación y **155 pruebas** aprobadas; **34 casos de navegador**
+  aprobados. CI [44064888845](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/44064888845),
+  jobs 133975900896 y 133975901775: cero fallos y cero omitidas.
+- **Cinco flujos Auth/PostgREST/PostgreSQL locales reales** aprobados: ciclo de
+  vehículo/ruta, 48 entregas con reintento atómico, alternativa elegida, búsqueda
+  literal/papelera y enlaces compartidos en 390/1365 px. El último genera un enlace,
+  comprueba lectura anónima, ausencia de campos privados, revisión sin cálculo
+  automático, importación completa, permisos entre cuentas y revocación después
+  de abrirlo; archivar/recuperar no reactiva enlaces. ORS es fixture sintético.
+- API: build, **73 pruebas**, migraciones y comprobaciones RLS/ACL sobre PostgreSQL
+  desechable, aprobadas. CI final [44065507467](https://github.com/FernandoBalsimelli/Route-Planner-API/actions/runs/44065507467),
+  job 133978049410. También verifica caducidad según el servidor, snapshot inmutable,
+  hash en vez de token, modo/perfil incompletos, 49 paradas rechazadas y límite de enlaces.
+- npm audit --omit=dev: cero vulnerabilidades reportadas en ambos repositorios.
+  Chromium local no puede crear su socket; los casos de navegador se ejecutaron
+  en GitHub CI. No se presenta ese bloqueo local como una prueba aprobada.
+- Producción posterior al despliegue: salud de ambos servicios HTTP 200;
+  coordenadas, Plus Code completo y compuesto y búsqueda cercana HTTP 200.
+  Bodega Aurrera Express devuelve ocho coincidencias. Validate con 0/2/48 paradas
+  devuelve 200, con 49 devuelve 400. Plan sin sesión devuelve 401.
+  CORS del dominio autorizado: 204 y cabecera correcta; origen ajeno: 404 sin permiso.
+- Navegador público real: enlace desconocido devuelve el estado de no disponibilidad;
+  cerrar vuelve al planificador. Origen decimal confirmado conserva 25.6866,-100.3161;
+  búsqueda de Express muestra ocho coincidencias con distancias en línea recta y
+  marcadores; se confirma la sucursal de José Timoteo Rosales y ambos puntos aparecen
+  sobre teselas reales. No se inyectaron respuestas en esta comprobación pública.
+- Vercel: ninguna fila de errores/fatales agregados en los 30 minutos consultados,
+  en ambos proyectos. No equivale a observabilidad permanente ni a ausencia futura de fallos.
+- No se ejecutaron creación/revocación autenticadas de enlaces en Supabase alojado,
+  cálculo ORS autenticado real ni GPS/navegación en Android físico. La prueba local
+  de cuentas y los fixtures no se presentan como esos resultados.
+
+### Supabase aplicado y límites de seguridad
+
+Sólo pakhlscjbjvwnheeyjxd: migración **20261117102944_route_share_links**, registrada
+por apply_migration. El archivo creado con CLI se alineó con esa versión alojada,
+sin editar filas del historial ni cambiar su SQL ya probado. SHA-256 del SQL:
+7acf6bc7dc1debdd7f9417c48f3cf8c6686e383cb22ad70509914515f80ba60d.
+Tras aplicar: **3 rutas, 10 paradas y 1 vehículo**, iguales a la inspección previa;
+**0 enlaces** creados. No se sembraron cuentas o datos de prueba en producción.
+RLS activo, clientes sin SELECT de snapshot/hash, anon sin crear enlaces y lector
+por token habilitado. Una lectura SQL bajo rol anon del token inexistente devuelve null.
+
+Los asesores señalan intencionalmente el lector SECURITY DEFINER accesible a anon
+y los tres RPC accesibles a authenticated. Son avisos vigentes, no se declaran
+resueltos: se necesitan para este acceso limitado por token y administración del
+dueño sin grants directos sobre snapshot/hash. Se revisaron pertenencia, whitelist,
+search_path vacío, expiración, revocación y grants. Referencias y revisión en
+[ROUTE-SHARING.md](https://github.com/FernandoBalsimelli/Route-Planner-API/blob/main/docs/ROUTE-SHARING.md),
+incluidos los enlaces de remediación 0028/0029. Sigue el aviso previo de protección
+de contraseñas filtradas desactivada; no se activaron servicios de pago. Salud sin
+avisos; el índice de flota sin uso es informativo y no se eliminó.
+
+### Commits, publicación y recuperación
+
+Web PR [#29](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/29):
+bee33ed277f1140ebcb62bd14acd2a0189326142 inicial; candidato final probado
+9822d150fe4f7ac5e484bfec200c284df2296c19; merge publicado
+**0909fae3a506584276827d3dc33559c9bbf0c1e3**.
+Deployment **dpl_52eJGKK2KpiKLrphqH4d5svg9rNa**, READY y production;
+https://route-planner-web-sand.vercel.app/ resuelve a ese SHA.
+
+API PR [#22](https://github.com/FernandoBalsimelli/Route-Planner-API/pull/22):
+SQL/ACL probado 080d707a745081e138898ba9906dcb6e9bc70ca6 (fijado en integración Web);
+candidato final probado ec8a69b0391691437879be8052f2db000bbff7f1 con versión de
+migración alineada y documentación; merge publicado
+**f5c9b1882cc4cdd33331dab6dfa8c1774a9b83cc**.
+Deployment **dpl_Hc3QfG4ZszBzZKao8sGXUxjDefGL**, READY y production;
+https://route-planner-api.vercel.app/ resuelve a ese SHA. Sin cambios a JS del motor.
+Los cierres documentales posteriores usan [skip ci]; un main posterior sólo por
+documentos no implica que haya código funcional sin publicar.
+
+Rollback de entrada: Web dpl_3S6E6U2KxbEbCLs9XEWC5ipVT9xi (90f61e8) y
+API dpl_Fkj31Bh94vhh4jrWBQfZy3YVTRfN (10c5c7e). Restaurarlos conserva las tablas
+aditivas. **Volver la Web por sí solo no revoca enlaces ya creados**: si se requiere
+suspender lecturas, aplicar `revoke execute on function public.read_route_share_link(text)
+from anon, authenticated;` y reponer el grant tras corregir/verificar. No borrar tabla,
+filas ni historial. No se ejecutó rollback. Las ramas y commits de recuperación
+se conservan. No se modificó Gestión u otros recursos, variables, secretos ni
+servicios de pago.
+
+### Pendientes y próxima prioridad
+
+Completado/publicado en este ciclo: compartir puntos con permisos, caducidad,
+revisión, importación completa y revocación/papelera. Mejoras generales de búsqueda,
+vehículos, manifiestos y navegación conservadas, sin restaurar el límite de ocho.
+Parcial/bloqueado: verificación autenticada alojada y Android físico sin medios
+actuales; fuentes Juárez con HTTP 403; permisos, vigencia y geometrías municipales
+sin completar. El monitor público refleja el reporte de 08:18:41 UTC del 17-11;
+una descarga o catálogo no valida una ruta.
+
+Próxima prioridad independiente: mejorar progreso/continuidad de entregas y la
+navegación por tramos sin perder puntos; continuar corroboración oficial accesible
+de Juárez y actos posteriores de Puebla sin eludir controles. Mantener distinción
+entre parámetros HGV del proveedor y normativa municipal no aplicada. Google Maps
+no conserva necesariamente el trazado exacto ni recibe dimensiones/peso HGV.
+El programa maestro sigue incompleto; se conserva la tarea periódica existente.
