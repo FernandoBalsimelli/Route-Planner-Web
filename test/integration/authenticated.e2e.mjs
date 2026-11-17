@@ -174,7 +174,10 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
     await page.getByLabel('Entidad federativa',{exact:true}).selectOption('21');
     await page.getByLabel('Municipio o demarcación',{exact:true}).selectOption('21114');
     await page.getByRole('heading',{name:'Puebla',exact:true}).waitFor();
-    await page.locator('[data-comparison="matches"]').filter({hasText:'Capacidad de carga: 30.125 t'}).waitFor();
+    const capacityRule=page.locator('.municipal-time-rules article').filter({has:page.getByText('Maniobras: capacidad mayor de 3.5 t',{exact:true})});
+    await capacityRule.locator('[data-comparison="matches"]').filter({hasText:'Capacidad de carga: 30.125 t'}).waitFor();
+    const corridorCapacityRule=page.locator('.municipal-time-rules article').filter({has:page.getByText('Corredores del programa · capacidad mayor de 3.5 t',{exact:true})});
+    await corridorCapacityRule.locator('[data-comparison="matches"]').filter({hasText:'Capacidad de carga: 30.125 t'}).waitFor();
     assert.match(await page.locator('.vehicle-review-context').innerText(),/T3-S2 · 5 ejes/);
     assert.match(await page.locator('.vehicle-reference-comparison').filter({hasText:'no se evalúa tu configuración'}).innerText(),/T3-S2/);
     await page.getByLabel('Entidad federativa',{exact:true}).selectOption('08');
