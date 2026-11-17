@@ -207,6 +207,7 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
     const heldStops=new Promise(resolve=>{stopsReady=resolve;});
     const releaseStops=new Promise(resolve=>{releaseSavedStops=resolve;});
     await page.route('**/rest/v1/route_stops?**',async route=>{
+      if(route.request().method()!=='GET')return route.continue();
       const response=await route.fetch();assert.equal(response.status(),200);
       stopsReady();await releaseStops;await route.fulfill({response});
     });
@@ -217,6 +218,7 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
     await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
     assert.equal((await logout).status(),204);await page.locator('.account-button').filter({hasText:'Iniciar sesión'}).waitFor();
     if(await page.getByRole('dialog',{name:'Cuenta de Route Planner'}).isVisible())await page.locator('.account-button').click();
+    await nav(page).getByRole('button',{name:'Planificar',exact:true}).click();
     assert.equal(await page.getByRole('combobox',{name:'Origen',exact:true}).inputValue(),'');
     assert.equal(await page.getByRole('combobox',{name:'Destino',exact:true}).inputValue(),'');
     assert.equal(await page.getByRole('combobox',{name:'PARADA 1',exact:true}).count(),0);
