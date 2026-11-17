@@ -2,11 +2,10 @@
 
 Fecha de revisión: 2026-11-16. Alcance: exclusivamente Route Planner.
 
-Estado vigente: corregido aislamiento del planificador al cerrar/cambiar cuenta.
-Se retiran datos privados de la interfaz y respuestas pendientes de una sesión
-anterior no pueden restaurar rutas, resultados, mensajes o vehículos en la nueva.
-Borrador invitado y refresco del mismo usuario se conservan. Web publicada
-91c5324; API conserva b21e389. Sin cambios de esquema/RLS ni datos alojados.
+Estado vigente: búsqueda de ubicaciones con plazo completo, errores específicos
+y reintento manual que conserva texto/cercanía, devuelve foco y exige confirmación.
+Se mantiene el aislamiento de sesión del ciclo anterior. Web publicada 2ffebfb;
+API conserva b21e389. Sin cambios de esquema/RLS, proveedores o datos alojados.
 Hay 15 municipios con referencias parciales y cero con validación legal completa.
 Resultados, commits, rollback y próxima prioridad en el último cierre al final.
 Las entradas anteriores son historial. El programa maestro sigue incompleto.
@@ -2344,3 +2343,135 @@ equivale a permiso legal. Google no recibe dimensiones/peso HGV y los puntos
 guía no bloquean su trazado. No se declara ruta legal/segura ni cobertura
 nacional completa. El PROMPT MAESTRO sigue abierto y la automatización existente
 se mantiene activa; no se crea, elimina ni reprograma en este ciclo.
+
+
+## Cierre de ciclo — 16-11-2026: recuperación de búsqueda de ubicaciones (P0)
+
+### Entrada y diagnóstico
+
+Main Web comprobada: 706467ef5f8aeaebebbab8fe4ecd72a1f07b93f2; main API:
+31e458c8802dfc43d4a37012fcce23a6c4a90901. Se leyeron ENGINEERING-STATUS.md y
+MEXICO-COVERAGE.md de esa main antes de cambiar código. Producción a la entrada:
+Web 91c5324 / dpl_6Azm4VAoqXuUczZ4jeti3QrWxdbG y API b21e389 /
+dpl_6VZgRhbt2Xy7XsPBEEop9vn1S3Yi, ambas READY. Salud, coordenadas, Plus Codes
+y ocho sucursales Express cercanas respondieron HTTP 200. No se observó una
+caída general del servicio durante esta comprobación.
+
+LocationInput tenía debounce y cancelación al editar, pero no plazo completo
+en el navegador. El límite de 25 s del proxy no acota una conexión cliente-proxy
+que no termine. Un error de transporte mostraba Failed to fetch; un fallo al
+decodificar JSON mostraba el mensaje técnico. No había acción de reintento sin
+editar el texto. Son fallos de recuperación del cliente: no se afirma haber
+detectado una caída nueva de ORS ni una causa de red específica en producción.
+
+El entorno de terminal/archivos y el navegador no estaban disponibles en este
+ciclo. Se trabajó directamente en GitHub, en rama separada, y se ejecutó el
+código mediante el CI existente. No se afirma compilación/pruebas locales ni
+interacción visual real de producción en esta ejecución. Supabase Route Planner
+se consultó sólo en lectura y reportó ACTIVE_HEALTHY; no se reinspeccionaron
+políticas/tablas ni se escribió ningún dato alojado.
+
+### Cambio implementado y archivos
+
+- lib/location-search.ts (nuevo): plazo de 30 s desde el inicio de la petición,
+  incluido el cuerpo; cancela fetch y termina la espera aun si fetch/body no
+  respetan abort. Libera temporizador/listener. Distingue transporte, timeout,
+  rechazo HTTP/proveedor y respuesta JSON/contrato inválido. Conserva código,
+  mensaje y estado HTTP cuando existen, sin registrar consultas privadas.
+- components/LocationInput.tsx: usa el helper, presenta causa específica con
+  role=alert y permite Reintentar búsqueda. Conserva texto, referencia de cercanía
+  y debounce; devuelve el foco al campo para teclado/sugerencias del mapa y
+  cierra selectores alternativos. No hay reintentos automáticos por un fallo.
+  Editar o desmontar cancela sin mostrar la cancelación como error de tiempo.
+  Elegir una sugerencia conserva la corroboración/confirmación explícita.
+- test/location-search.test.mjs (nuevo): ocho casos de helper, incluidos fetch
+  bloqueado, cuerpo bloqueado, cancelación, red, HTTP, JSON y lista vacía válida.
+- test/location-input.test.mjs: dos regresiones de recuperación y foco.
+- test/geolocation.e2e.mjs: tres casos nuevos: secuencia red/503/JSON/recuperación
+  en móvil y escritorio; espera real de 30 s y reintento en navegador móvil.
+- docs/LOCATION-SEARCH-RECOVERY.md (nuevo): comportamiento, presupuestos,
+  referencias técnicas primarias y límites de validación.
+
+Se mantienen GPS/OCR, autocompletado cercano, coordenadas/Plus Codes, proveedores,
+caché backend, cuotas, límite real de 48 entregas, orden y enlaces Google.
+No cambian API, dependencias, secretos/variables, esquema/RLS o datos alojados.
+No se modifican fuentes legales, reglas municipales ni geometrías en este ciclo.
+
+### Pruebas y resultados
+
+Primero se guardaron sólo las dos regresiones sobre main anterior: commit
+bae1bcc5da2a7552d536dd2873724e5fef42cca1, CI 43987993039, job 133721023726.
+Pasaron las 130 existentes y fallaron exactamente las dos nuevas. La prueba
+del plazo completo se añadió con el helper, no se presenta como ejecución roja
+del helper antes de que existiera.
+
+Implementación 53770c9adc10ee5f7bf524985e5449cf5a105fae: CI 43988347077
+aprobó 140 pruebas, 34 casos de navegador, tres flujos Auth locales, TypeScript,
+build y auditoría 0. El ajuste posterior de foco 4476fcd8c508c88087c6bd5742df9d53acfbc107
+se volvió a verificar completo antes de publicar:
+
+CI final 43988944139 sobre 4476fcd8c508c88087c6bd5742df9d53acfbc107:
+https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/43988944139.
+Ambos trabajos aprobados: 140 pruebas Web, 34 casos de navegador, tres flujos
+Auth locales, TypeScript, build y auditoría 0; sin omitidas. Jobs 133724257822
+(Web) y 133724257494 (authenticated-integration). El árbol del merge coincide
+exactamente con el árbol del commit probado, sin cambios de código intermedios.
+
+Las pruebas de navegador usan proveedores/red controlados en 390×844 y
+1280×844, junto con los casos existentes. El timeout móvil espera los 30 s de
+la implementación, sin acortar el plazo de producción. Auth/REST/Postgres
+local usa sesiones reales desechables; el backend de integración sigue fijado
+en 27e8082 y ORS es controlado. Incluye cálculo/guardado de dos y múltiples
+puntos, 48 entregas, rechazo de la 49, aislamiento y alternativas. No son
+cálculos ORS autenticados de producción ni navegación física Android.
+La suite independiente API de 71 casos no se volvió a ejecutar en este ciclo
+Web; su último resultado queda en el cierre anterior, sin presentarlo como nuevo.
+
+### Producción y publicación
+
+Comprobaciones HTTP posteriores al despliegue: salud, coordenadas y Plus Codes
+completo/compuesto 200 con una sugerencia; Express cercano 200 con ocho y
+primera distancia en línea recta 4,157 m. Referencia de cercanía inválida:
+400 INVALID_SEARCH_FOCUS, preservado por el proxy. Catálogo: 15 referencias
+parciales, cero validadas. Monitor público: checkedAt 2026-11-16T22:25:21.781Z,
+stale=false; no actualiza normas automáticamente.
+
+Página de producción HTTP 200 y paquete app/page-34f0899307231f59.js HTTP 200:
+incluye LOCATION_NETWORK_ERROR, LOCATION_SEARCH_TIMEOUT y LOCATION_INVALID_RESPONSE.
+Esto comprueba el código servido, no una interacción visual del usuario.
+No se ejecutaron POST/CORS de producción en este ciclo: los medios HTTP
+disponibles son GET. Las comprobaciones de cálculo se hicieron en la integración
+local de CI y no se presentan como cálculos reales ORS de producción.
+Logs Web/API: sin agrupaciones error/fatal en los 30 minutos consultados; es
+una ventana concreta y no monitoreo permanente.
+
+Web PR #27: https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/27.
+Merge publicado: 2ffebfb905b1256ba8bb92a1297c977b09f405f2.
+Deployment: dpl_H9tJy5YcKyfaTMadyuSv6S6kG8i4, READY, target production, alias
+https://route-planner-web-sand.vercel.app/ verificado con ese SHA.
+API permanece b21e3890bb47626ddabc847e0f9428807aa16d2e /
+dpl_6VZgRhbt2Xy7XsPBEEop9vn1S3Yi, READY:
+https://route-planner-api.vercel.app/. No se desplegó API ni se sobrescribió
+su reporte automático de fuentes.
+
+Rollback Web disponible: dpl_6Azm4VAoqXuUczZ4jeti3QrWxdbG (91c5324).
+No hay migraciones/datos que revertir y no se ejecutó rollback. Rama
+fix/location-search-recovery-20261116 y PR conservan recuperación/historial.
+El cierre documental posterior de main usa [skip ci] y no cambia el código
+verificado del alias. No se modificó Gestión ni otros proyectos; no se
+activaron servicios/funciones de pago o credenciales nuevas.
+
+### Estado y reanudación
+
+Completado/publicado: búsqueda acotada, clasificación de causas y reintento
+manual con foco/confirmación, con pruebas de helper, componente y navegador.
+Parcial: producción comprobada por HTTP/paquete servido; sin navegador real
+disponible en este ciclo, Android físico ni sesión alojada. Quedan pruebas de
+campo/ORS autenticado cuando existan medios, compartición con permisos y demás
+P1 abiertos. Retomar revisión oficial de publicación íntegra y actos de 2026,
+permisos, sentidos y geometrías antes de aplicar normas municipales.
+
+Persisten 15 municipios con referencia parcial y cero con validación legal
+completa; un documento/catálogo no acredita permiso. Google no recibe HGV ni
+queda obligado por puntos guía. El programa maestro sigue incompleto. Se
+conserva la tarea periódica existente, sin crear otra ni desactivarla.
