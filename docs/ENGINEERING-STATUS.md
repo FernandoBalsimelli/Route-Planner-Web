@@ -2,10 +2,11 @@
 
 Fecha de revisión: 2026-11-16. Alcance: exclusivamente Route Planner.
 
-Estado vigente: búsqueda de ubicaciones con plazo completo, errores específicos
-y reintento manual que conserva texto/cercanía, devuelve foco y exige confirmación.
-Se mantiene el aislamiento de sesión del ciclo anterior. Web publicada 2ffebfb;
-API conserva b21e389. Sin cambios de esquema/RLS, proveedores o datos alojados.
+Estado vigente: Mis rutas busca nombres literales en activas y papelera, consulta
+al entrar y descarta cargas al salir. Se conservan aislamiento de sesión,
+reintento de ubicaciones y todos los puntos. Web publicada 90f61e8; API 10c5c7e.
+Juárez añade vigilancia separada de un aviso operativo de 2026; el primer intento
+automático recibió HTTP 403 y se muestra como fallo, sin aprobar vigencia.
 Hay 15 municipios con referencias parciales y cero con validación legal completa.
 Resultados, commits, rollback y próxima prioridad en el último cierre al final.
 Las entradas anteriores son historial. El programa maestro sigue incompleto.
@@ -2475,3 +2476,186 @@ Persisten 15 municipios con referencia parcial y cero con validación legal
 completa; un documento/catálogo no acredita permiso. Google no recibe HGV ni
 queda obligado por puntos guía. El programa maestro sigue incompleto. Se
 conserva la tarea periódica existente, sin crear otra ni desactivarla.
+
+
+## Cierre de ciclo — 16-11-2026: recuperar rutas por nombre y vigilancia de Juárez
+
+### Entrada, diagnóstico y alcance
+
+Se consultaron main Web b9d9d7bfc23d8097986793eb13de7a6875c8b19c y API
+31e458c8802dfc43d4a37012fcce23a6c4a90901, ENGINEERING-STATUS.md y
+MEXICO-COVERAGE.md, y ambos alias READY antes de modificar. Web estaba en
+2ffebfb / dpl_H9tJy5YcKyfaTMadyuSv6S6kG8i4; API en b21e389 /
+dpl_6VZgRhbt2Xy7XsPBEEop9vn1S3Yi. La salud pública respondió 200.
+Se usaron worktrees nuevos de main sin sobrescribir los directorios anteriores.
+
+No existía buscador de rutas guardadas: localizar un nombre antiguo requería
+ampliar la lista. La integración nueva encontró además que el panel precargaba
+al iniciar sesión y permanecía oculto sin actualizarse al abrirlo; una escritura
+desde otra sesión podía no aparecer. Se corrigió la activación y la restauración
+pendiente al salir, no se añadió una recarga artificial sólo en la prueba.
+
+### Funciones implementadas y archivos
+
+- components/SavedRoutesPanel.tsx: búsqueda por fragmentos del nombre en rutas
+  activas/papelera, debounce 300 ms, filtro REST antes del límite, reinicio del
+  límite al editar y orden estable por fecha/id. Conserva dueño explícito y RLS;
+  los signos no amplían la consulta. Mantiene la búsqueda al cambiar a papelera.
+  Eliminar archiva y recuperar conserva el registro y sus puntos.
+- lib/saved-route-search.ts: escape literal para imatch. No usa ilike, cuyo
+  asterisco puede ser alias de porcentaje en PostgREST. No concatena SQL ni OR.
+  No promete ignorar acentos ni buscar las direcciones intermedias.
+- El listado consulta al entrar y al volver, sin precarga oculta. El campo sigue
+  editable durante la consulta; las acciones esperan su resultado. Cancelación,
+  descarte de respuestas tardías, plazo de 30 s y reintento distinguen fallo de
+  lista vacía. Se conservan resúmenes ligeros, sin geometría hasta cargar la ruta.
+- app/page.tsx: activa el panel con el espacio de trabajo e invalida una
+  restauración pendiente si se abandona Mis rutas, incluso con paradas en vuelo.
+- app/globals.css: campo integrado con temas, foco visible, texto móvil de 16 px
+  y controles táctiles. README.md y docs/SAVED-ROUTE-SEARCH.md describen uso/límites.
+- test/saved-route-search.test.mjs añade siete casos; test/session-isolation.test.mjs
+  añade salir durante una restauración; test/integration/authenticated.e2e.mjs
+  añade un cuarto flujo real de Auth/REST/Postgres local en móvil y escritorio.
+
+Son nueve archivos en Web PR #28, más el cierre documental y la actualización de
+cobertura. Se conserva el modelo anterior de ampliar el límite solicitado y el
+máximo de respuesta de Supabase; no se implementaron cursores ni se certifica
+rendimiento para colecciones arbitrariamente grandes. El filtro sí se aplica
+antes del límite. No cambia el límite real de 48 entregas de un recorrido.
+
+API PR #21 modifica data/mx/national-references.json, test/source-monitor.test.js,
+docs/MEXICO-COVERAGE.md y añade docs/JUAREZ-OPERATIONS-MONITOR.md. Incorpora al
+grupo existente de Juárez una URL oficial del aviso operativo del 08-09-2026
+sobre obras en Valle del Sol, con aviso de revisión en la consulta municipal.
+No lo convierte en reglamento permanente, horario universal o desvío autorizado.
+La vigencia actual, fin de trabajos, perímetro y geometrías siguen pendientes.
+El reglamento histórico de 2003 conserva sus fechas y advertencias originales.
+
+Fuente:
+https://www.juarez.gob.mx/noticia/34586/aclara-seguridad-vial-sobre-circulaciA3n-de-vehA-culos-de-carga-pesada-por-obras-de-valle-del-sol
+Descarga directa real de esta revisión: HTTP 200, 45,181 bytes, SHA-256
+58eec143ed7a2fa23c1846f12c2876ac0fa0c8e666c741e44008a6b597e4b159.
+Es evidencia del HTML consultado; no certifica reforma ni vigencia posterior.
+
+El monitor existente se activó por el cambio de registro: run 44024118839,
+job 133840247988, finalizó y guardó 10c5c7ee2968aee41b3292b2f8348cd5ee5a0fc0.
+Reporte checkedAt 2026-11-17T05:26:32.948Z: Juárez y su URL nueva devolvieron
+HTTP_403 desde GitHub, sin descarga/hash nuevos para el aviso. Se conserva el
+fallo real, separado de la descarga directa 200; no se sustituye por evidencia
+manual ni se afirma una causa específica del 403. Mantiene siete grupos de
+fuentes y la programación existente, sin cron, permisos o servicios nuevos.
+Las dos pruebas nuevas comprueban cambios independientes y conservación del
+documento vinculado aunque falle el principal. La cobertura sigue en 15
+municipios parciales y cero con validación legal completa, sin exclusiones nuevas.
+
+### Pruebas, fallos encontrados y resultados
+
+Local final: 148 pruebas Web, TypeScript/build y auditoría 0; API 73 pruebas,
+build y auditoría 0. La ejecución local de navegador no pudo iniciar Chromium
+por socket() Operation not permitted. Los 34 casos fallaron en el hook inicial;
+no se cuentan como pruebas funcionales locales aprobadas. Se ejecutaron en CI.
+
+Web CI final 44024334624 sobre 60e4feb5c7942ec4966e04ed465d266f122f62e3:
+https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/44024334624.
+Jobs 133840955269 y 133840955698 aprobados: 148 pruebas Web, 34 casos de
+navegador, cuatro flujos Auth/REST locales, TypeScript/build y auditoría 0,
+sin omitidas. El árbol fusionado 2bc812ac8ab963aa67f25c6f739018af05537f68
+coincide con el probado; los nueve archivos locales coincidieron byte por byte.
+
+La primera integración (44023081276) pasó tres flujos y falló el nuevo porque
+la lista oculta estaba precargada antes de sembrar los datos en otra sesión:
+defecto real corregido. La segunda (44023880084) pasó tres y falló al contar
+antes de completarse la paginación. La prueba se sincronizó con la respuesta
+REST de 30 registros y su elemento visible; se repitió CI completo.
+No se relajaron las comprobaciones de cantidad o literalidad.
+
+El cuarto flujo prueba Auth/REST/Postgres genuinos con RLS activa, dos cuentas,
+30 rutas sintéticas, ruta fuera de la primera página, signos %, _, *, paréntesis,
+corchetes, barras/comillas, ausencia de resultados, limpieza, archivado,
+recuperación y carga en 390×844 y 1280×844. No se simula la respuesta de esa
+búsqueda. Los siete casos unitarios sí controlan transporte y el plazo se acorta
+sólo en el caso de timeout. La suite general conserva GPS/proveedores simulados.
+
+API CI 44023963673 sobre 96079d1606b15c1fadedbcaf31ac45b9a18fd271:
+https://github.com/FernandoBalsimelli/Route-Planner-API/actions/runs/44023963673.
+Job 133839747369 aprobó 73 pruebas, build/auditoría y migraciones/aislamiento RLS
+en Postgres desechable. No se aplicaron migraciones, permisos o datos a Supabase
+alojado; sólo se consultó Route Planner y respondió ACTIVE_HEALTHY.
+
+Auth local de Web conserva backend fijado en 27e8082 y ORS controlado. Sus casos
+de cálculo/guardado de dos y múltiples puntos, 48 entregas, rechazo de la 49
+y alternativas no se presentan como ORS autenticado de producción. No hay
+prueba nueva de sensores/permisos en Android físico ni de cuentas alojadas.
+
+### Verificación de producción
+
+Se verificó la API nueva con Web anterior, y después ambos despliegues nuevos:
+salud, coordenadas exactas y Plus Codes completo/compuesto HTTP 200; ocho
+coincidencias Express cercanas. Validación de payload de dos puntos y 48
+entregas 200, 49 entregas 400. Plan sin sesión 401 AUTH_REQUIRED.
+Son validaciones de entrada, no cálculos reales de esos recorridos.
+CORS directo: origen Web autorizado 204 con su cabecera; origen ajeno 404 sin
+cabecera de autorización. Catálogo conserva 15 parciales y cero validados.
+
+El endpoint municipal de Juárez contiene el aviso y URL nueva, routingEnforced
+false y timeRules vacío. source-status refleja el reporte 05:26:32 UTC,
+stale=false, URL nueva unavailable / HTTP_403 / sha256 null / lastSuccessAt null
+y legalRulesAutomaticallyUpdated=false. Un intento reciente no implica descarga
+correcta. No se sobrescribió el reporte automático.
+
+Comprobación pública real en navegador, sin respuestas inyectadas: compatibilidad
+de Web anterior con API nueva; recarga de Web nueva, Mis rutas exige sesión
+sin mostrar registros privados, y consulta Chihuahua/Juárez con aviso de 2026,
+fuentes históricas separadas y HTTP_403 visible por documento en el seguimiento.
+La URL del aviso es la exacta verificada. Sin desbordamiento horizontal en esa
+vista de escritorio. Se guardó evidencia visual pública y se dejó la pestaña.
+Esa captura prueba seguimiento documental, no búsqueda autenticada de producción.
+
+Página y paquete /_next/static/chunks/app/page-5f63e9ff5605e670.js respondieron
+200 e incluyen el campo y filtro nuevos. Logs Web/API finales: sin agrupaciones
+error/fatal en los 30 minutos consultados; no es garantía ni vigilancia permanente.
+
+### Publicación y recuperación
+
+Web PR #28:
+https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/28.
+Commits 1f0a855f4ad3b16becd1585a32372980113aaebf (búsqueda),
+e56201962ad13fcc8f873ebcb1ad96dcbf44db93 (activación/cancelación) y
+60e4feb5c7942ec4966e04ed465d266f122f62e3 (sincronización de prueba).
+Merge publicado 90f61e81e44efa600cea8cf6ab3338c71c135fb6.
+Deployment dpl_3S6E6U2KxbEbCLs9XEWC5ipVT9xi, READY, target production:
+https://route-planner-web-sand.vercel.app/, alias verificado con ese SHA.
+
+API PR #21:
+https://github.com/FernandoBalsimelli/Route-Planner-API/pull/21.
+Feature 96079d1606b15c1fadedbcaf31ac45b9a18fd271, merge
+544e0f39f5fce8ed774cf07a547834a447c122fe; reporte automático publicado
+10c5c7ee2968aee41b3292b2f8348cd5ee5a0fc0. Entre merge y reporte sólo cambió
+data/mx/source-status.json, sin código intermedio no probado.
+Deployment dpl_Fkj31Bh94vhh4jrWBQfZy3YVTRfN, READY, target production:
+https://route-planner-api.vercel.app/, alias verificado con SHA 10c5c7e.
+Corrección documental API posterior bf92d22baba6de189f5a1ce2ea89d27ade7bd5d1 registra el 403
+sin cambiar código ni desplegar de nuevo.
+
+Rollback de entrada: Web dpl_H9tJy5YcKyfaTMadyuSv6S6kG8i4 (2ffebfb) y API
+dpl_6VZgRhbt2Xy7XsPBEEop9vn1S3Yi (b21e389). Sin migraciones/datos que revertir;
+no se ejecutó rollback. Los cierres documentales posteriores usan [skip ci] y
+main puede ir por delante del SHA publicado sólo por documentos. Historial y
+ramas permanecen. Los worktrees de este ciclo se pueden reanudar desde main.
+No se modificó Gestión ni otros proyectos, secretos, dependencias o variables,
+ni se contrataron/activaron servicios de pago.
+
+### Estado y próxima prioridad
+
+Completado/publicado: búsqueda por nombre y papelera con actualización al entrar,
+cancelación y recuperación; seguimiento de la nueva URL de Juárez y fallo visible.
+Parcial/bloqueado: descarga automática de esa fuente por HTTP 403; vigencia,
+perímetro y geometrías pendientes. Buscar corroboración oficial accesible y
+actos posteriores, sin eludir controles ni convertir una nota de prensa en norma.
+
+Pendientes P1: enlaces compartidos con permisos/revocación, mejoras de navegación
+y comprobación de campo/autenticación alojada cuando existan medios. Mantener
+el límite real del proveedor y todos los puntos, y continuar revisión municipal
+trazable. Google no recibe restricciones HGV ni queda obligado por puntos guía.
+No se declara cobertura nacional, ruta segura/legal ni programa maestro completo.
+Se conserva la tarea periódica existente; no se crea otra ni se desactiva.

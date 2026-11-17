@@ -459,3 +459,13 @@ El monitor descargó las cuatro páginas nuevas y el endpoint público reflejó
 el reporte técnico de las 19:12:43 UTC del 16-11-2026. La consulta real mostró
 fechas, ámbitos y fuentes sin respuestas inyectadas. Evidencia, límites y
 rollback en ENGINEERING-STATUS.md. La cobertura legal nacional sigue incompleta.
+
+
+## Juárez · vigilancia documental de 2026 · 16-11-2026
+
+API PR #21 añade un documento al grupo existente y un aviso de revisión, sin
+añadir reglas al cálculo ni ampliar la validación legal. El intento automático
+05:26:32 UTC del 17-11-2026 recibió HTTP 403; se conserva separado de la descarga
+directa 200. Fuente, huella y límites:
+[JUAREZ-OPERATIONS-MONITOR.md](https://github.com/FernandoBalsimelli/Route-Planner-API/blob/main/docs/JUAREZ-OPERATIONS-MONITOR.md).
+Permanecen 15 municipios parciales y cero con validación legal completa.
