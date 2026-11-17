@@ -2,11 +2,13 @@
 
 Fecha de revisión: 2026-11-17. Alcance: exclusivamente Route Planner.
 
-Estado vigente: Google Maps deja de descartar puntos inválidos silenciosamente y
-permite **Retomar desde** una entrega explícita conservando el orden posterior.
-Se mantienen enlaces compartidos revocables, GPS, vehículos, manifiestos, papelera
-y todas las entregas. Web publicada 2260f77; API 8f78231 añade dos comunicados de
-Juárez al seguimiento y consulta, sin convertirlos en reglas del motor.
+Estado vigente: **Mis rutas → Entregas** permite guardar avance manual por cuenta
+y ruta, recuperarlo al volver y revisar su historial. Los conflictos entre sesiones
+no sobrescriben selecciones y cambiar puntos invalida la selección anterior.
+Web publicada c69d4ce; API cd8c852; migración aditiva 20261117201420 aplicada.
+Se mantienen Google **Retomar desde**, enlaces compartidos revocables, GPS,
+vehículos, manifiestos, papelera y todas las entregas. El avance no omite puntos
+automáticamente ni constituye prueba de entrega o autorización de circulación.
 Reporte automático nuevo 17-11-2026T15:14:30.013Z: Juárez sigue con HTTP 403.
 Hay 15 municipios con referencias parciales y cero con validación legal completa.
 Resultados, commits, rollback y próxima prioridad en el último cierre al final.
@@ -2949,3 +2951,173 @@ manual, aislamiento y revisión antes de omitir puntos, conservando el cálculo 
 las entregas históricas. Continuar corroboración de actos y geometrías oficiales
 sin convertir notas operativas en autorizaciones. El programa maestro sigue
 abierto y se mantiene la tarea periódica existente sin duplicarla ni desactivarla.
+
+
+## Cierre de ciclo · avance de entregas recuperable · 17-11-2026
+
+### Diagnóstico y causa
+
+Preflight nuevo: se consultaron GitHub, ambos dominios de producción, Supabase y
+ENGINEERING-STATUS.md/MEXICO-COVERAGE.md de main. Web main
+e3eda608a43e00a2db243fe22c59faa430b5f46f, producción
+2260f77816c3b35c44fe927c9ffb8074de50eb18/dpl_7dx6wmpHeYgAttkywPL7Uo7eijez;
+API main ccaaf1545c216d40d67522bb3309cd7409261f79, producción
+8f7823190bef32ac2459b0af7bdc2e1e05d5bb4d/dpl_FK4MRW9zb58rGCKPuuNF5AMrqFkc.
+Se preservó el reporte automático de fuentes de main. No se reprodujo un P0 de
+conexión, búsqueda o validación pública en la comprobación inicial ni final.
+
+La continuidad anterior sólo retenía temporalmente la elección **Retomar desde**;
+no existía registro persistente por ruta de las entregas declaradas realizadas.
+Una recarga u otra sesión no podían recuperar ese avance. No se resolvió marcando
+la navegación como entrega: se añadió un registro manual separado de puntos,
+cálculos, rutas compartidas y enlaces Google.
+
+### Funciones completadas y archivos
+
+**Mis rutas → Entregas** muestra las paradas en su orden original y el destino,
+hasta 49 casillas cuando existen 48 paradas intermedias. El origen no es entrega.
+Marcar casillas prepara cambios; **Guardar avance** los persiste explícitamente.
+La selección se recupera al reabrir o iniciar otra sesión de la misma cuenta.
+La interfaz indica cambios sin guardar; cerrar/cambiar ruta o cuenta cancela la
+solicitud y descarta respuestas tardías. No se almacena avance en localStorage.
+
+Cada cambio conserva una revisión anterior. Se consultan las diez revisiones más
+recientes; **Revisar selección** prepara una anterior compatible y sólo guardar
+añade otra revisión. No se borra historial ni se modifica una revisión existente.
+Guardar exactamente la misma selección vigente no duplica registros. Si otra
+sesión guardó antes, la escritura devuelve conflicto y mantiene la selección
+local; **Actualizar avance** consulta y sustituye explícitamente esos cambios.
+No hay reintento que sobrescriba silenciosamente.
+
+La huella se calcula con puntos completos ordenados e identidades/secuencias
+originales de las paradas. Reordenar dos visitas a la misma dirección también
+la cambia. Si el recorrido cambió, se conserva historial pero sus marcas ya no
+se aplican: el operador revisa la lista actual y guarda una selección nueva.
+Archivar impide editar; recuperar la ruta conserva su historial. El panel queda
+limitado a rutas activas y la sesión propietaria.
+
+Web: .github/workflows/checks.yml, app/globals.css,
+components/SavedRoutesPanel.tsx, components/DeliveryProgressPanel.tsx,
+lib/delivery-progress.ts, lib/use-share-request.ts,
+test/delivery-progress.test.mjs, test/delivery-progress-panel.test.mjs y
+test/integration/authenticated.e2e.mjs. API: .github/workflows/checks.yml,
+supabase/migrations/20261117201420_route_delivery_progress.sql,
+test/sql/delivery-progress.sql y
+[docs/DELIVERY-PROGRESS.md](https://github.com/FernandoBalsimelli/Route-Planner-API/blob/main/docs/DELIVERY-PROGRESS.md).
+Este informe y MEXICO-COVERAGE.md documentan el cierre.
+
+El avance sigue siendo declaración manual, no llegada GPS ni comprobante de
+entrega. No cambia el cálculo o puntos originales, no altera enlaces compartidos
+y no omite automáticamente puntos de Google. Para navegar se carga la ruta
+completa y se revisa **Retomar desde**. No se restauró el límite de ocho entregas;
+se mantienen los límites reales del proveedor y enlaces Google consecutivos.
+
+### Base de datos y protección de datos
+
+Se creó la migración con CLI y se aplicó exclusivamente a pakhlscjbjvwnheeyjxd.
+La versión registrada por apply_migration es **20261117201420**; se alineó el
+nombre del archivo con ella sin cambiar el SQL ni editar historial alojado.
+SHA256 del SQL: 6fbee494123e630171ae3c7900a547418ce1c0f1709dd08d9eb50bae10254ff6.
+El commit 6fbf44cac735c7e26ebd103f269863e9af6ba3ee usado por el flujo Web
+autenticado contiene los mismos bytes SQL con el nombre anterior de creación.
+El candidato API final comprueba el nombre canónico en un Postgres nuevo.
+
+La tabla route_delivery_events usa RLS por propietario; authenticated sólo tiene
+SELECT/INSERT, sin UPDATE/DELETE y sin acceso anónimo. El RPC usa SECURITY INVOKER,
+search_path vacío, auth.uid() y pertenencia a una ruta activa. Un bloqueo breve
+de la fila de ruta serializa escrituras y archivo; compara revisión y huella antes
+de insertar. Valida coordenadas, orden, duplicados y rangos de las secuencias.
+Leer no crea eventos. El servidor y cliente validan los datos recibidos.
+
+Comprobación alojada posterior: **3 rutas, 10 paradas, 1 vehículo, 0 enlaces**, sin
+cambios de cantidades, **0 eventos de avance**; RLS nueva activada, permisos anónimos
+de tabla/RPC ausentes, mutaciones UPDATE/DELETE de cliente ausentes y RPC sin
+elevación. No se crearon cuentas, rutas o entregas de prueba en producción.
+El historial sigue ligado al ciclo de vida de la ruta/cuenta. El cliente propietario
+puede insertar datos propios válidos bajo RLS: no es una bitácora probatoria
+inalterable frente al dueño; RPC/UI añaden los controles de revisión y huella.
+
+Health sin avisos; security conserva los avisos previos de RPC de enlaces
+compartidos (uno anónimo y tres autenticados SECURITY DEFINER) y protección de
+contraseñas filtradas desactivada. El RPC de entregas no añade SECURITY DEFINER ni
+acceso anónimo. Performance sólo informa índices sin uso previo; no se eliminaron.
+No se habilitaron funciones de pago ni cambiaron variables o credenciales.
+
+### Pruebas y comprobación de producción
+
+- Web: TypeScript, producción build, **169 pruebas unitarias/componentes** y
+  **36 casos de navegador**, aprobados; auditoría npm --omit=dev con cero avisos.
+  [CI 44166478468](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/44166478468),
+  jobs 134333782883 y 134333783624. Las pruebas nuevas de componente comprueban
+  guardado explícito, conflicto, preparación de historial y cancelación al cerrar.
+- **Siete flujos Auth/REST/PostgreSQL locales** aprobados, cero omitidos. El nuevo
+  caso usa sesiones locales reales, 48 paradas más destino y pantallas 390/1365 px:
+  guardar [1,24,49], recargar, conflicto con otra sesión, actualización explícita,
+  revisión histórica sin escribir hasta guardar, aislamiento entre dos cuentas,
+  cambio de puntos que invalida marcas y papelera/recuperación con historial.
+  Dos escrituras HTTP simultáneas de la misma revisión producen exactamente un
+  éxito y un conflicto. Ruta y paradas fuente permanecen intactas. Los cálculos
+  de los otros flujos conservan proveedor ORS sintético.
+- API: build, **74 pruebas**, auditoría npm --omit=dev cero vulnerabilidades,
+  migraciones y SQL/RLS en PostgreSQL desechable aprobados.
+  [CI final 44167288088](https://github.com/FernandoBalsimelli/Route-Planner-API/actions/runs/44167288088),
+  job 134336621742. SQL prueba precisión, lectura sin eventos, no duplicación,
+  conflictos, acceso ajeno denegado, archivo/recuperación, cambio de puntos y
+  permuta de visitas con coordenadas/etiquetas idénticas.
+- Chromium local sigue sin poder iniciarse (SIGABRT/EPERM). Los casos de navegador
+  se ejecutaron en GitHub; ese intento local no se contabiliza como aprobado.
+- Probes reales posteriores a ambos deploys: Web, API health y proxy health 200;
+  coordenadas decimales, Plus Code completo 75WMMW72+52, compuesto MW72+52 Monterrey
+  y Bodega Aurrera Express 200. Express devolvió ocho sugerencias con sesgo cercano.
+  Validación de 0/2/48 paradas 200; 49 devuelve 400. Plan sin sesión 401/AUTH_REQUIRED.
+  CORS del origen autorizado 204 con cabecera; ajeno 404 sin autorización.
+  Estas validaciones públicas no ejecutan un cálculo ORS autenticado alojado.
+- Ambas consultas de logs Vercel error/fatal, agrupadas por ruta en los últimos
+  30 minutos, no devolvieron filas. Es una comprobación puntual, no monitoreo
+  continuo garantizado. Los trece archivos funcionales publicados coinciden
+  byte a byte con los archivos locales verificados.
+- **No ejecutado:** flujo de avance con una sesión alojada real, cálculo ORS
+  autenticado alojado de este ciclo, navegación Google en carretera y Android
+  físico. La inspección de migración/ACL alojada y las pruebas Auth locales no se
+  presentan como esas verificaciones. No se garantiza seguridad/legalidad vial.
+
+### Publicación, recuperación y límites
+
+Web PR [#31](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/31),
+candidato 7801777c4fb938b1ac42be482e261373dd43ce74; merge publicado
+**c69d4ce1088a3d9a2d5ad84aff2956b75e4bfee4**, deployment
+**dpl_7FSF7yMV7trtPBwifg8NWpwSSbwM**, READY/production. Alias comprobado:
+https://route-planner-web-sand.vercel.app/.
+
+API PR [#24](https://github.com/FernandoBalsimelli/Route-Planner-API/pull/24),
+candidato 6fe6b0c9cc0a7de41c472b699d69bcc3573f43f4; merge publicado
+**cd8c8526901bce91a8c4052e1a3fac0ace07e402**, deployment
+**dpl_5A8wM8zHdXFU6ZSG6h1v17RRb3Pd**, READY/production. Alias comprobado:
+https://route-planner-api.vercel.app/.
+
+Rollback conservado: Web **dpl_7dx6wmpHeYgAttkywPL7Uo7eijez** (2260f77), API
+**dpl_FK4MRW9zb58rGCKPuuNF5AMrqFkc** (8f78231). Volver a la Web previa oculta
+el panel; el esquema nuevo es aditivo y conserva historial. Si hiciera falta
+suspender escrituras, revocar INSERT de route_delivery_events y EXECUTE de
+route_delivery_progress(uuid,integer[],integer,text) a authenticated; reponer
+los grants tras corregir/verificar. No borrar tabla, filas o historial de
+migraciones. No se ejecutó rollback. Se mantienen ramas y commits de recuperación.
+El cierre documental posterior [skip ci] sólo cambia estos dos informes y no añade
+código funcional sin publicar. No se modificó Gestión ni ningún otro proyecto.
+
+Normativa sin ampliación en este ciclo: **15 municipios parciales, cero con
+validación legal completa**. El endpoint público conserva el reporte de
+17-11-2026T15:14:30.013Z (09:14 Chihuahua), no obsoleto al comprobarlo; cinco
+documentos de Juárez siguen HTTP_403/unavailable. Se preservó el monitor periódico
+existente, sin añadir cron ni fuentes/reglas/geometrías no verificadas. Un avance
+de entrega no certifica el acceso, horario, permiso, peso o dimensiones del camión.
+Google sigue recalculando y no recibe parámetros HGV ni fija su trazado por guías.
+
+Completado/publicado: progreso privado persistente, guardado manual, historial,
+revisión antes de recuperación y control de conflictos. Parcial/bloqueado:
+validación alojada autenticada y Android físico; normativa vigente, permisos y
+geometrías; Juárez 403. Próxima prioridad: conectar el avance con la revisión
+explícita de **Retomar desde**, mostrando las entregas pendientes sin omitir
+automáticamente visitas, y continuar corroboración oficial accesible de Juárez y
+actos posteriores de Puebla. El programa maestro sigue abierto. Se mantiene la
+automatización existente activa, sin duplicarla ni desactivarla.

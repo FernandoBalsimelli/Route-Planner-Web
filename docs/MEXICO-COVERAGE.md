@@ -510,3 +510,27 @@ los puntos posteriores y sus guías, incluso con coordenadas repetidas. No cambi
 la ruta guardada ni declara entregas realizadas. Los enlaces Google siguen sujetos
 a sus límites reales y recalculan: esta mejora de orden no transmite restricciones
 HGV ni garantiza el trazado exacto, seguridad o autorización de circulación.
+
+
+## Avance manual de entregas y límites legales · 17-11-2026
+
+Web c69d4ce y API cd8c852 añaden avance privado por ruta/cuenta con historial y
+control de conflictos. Marcar una visita como completada es una declaración del
+operador: no certifica llegada, entrega, acceso autorizado o cumplimiento municipal.
+Cambiar puntos u orden invalida la selección anterior sin borrar su historial.
+El avance no omite puntos automáticamente ni modifica la ruta o Google Maps.
+
+Se verificó en el endpoint público el reporte técnico de
+2026-11-17T15:14:30.013Z (09:14 Chihuahua), sin obsolescencia en esta consulta.
+Los cinco documentos vigilados de Juárez siguen HTTP_403/unavailable. No se
+cambiaron fuentes, cron, reglas, geometrías, sentidos, horarios, pesos, permisos
+o exclusiones del motor. Permanecen **15 municipios con referencias parciales y
+cero con validación legal automática completa**. El catálogo, la disponibilidad
+de un documento y las entregas declaradas no equivalen a cobertura legal.
+
+Los puntos guía orientan Google pero no bloquean el trazado ni transmiten medidas
+o restricciones HGV. No se afirma ruta exacta para camiones, segura/legal o cobertura
+nacional completa. Las verificaciones autenticadas locales de este ciclo y sus
+límites alojados/Android se detallan en ENGINEERING-STATUS.md. El seguimiento
+existente permanece activo y las fuentes bloqueadas requieren corroboración
+oficial sin eludir controles.
