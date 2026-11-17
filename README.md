@@ -28,6 +28,10 @@ En Supabase Dashboard → Authentication → URL Configuration:
 
 La aplicación usa Supabase Auth. Las flotas personales se guardan en `fleets` y agrupan perfiles de vehículo; los perfiles de camión se guardan en `vehicles`; las rutas en `saved_routes`, sus datos de cálculo (perfil, vehículo, métricas, indicaciones y geometría) en `saved_routes.route_metadata`, y las paradas en `route_stops`. Las tablas mantienen RLS con políticas de propietario. La agrupación de flotas es individual por ahora; todavía no incluye invitaciones ni acceso compartido para conductores.
 
+«Mis rutas» ofrece búsqueda por nombre en rutas activas y papelera, conservando
+el filtro al recuperar un recorrido. Eliminar archiva y permite deshacer;
+no borra sus puntos. Detalle: [SAVED-ROUTE-SEARCH.md](docs/SAVED-ROUTE-SEARCH.md).
+
 ## Proveedor de rutas
 
 El frontend consume `POST /v1/routes/plan` en Route Planner API. Los perfiles y las credenciales del proveedor se administran en el backend. No publiques secretos en el repositorio ni los incluyas en variables `NEXT_PUBLIC_*`.

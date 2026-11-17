@@ -114,6 +114,7 @@ export default function Home() {
     setUser(nextUser);
   }, []);
   useEffect(() => { if (workspace !== 'planner') setMapSearch(null); }, [workspace]);
+  useEffect(() => { if (workspace !== 'saved') restoreGeneration.current += 1; }, [workspace]);
   useEffect(() => setMapSearch(null), [selectedOrigin, selectedDestination, stops]);
   const previewWaypoints = useMemo(() => [
     ...(selectedOrigin ? [{ ...selectedOrigin, type: 'origin' }] : []),
@@ -357,7 +358,7 @@ export default function Home() {
       </div>
     </section>
     <div className="workspace account-workspace" hidden={workspace !== 'vehicles'}><VehicleManager key={`profile-${user?.id || 'guest'}`} user={user} vehicles={vehicleProfiles} onSelect={id => { loadVehicleProfile(id); openWorkspace('planner'); }} onSaved={profile => { setVehicleProfiles(items => [profile, ...items.filter(item => item.id !== profile.id)]); loadVehicleProfile(profile.id, profile); }}/></div>
-    <div className="workspace account-workspace" id="mis-rutas" hidden={workspace !== 'saved'}><SavedRoutesPanel key={`routes-${user?.id || 'guest'}`} user={user} revision={routesRevision} onLoad={restoreSavedRoute}/></div>
+    <div className="workspace account-workspace" id="mis-rutas" hidden={workspace !== 'saved'}><SavedRoutesPanel key={`routes-${user?.id || 'guest'}`} user={user} revision={routesRevision} onLoad={restoreSavedRoute} active={workspace === 'saved'}/></div>
     <div className="workspace guide-workspace" id="guia-camion" hidden={workspace !== 'guide'}><TruckGuide requestedMunicipality={municipalReview} vehicle={mode === 'truck' ? { heightM: Number(vehicle.height), widthM: Number(vehicle.width), lengthM: Number(vehicle.length), grossWeightT: Number(vehicle.grossWeight), axleWeightT: Number(vehicle.axleWeight), axleCount: operating.axleCount.trim() ? Number(operating.axleCount) : undefined, configuration: operating.configuration || undefined, payloadCapacityT: operating.payloadCapacity.trim() ? Number(operating.payloadCapacity) : undefined } : undefined}/></div>
   </main></LocationBookProvider>;
 }

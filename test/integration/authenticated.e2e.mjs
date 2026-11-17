@@ -297,3 +297,43 @@ test('real local session selects and saves an alternative geometry, then restore
   assert.match(await page.locator('.metrics').innerText(),/4.1 km/);assert.equal(await page.locator('.route-alternatives').count(),0);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
  }finally{await context.close();}
 });
+
+
+test('real local saved-route search is literal, paginated and recoverable on mobile and desktop',{timeout:180000},async()=>{
+ const {literalRouteNamePattern}=await import('../../lib/saved-route-search.ts');
+ for(const width of [390,1280]){
+  const context=await browser.newContext({viewport:{width,height:844},isMobile:width<768,hasTouch:width<768});
+  await context.route('https://tile.openstreetmap.org/**',route=>route.fulfill({contentType:'image/png',body:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jWZkAAAAASUVORK5CYII=','base64')}));
+  await context.route('https://fonts.googleapis.com/**',route=>route.abort());await context.route('https://fonts.gstatic.com/**',route=>route.abort());
+  const page=await context.newPage();
+  try{
+   const username='saved-search-'+width;await page.goto(base);await createAccount(page,username);const owner=await session(username);
+   const other=await createLocalAccount(username+'-other');
+   const names=['Ruta 50%_* (A)','Calle [12]+?','Literal \\d^${x}.|','Coma, "Express"'];
+   const origin={label:'Origen sintético',lat:28.63,lng:-106.06},destination={label:'Destino sintético',lat:28.64,lng:-106.07};
+   const record=(name,created_at='2026-11-16T12:00:00Z')=>({owner_id:owner.uid,name,origin,destination,status:'planned',route_metadata:{mode:'delivery'},created_at});
+   const seeds=[...Array.from({length:25},(_,i)=>record('Entrega normal '+String(i).padStart(2,'0'))),...names.map(name=>record(name,'2020-01-01T00:00:00Z')),record('Ruta 50XXX cualquier A')];
+   const saved=await owner.client.from('saved_routes').insert(seeds).select('id,name');assert.equal(saved.error,null);assert.equal(saved.data.length,30);
+   const foreign=await other.client.from('saved_routes').insert({...record(names[0]),owner_id:other.uid}).select('id').single();assert.equal(foreign.error,null);
+   const hidden=await owner.client.from('saved_routes').select('id').eq('id',foreign.data.id).filter('name','imatch',literalRouteNamePattern(names[0]));assert.equal(hidden.error,null);assert.deepEqual(hidden.data,[]);
+   await nav(page).getByRole('button',{name:'Mis rutas',exact:true}).click();await page.getByRole('button',{name:'Cargar más rutas',exact:true}).waitFor();
+   assert.equal(await page.locator('.saved-route-card').count(),20);assert.equal(await page.locator('.saved-route-card').filter({hasText:names[0]}).count(),0);
+   const moreResponse=page.waitForResponse(response=>{const u=new URL(response.url());return u.pathname.endsWith('/rest/v1/saved_routes')&&u.searchParams.get('limit')==='41';});
+   await page.getByRole('button',{name:'Cargar más rutas',exact:true}).click();const more=await moreResponse;assert.equal(more.status(),200);assert.equal((await more.json()).length,30);await page.locator('.saved-route-card').nth(29).waitFor();assert.equal(await page.locator('.saved-route-card').count(),30);
+   const input=page.getByRole('searchbox',{name:'Buscar rutas por nombre',exact:true});
+   for(const name of names){
+    const term=name.toLowerCase();const responsePromise=page.waitForResponse(response=>{const u=new URL(response.url());return u.pathname.endsWith('/rest/v1/saved_routes')&&u.searchParams.get('name')==='imatch.'+literalRouteNamePattern(term);});
+    await input.fill(term);const response=await responsePromise;assert.equal(response.status(),200);const results=await response.json();assert.equal(results.length,1);assert.equal(results[0].name,name);
+    const url=new URL(response.url());assert.equal(url.searchParams.get('limit'),'21');assert.equal(url.searchParams.get('owner_id'),'eq.'+owner.uid);assert.equal(url.searchParams.get('select').includes(',route_metadata'),false);
+    await page.locator('.saved-route-card').getByText(name,{exact:true}).waitFor();assert.equal(await page.locator('.saved-route-card').count(),1);assert.equal(await page.locator('.saved-route-card strong').innerText(),name);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+   }
+   await input.fill('No existe esta ruta');await page.getByText('No hay rutas activas con este nombre.',{exact:true}).waitFor();
+   await page.getByRole('button',{name:'Limpiar búsqueda',exact:true}).click();await page.getByRole('button',{name:'Cargar más rutas',exact:true}).waitFor();assert.equal(await input.inputValue(),'');assert.equal(await page.locator('.saved-route-card').count(),20);
+   await input.fill(names[0]);await page.getByRole('button',{name:'Eliminar ruta '+names[0],exact:true}).click();await page.getByText(/Ruta eliminada. Puedes recuperarla/).waitFor();
+   await page.getByRole('button',{name:'Papelera',exact:true}).click();const recover=page.getByRole('button',{name:'Recuperar '+names[0],exact:true});await recover.waitFor();assert.equal(await input.inputValue(),names[0]);await recover.click();await page.getByText('No hay rutas en la papelera con este nombre.',{exact:true}).waitFor();
+   await page.getByRole('button',{name:'Ver rutas activas',exact:true}).click();await page.getByRole('button',{name:'Cargar ruta',exact:true}).click();
+   assert.equal(await page.getByRole('combobox',{name:'Origen',exact:true}).inputValue(),origin.label);assert.equal(await page.getByRole('combobox',{name:'Destino',exact:true}).inputValue(),destination.label);
+   const preserved=await owner.client.from('saved_routes').select('id,status').eq('name',names[0]);assert.equal(preserved.error,null);assert.equal(preserved.data.length,1);assert.equal(preserved.data[0].status,'planned');
+  }finally{await context.close();}
+ }
+});
