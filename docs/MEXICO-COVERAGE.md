@@ -486,3 +486,27 @@ se conserva la evidencia anterior y el aviso operativo de 2026 pendiente de revi
 Este seguimiento técnico no sustituye la comprobación de vigencia, actos posteriores
 ni geometrías. Permanecen 15 municipios con referencias parciales y cero con
 validación legal automática completa. No se afirma cobertura nacional completa.
+
+
+## Juárez · seguimiento de la misma obra y reanudación · 17-11-2026
+
+Se vinculan y vigilan por separado los comunicados municipales del 07-09 y
+18-09-2026 sobre Juan Pablo II/Valle del Sol, junto al ya incorporado del 08-09.
+El primero describe un desvío para autos chicos, excluyendo carga pesada; el
+segundo menciona cierre hasta enero. Duración de obra y cierre no se equiparan:
+no se calcula una fecha de reapertura ni un desvío autorizado para camiones.
+Contenido, ámbito, fechas y límites de revisión en
+[JUAREZ-OPERATIONS-MONITOR.md](https://github.com/FernandoBalsimelli/Route-Planner-API/blob/main/docs/JUAREZ-OPERATIONS-MONITOR.md).
+
+La descarga directa de las dos URLs devolvió 403. El monitor de GitHub volvió a
+intentarlas en su comprobación de 17-11-2026T15:14:30.013Z (09:14 Chihuahua) y
+también registró HTTP_403, sin huellas ni descargas correctas inventadas. La tarea
+terminó correctamente como comprobación técnica, no como validación de las fuentes.
+Siguen 15 municipios parciales y cero con validación automática completa. No se
+cambian reglas, geometrías, horarios, pesos, permisos ni exclusiones del motor.
+
+La opción Web **Retomar desde** usa la entrega original elegida y conserva todos
+los puntos posteriores y sus guías, incluso con coordenadas repetidas. No cambia
+la ruta guardada ni declara entregas realizadas. Los enlaces Google siguen sujetos
+a sus límites reales y recalculan: esta mejora de orden no transmite restricciones
+HGV ni garantiza el trazado exacto, seguridad o autorización de circulación.

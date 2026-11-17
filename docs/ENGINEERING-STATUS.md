@@ -2,12 +2,12 @@
 
 Fecha de revisión: 2026-11-17. Alcance: exclusivamente Route Planner.
 
-Estado vigente: enlaces de puntos compartidos con consentimiento, caducidad,
-revocación y revisión explícita del receptor. Se conservan búsqueda por nombre,
-papelera, aislamiento de sesión, GPS y todas las entregas. Web publicada 0909fae;
-API f5c9b18; esquema alojado 20261117102944_route_share_links. El recorrido se
-vuelve a calcular al importar; compartir puntos no transmite geometría ni permisos.
-Juárez sigue con HTTP 403 en el reporte automático de 08:18:41 UTC del 17-11.
+Estado vigente: Google Maps deja de descartar puntos inválidos silenciosamente y
+permite **Retomar desde** una entrega explícita conservando el orden posterior.
+Se mantienen enlaces compartidos revocables, GPS, vehículos, manifiestos, papelera
+y todas las entregas. Web publicada 2260f77; API 8f78231 añade dos comunicados de
+Juárez al seguimiento y consulta, sin convertirlos en reglas del motor.
+Reporte automático nuevo 17-11-2026T15:14:30.013Z: Juárez sigue con HTTP 403.
 Hay 15 municipios con referencias parciales y cero con validación legal completa.
 Resultados, commits, rollback y próxima prioridad en el último cierre al final.
 Las entradas anteriores son historial. El programa maestro sigue incompleto.
@@ -2810,3 +2810,142 @@ de Juárez y actos posteriores de Puebla sin eludir controles. Mantener distinci
 entre parámetros HGV del proveedor y normativa municipal no aplicada. Google Maps
 no conserva necesariamente el trazado exacto ni recibe dimensiones/peso HGV.
 El programa maestro sigue incompleto; se conserva la tarea periódica existente.
+
+
+## Cierre de ciclo · orden de Google y avisos de Juárez · 17-11-2026
+
+### Diagnóstico y causa
+
+Preflight nuevo: Web main 57c58a9aba470b816afffad2f4a149d45562bd22, producción
+0909fae3a506584276827d3dc33559c9bbf0c1e3/dpl_52eJGKK2KpiKLrphqH4d5svg9rNa;
+API main/producción f5c9b1882cc4cdd33331dab6dfa8c1774a9b83cc,
+dpl_Hc3QfG4ZszBzZKao8sGXUxjDefGL. Se leyeron ambos informes de esa main.
+La salud/búsqueda públicas respondieron sin reproducir un error de conexión.
+
+Se encontró un defecto real de integridad del itinerario: googleMapsSegments
+convertía puntos inválidos en cadenas vacías y después los eliminaba con filter.
+Con origen/destino válidos y una entrega vacía podía emitir un enlace que la
+omitía. Ahora, con al menos dos puntos preparados, cualquier punto inválido o
+separador de paradas dentro de una dirección bloquea todos los enlaces y pide
+corroborarlo, sin eliminar entregas. Un borrador con menos de dos puntos válidos
+sigue sin emitir navegación. La corrección se comprobó en producción.
+
+### Funciones y archivos
+
+P0 completado/publicado: bloqueo de itinerarios incompletos y direcciones con
+separadores que Google interpretaría como paradas adicionales. Corregir el punto
+recupera un enlace que incluye las entregas completas.
+
+P1 completado/publicado: **Retomar desde**, sólo en recorridos calculados con
+paradas. El operador elige origen o una entrega anterior al destino; cada enlace
+comienza en el punto elegido y conserva todos los posteriores, sus números y
+preferencias de carretera. Puntos guía usan índices explícitos del waypoint
+original, no coincidencias de nombre/coordenadas o cercanía. Dos entregas iguales
+siguen siendo dos visitas distintas. Se validan correspondencias antes de recortar.
+Cambiar el tamaño de enlace o habilitar guías conserva la elección; cambiar ruta,
+puntos, modo o preferencias la invalida antes de renderizar enlaces antiguos.
+Volver al origen restaura el itinerario entero. La selección permanece al cambiar
+de sección en la misma pestaña, es temporal y no escribe en rutas ni estados de
+entrega. No es todavía progreso persistente entre dispositivos o recargas.
+
+API: dos comunicados oficiales vinculados y vigilados por separado en Juárez,
+publicados el 07-09 y 18-09-2026. Se conserva su ámbito operativo, la exclusión
+de carga pesada del desvío para autos chicos y sus plazos diferentes, sin fecha
+de reapertura inferida ni autorización de desvío. La consulta Web muestra ambos
+enlaces con fecha y los límites de interpretación. No se añade una geometría,
+regla, ventana, umbral de vehículo o municipio plenamente validado.
+
+Archivos Web: components/NavigationLinks.tsx, lib/navigation.ts,
+lib/google-route-guides.ts, lib/navigation-continuation.ts, app/globals.css,
+test/navigation-continuation.test.mjs, test/navigation-links.test.mjs,
+test/geolocation.e2e.mjs, test/integration/authenticated.e2e.mjs. API:
+data/mx/national-references.json, docs/JUAREZ-OPERATIONS-MONITOR.md y
+test/source-monitor.test.js. Este informe y MEXICO-COVERAGE.md cierran el ciclo.
+No se cambiaron dependencias, secretos, variables, esquema ni datos Supabase.
+No se operó sobre Gestión u otros proyectos ni se activó un servicio de pago.
+
+### Verificación
+
+- Web: TypeScript, compilación de producción, **162 pruebas**, **36 casos de navegador**
+  y **seis flujos Auth/REST/PostgreSQL locales**, todos aprobados, cero omitidas.
+  [CI 44111009593](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/44111009593),
+  jobs 134136329257 y 134136262821. Nuevos casos en 390/1280 px bloquean una parada
+  vacía o separador y recuperan el enlace al corregirla. El flujo Auth nuevo en
+  390/1365 px calcula con ORS sintético, guarda/restaura 48 entregas y retoma desde
+  la 24, verifica guías, enlaces 3/9, extremos compartidos, preferencias, orden
+  completo posterior, ida/vuelta de secciones y ruta/paradas originales intactas.
+- API: build, **74 pruebas**, migraciones y comprobaciones RLS/ACL en PostgreSQL
+  desechable aprobadas. [CI 44111783593](https://github.com/FernandoBalsimelli/Route-Planner-API/actions/runs/44111783593),
+  job 134139042739. El caso nuevo distingue cambio en un aviso de disponibilidad
+  del otro incluso con principal caído; no infiere reapertura ni legalidad.
+- Ambas auditorías npm --omit=dev reportaron cero vulnerabilidades conocidas.
+  Chromium local sigue bloqueado por el entorno; navegador se ejecutó en GitHub,
+  no se reportó el intento local como aprobado. No se alteró esa protección.
+- Navegador público de producción, sin inyectar respuestas: origen/destino escritos,
+  parada vacía muestra el mensaje de punto 2 y ningún enlace Google; completar
+  la parada recupera origin/waypoints/destination con los tres puntos. La guía de
+  Juárez muestra las dos URLs nuevas, sus fechas y las limitaciones de evidencia.
+- Probes posteriores al despliegue: salud Web/API, coordenadas, Plus Code global
+  y compuesto y búsqueda Express HTTP 200; ocho sugerencias cercanas. Validación
+  con 0/2/48 paradas devuelve 200 y 49 devuelve 400; plan sin sesión devuelve 401.
+  CORS autorizado: 204 con cabecera correspondiente; origen ajeno: 404 sin permiso.
+- Vercel: ninguna fila de errores/fatales agregados en los 30 minutos consultados,
+  ambos proyectos. Es una revisión puntual, no monitoreo permanente garantizado.
+- No se creó una sesión de prueba alojada ni se ejecutó reanudación de un cálculo
+  autenticado en producción o navegación física Android/Google. La reanudación
+  calculada se validó con Auth/REST locales reales y proveedor sintético. No se
+  presenta como uso real de sensores, legalidad ni navegación Google en carretera.
+
+### Seguimiento de fuentes y bloqueos
+
+Se consultó contenido oficial con fechas y URLs, y cada descarga directa nueva
+se intentó una vez: HTTP 403. No se inventaron huellas ni se eludieron controles.
+El workflow existente solicita cada seis horas; su última ejecución programada
+observada antes del cambio fue 08:18:41 UTC, no se garantiza puntualidad de GitHub.
+El push del registro activó la comprobación sin añadir cron ni permisos nuevos:
+[44112003847](https://github.com/FernandoBalsimelli/Route-Planner-API/actions/runs/44112003847),
+job 134139824238, terminó correctamente y publicó el reporte de
+**2026-11-17T15:14:30.013Z** (09:14 Chihuahua). Los cinco documentos de Juárez
+recibieron HTTP_403, incluidos ambos avisos nuevos sin descarga correcta ni hash.
+El éxito del workflow significa que registró resultados, no que las fuentes
+estén accesibles o legalmente verificadas. Permanecen 15 municipios parciales,
+cero con validación legal automática y ningún cambio al motor Directions.
+
+### Publicación y recuperación
+
+Web PR [#30](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/30):
+candidato aa9819d78a4cda78d18072bc6c03240ec320abe7; merge publicado
+**2260f77816c3b35c44fe927c9ffb8074de50eb18**. Deployment
+**dpl_7dx6wmpHeYgAttkywPL7Uo7eijez**, READY/production;
+https://route-planner-web-sand.vercel.app/ resuelve a ese SHA.
+
+API PR [#23](https://github.com/FernandoBalsimelli/Route-Planner-API/pull/23):
+candidato 4ded7ebb7f1750807cf795de3846e58963fd1894; merge publicado
+**8f7823190bef32ac2459b0af7bdc2e1e05d5bb4d**. Deployment
+**dpl_FK4MRW9zb58rGCKPuuNF5AMrqFkc**, READY/production;
+https://route-planner-api.vercel.app/ resuelve a ese SHA. Main avanzó después a
+ccaaf1545c216d40d67522bb3309cd7409261f79 sólo por data/mx/source-status.json;
+comparación comprobada. El endpoint lee ese reporte remoto sin volver a publicar
+el motor. Se conserva el registro automático; no se sobrescribió con el local.
+
+Rollback de entrada Web dpl_52eJGKK2KpiKLrphqH4d5svg9rNa (0909fae), API
+dpl_Hc3QfG4ZszBzZKao8sGXUxjDefGL (f5c9b18). No hay migración/datos nuevos que
+revertir. Los enlaces compartidos existentes del ciclo anterior y sus permisos
+siguen siendo compatibles; no se cambió ningún grant. Se conserva historial,
+ramas y commits de recuperación. No se ejecutó rollback. El cierre documental
+posterior [skip ci] no añade código funcional sin publicar.
+
+### Estado y siguiente prioridad
+
+Completado/publicado: integridad de puntos Google, reanudación explícita temporal,
+seguimiento y consulta de dos avisos más de Juárez. Parcial/bloqueado: progreso
+de entregas persistente por cuenta/ruta; validación autenticada alojada y Android
+físico sin medios actuales; descargas oficiales 403; vigencia, permisos y geometrías
+sin verificar. No se promete ruta segura/legal, trazado exacto Google ni cobertura
+nacional completa.
+
+Próxima prioridad: progreso de entregas recuperable por ruta/cuenta con control
+manual, aislamiento y revisión antes de omitir puntos, conservando el cálculo y
+las entregas históricas. Continuar corroboración de actos y geometrías oficiales
+sin convertir notas operativas en autorizaciones. El programa maestro sigue
+abierto y se mantiene la tarea periódica existente sin duplicarla ni desactivarla.
