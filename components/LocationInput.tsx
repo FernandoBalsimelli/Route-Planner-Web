@@ -34,6 +34,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
   const book = useLocationBook();
   const [bookOpen, setBookOpen] = useState(false);
   const listId = useId();
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const [activeIndex, setActiveIndex] = useState(-1);
   const focused = useRef(false);
   const suggestionsCallback = useRef(onSuggestions); suggestionsCallback.current = onSuggestions;
@@ -164,6 +165,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       <span><i className={color === 'number' ? 'stop-number' : `dot ${color}`}>{color === 'number' ? title.match(/\d+/)?.[0] : ''}</i> {color === 'number' ? title : title.toUpperCase()}</span>
       <input
         role="combobox"
+        ref={inputRef}
         aria-label={title}
         onFocus={() => { focused.current = true; suggestionsCallback.current?.(suggestions); }}
         onBlur={() => { focused.current = false; }}
@@ -224,7 +226,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
         <span className="suggestion-arrow">›</span>
       </button>)}
     </div>}
-    {searchError && <div className="location-search-error" role="alert" data-error-code={searchErrorCode}><p>{searchError} Puedes continuar escribiendo una dirección completa.</p><button type="button" className="text-button" aria-label={`Reintentar búsqueda de ${title.toLowerCase()}`} onClick={() => setSearchAttempt(attempt => attempt + 1)}>Reintentar búsqueda</button></div>}
+    {searchError && <div className="location-search-error" role="alert" data-error-code={searchErrorCode}><p>{searchError} Puedes continuar escribiendo una dirección completa.</p><button type="button" className="text-button" aria-label={`Reintentar búsqueda de ${title.toLowerCase()}`} onClick={() => { cancelLocation(); setMapOpen(false); setBookOpen(false); inputRef.current?.focus(); setSearchAttempt(attempt => attempt + 1); }}>Reintentar búsqueda</button></div>}
     {pending && <div className="location-confirm-card">
       <div><strong>¿Es este el punto correcto?</strong><p>{pending.label}</p><small>{locationKind(pending.kind) && `${locationKind(pending.kind)} · `}{pending.plusCode || `${pending.lat.toFixed(6)}, ${pending.lng.toFixed(6)}`}</small></div>
       {businessLocationNotice(pending) && <p className="address-number-notice" role="status">{businessLocationNotice(pending)}</p>}

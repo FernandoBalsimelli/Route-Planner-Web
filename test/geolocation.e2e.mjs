@@ -788,7 +788,7 @@ for(const width of [390,1280])test(`search recovery preserves the typed branch a
   await page.goto(base);const input=page.getByRole('combobox',{name:'Origen',exact:true});await input.fill(query);
   const error=page.locator('.location-search-error'),retry=page.getByRole('button',{name:'Reintentar búsqueda de origen',exact:true});
   await error.waitFor();assert.equal(await error.getAttribute('data-error-code'),'LOCATION_NETWORK_ERROR');assert.equal(await input.inputValue(),query);assert.equal(calls,1);
-  await retry.click();await error.filter({hasText:'Proveedor alterno temporalmente no disponible.'}).waitFor();assert.equal(await error.getAttribute('data-error-code'),'PHOTON_UNAVAILABLE');assert.equal(calls,2);
+  await retry.click();assert.equal(await input.evaluate(node=>document.activeElement===node),true);await error.filter({hasText:'Proveedor alterno temporalmente no disponible.'}).waitFor();assert.equal(await error.getAttribute('data-error-code'),'PHOTON_UNAVAILABLE');assert.equal(calls,2);
   await retry.click();await error.filter({hasText:'respuesta no válida'}).waitFor();assert.equal(await error.getAttribute('data-error-code'),'LOCATION_INVALID_RESPONSE');assert.equal(calls,3);
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await retry.click();await page.getByRole('option').filter({hasText:point.label}).click();assert.equal(calls,4);assert.equal(await input.inputValue(),query);assert.equal(await page.locator('.location-confirmed').count(),0);

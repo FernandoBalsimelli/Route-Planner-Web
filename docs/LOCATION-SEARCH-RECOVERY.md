@@ -22,7 +22,8 @@ cancela la petición anterior sin mostrarla como un fallo de tiempo.
 Cada petición libera temporizador y listener; las respuestas tardías se descartan.
 
 Un error muestra «Reintentar búsqueda» para ese campo. El reintento conserva el
-texto y su referencia de cercanía, conserva debounce y necesita acción del usuario:
+texto y su referencia de cercanía, devuelve el foco al campo para teclado/mapa,
+cierra selectores alternativos, conserva debounce y necesita acción del usuario:
 no hay bucles de reintento ni peticiones adicionales automáticas por un fallo.
 Elegir una sugerencia sigue requiriendo corroboración/confirmación explícita.
 También se puede continuar escribiendo o elegir sobre el mapa.

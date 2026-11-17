@@ -185,7 +185,7 @@ test('network search failure preserves the address and manual retry requires exp
  const error=container.querySelector('.location-search-error');
  assert.equal(error?.getAttribute('data-error-code'),'LOCATION_NETWORK_ERROR');assert.match(error.textContent,/No se pudo conectar con la búsqueda/);assert.doesNotMatch(error.textContent,/Failed to fetch/);
  assert.equal(container.querySelector('input').value,'Origen anterior');assert.equal(calls,1);
- await act(async()=>button('Reintentar búsqueda').click());await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));
+ await act(async()=>button('Reintentar búsqueda').click());assert.equal(document.activeElement,container.querySelector('input'));await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));
  assert.equal(calls,2);assert.equal(container.querySelector('.location-search-error'),null);assert.equal(container.querySelector('.location-confirmed'),null);
  await act(async()=>container.querySelector('[role="option"]').click());assert.equal(container.querySelector('input').value,'Origen anterior');
  await act(async()=>button('Confirmar punto').click());assert.equal(container.querySelector('input').value,point.label);assert.ok(container.querySelector('.location-confirmed'));
