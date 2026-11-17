@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import RouteShareLinks from '@/components/RouteShareLinks';
+import DeliveryProgressPanel from '@/components/DeliveryProgressPanel';
 import { literalRouteNamePattern, SAVED_ROUTE_SEARCH_DEBOUNCE_MS, SAVED_ROUTE_QUERY_TIMEOUT_MS } from '@/lib/saved-route-search';
 
 export type SavedRoute = { id: string; name: string; created_at: string; mode?: 'delivery' | 'truck'; status?: string; vehicle_id?: string | null; origin: { label?: string; lat?: number; lng?: number } | null; destination: { label?: string; lat?: number; lng?: number } | null; route_metadata?: { mode?: 'delivery' | 'truck'; vehicle?: { heightM?: number; widthM?: number; lengthM?: number; grossWeightT?: number; axleWeightT?: number; axleCount?: number; configuration?: string; payloadCapacityT?: number } | null; result?: import('@/lib/routes').RouteResult } | null };
@@ -13,6 +14,7 @@ export default function SavedRoutesPanel({ user, revision, onLoad, active = true
   const [routes, setRoutes] = useState<SavedRoute[]>([]);
   const [trash, setTrash] = useState(false);
   const [shareRoute, setShareRoute] = useState<string | null>(null);
+  const [progressRoute, setProgressRoute] = useState<string | null>(null);
   const [limit, setLimit] = useState(20);
   const [hasMore, setHasMore] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -25,8 +27,8 @@ export default function SavedRoutesPanel({ user, revision, onLoad, active = true
   const owner = useRef(user?.id); owner.current = user?.id;
   const lifetime = useRef(0);
   useEffect(() => () => { lifetime.current += 1; }, [user?.id, active]);
-  useEffect(() => { if (!active) { setBusy(false); setShareRoute(null); } }, [active]);
-  useEffect(() => setShareRoute(null), [user?.id, trash, search]);
+  useEffect(() => { if (!active) { setBusy(false); setShareRoute(null); setProgressRoute(null); } }, [active]);
+  useEffect(() => { setShareRoute(null); setProgressRoute(null); }, [user?.id, trash, search]);
   useEffect(() => { setRoutes([]); setUndo(null); setMessage(''); setTrash(false); setLimit(20); setBusy(false); setLoading(false); setHasMore(false); setSearch(''); setQueryError(''); }, [user?.id]);
   useEffect(() => {
     let live = true;
@@ -90,7 +92,7 @@ export default function SavedRoutesPanel({ user, revision, onLoad, active = true
       {pending && <p role="status">{loading ? 'Buscando rutas…' : 'Actualizando…'}</p>}
       {queryError && <p role="alert">{queryError} <button type="button" disabled={pending} onClick={() => setRefresh(value => value + 1)}>Reintentar búsqueda de rutas</button></p>}
       {message && <p role="status">{message} {undo && <button type="button" disabled={pending} onClick={() => void setArchived(undo, false)}>Deshacer</button>}</p>}
-      <div className="saved-routes-list" aria-busy={loading}>{routes.map(route => <article className="saved-route-card" key={route.id}><div><strong>{route.name}</strong><small>{new Date(route.created_at).toLocaleDateString('es-MX')} · {route.mode === 'truck' ? 'Camión' : 'Reparto'}<br/>{route.origin?.label || 'Origen guardado'} → {route.destination?.label || 'Destino guardado'}</small></div><div className="route-card-actions">{trash ? <button type="button" disabled={pending} aria-label={`Recuperar ${route.name}`} onClick={() => void setArchived(route, false)}>Recuperar</button> : <><button type="button" disabled={pending} onClick={() => void load(route)}>Cargar ruta</button><button type="button" disabled={pending} aria-expanded={shareRoute === route.id} onClick={() => setShareRoute(value => value === route.id ? null : route.id)}>Compartir puntos</button><button type="button" className="danger-button" disabled={pending} aria-label={`Eliminar ruta ${route.name}`} onClick={() => void setArchived(route, true)}>Eliminar</button></>}</div>{active && !trash && shareRoute === route.id && user && <RouteShareLinks key={`${user.id}-${route.id}`} routeId={route.id} ownerId={user.id} onClose={() => setShareRoute(null)}/>}</article>)}</div>
+      <div className="saved-routes-list" aria-busy={loading}>{routes.map(route => <article className="saved-route-card" key={route.id}><div><strong>{route.name}</strong><small>{new Date(route.created_at).toLocaleDateString('es-MX')} · {route.mode === 'truck' ? 'Camión' : 'Reparto'}<br/>{route.origin?.label || 'Origen guardado'} → {route.destination?.label || 'Destino guardado'}</small></div><div className="route-card-actions">{trash ? <button type="button" disabled={pending} aria-label={`Recuperar ${route.name}`} onClick={() => void setArchived(route, false)}>Recuperar</button> : <><button type="button" disabled={pending} onClick={() => void load(route)}>Cargar ruta</button><button type="button" disabled={pending} aria-expanded={progressRoute === route.id} onClick={() => setProgressRoute(value => value === route.id ? null : route.id)}>Entregas</button><button type="button" disabled={pending} aria-expanded={shareRoute === route.id} onClick={() => setShareRoute(value => value === route.id ? null : route.id)}>Compartir puntos</button><button type="button" className="danger-button" disabled={pending} aria-label={`Eliminar ruta ${route.name}`} onClick={() => void setArchived(route, true)}>Eliminar</button></>}</div>{active && !trash && shareRoute === route.id && user && <RouteShareLinks key={`${user.id}-${route.id}`} routeId={route.id} ownerId={user.id} onClose={() => setShareRoute(null)}/>}{active && !trash && progressRoute === route.id && user && <DeliveryProgressPanel key={`progress-${user.id}-${route.id}`} routeId={route.id} onClose={() => setProgressRoute(null)}/>}</article>)}</div>
       {!pending && !queryError && !routes.length && <p>{search.trim() ? trash ? 'No hay rutas en la papelera con este nombre.' : 'No hay rutas activas con este nombre.' : trash ? 'La papelera está vacía.' : 'Todavía no has guardado recorridos.'}</p>}
       {hasMore && <button type="button" disabled={pending} onClick={() => setLimit(value => value + 20)}>Cargar más rutas</button>}
     </>}

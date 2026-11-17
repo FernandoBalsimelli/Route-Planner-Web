@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { SHARE_TIMEOUT_MS } from './route-sharing';
 
 // A pending response must never survive leaving a panel or changing account.
-export function useShareRequest() {
+export function useShareRequest(messages?: { timeout: string; connection: string }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const request = useRef<{ controller: AbortController; timer: ReturnType<typeof setTimeout> } | null>(null);
   const generation = useRef(0);
@@ -14,7 +14,7 @@ export function useShareRequest() {
     setBusy(true); setError('');
     const timer = setTimeout(() => {
       if (generation.current !== version) return;
-      cancel(); setBusy(false); setError('La solicitud tardó demasiado. Reintenta; si creabas un enlace, actualiza la lista antes de generar otro.');
+      cancel(); setBusy(false); setError(messages?.timeout || 'La solicitud tardó demasiado. Reintenta; si creabas un enlace, actualiza la lista antes de generar otro.');
     }, SHARE_TIMEOUT_MS);
     request.current = { controller, timer };
     try {
@@ -23,7 +23,7 @@ export function useShareRequest() {
       if (result.error) throw new Error(result.error.message);
       done(result.data);
     } catch (cause) {
-      if (generation.current === version && !controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'No se pudo conectar con los enlaces compartidos.');
+      if (generation.current === version && !controller.signal.aborted) setError(cause instanceof Error ? cause.message : messages?.connection || 'No se pudo conectar con los enlaces compartidos.');
     } finally {
       clearTimeout(timer);
       if (generation.current === version) { setBusy(false); request.current = null; }
