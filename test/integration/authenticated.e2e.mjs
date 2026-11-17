@@ -396,3 +396,31 @@ test('real local bearer sharing preserves 48 deliveries, requires review, isolat
  }catch(error){console.error('Disposable share fixture UI at failure:',(await page.locator('body').innerText().catch(()=>'' )).replace(/#compartir=[a-f0-9]+/g,'#compartir=[redacted]').slice(-10000));throw error;}
  finally{for(const receiver of recipients)await receiver.close();await context.close();}
 });
+
+test('real local saved route resumes Google links from a selected delivery without losing subsequent stops or changing the saved route',{timeout:120000},async()=>{
+ for(const width of [390,1365]){
+  const context=await browser.newContext({viewport:{width,height:844},isMobile:width<768,hasTouch:width<768});await context.route('https://tile.openstreetmap.org/**',r=>r.abort());const page=await context.newPage();
+  try{
+   const username='resume-owner-'+width;await page.goto(base);await createAccount(page,username);const {client}=await session(username);const auth=await client.auth.getSession();
+   const origin={label:'Origen sintético',lat:28.63,lng:-106.06},destination={label:'Destino sintético',lat:28.64,lng:-106.07};
+   const stops=Array.from({length:48},(_,i)=>({label:'Entrega sintética '+(i+1),lat:28.6301+i/100000,lng:-106.0601}));
+   const vehicle={heightM:4.1,widthM:2.5,lengthM:18,grossWeightT:38,axleWeightT:9};
+   const response=await fetch(base+'/api/route-planner/v1/routes/plan',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+auth.data.session.access_token},body:JSON.stringify({origin,destination,stops,mode:'truck',vehicle,preferences:{avoidTolls:true,avoidHighways:true}})});assert.equal(response.status,200);const result=(await response.json()).route;
+   const saved=await client.rpc('save_route_with_stops',{p_request_id:crypto.randomUUID(),p_route:{name:'Continuar 48 entregas',origin,destination,route_metadata:{mode:'truck',vehicle,result}},p_stops:stops});assert.equal(saved.error,null);
+   await nav(page).getByRole('button',{name:'Mis rutas',exact:true}).click();await page.getByRole('button',{name:'Cargar ruta',exact:true}).click();const resume=page.getByRole('combobox',{name:'Retomar desde',exact:true});await resume.waitFor();assert.equal(await resume.inputValue(),'0');assert.equal(await resume.locator('option').count(),49);
+   await resume.selectOption('24');const guides=page.getByRole('checkbox',{name:/Añadir puntos guía del recorrido/});assert.equal(await guides.isChecked(),true);
+   const first=new URL(await page.locator('.navigation-segments a').first().getAttribute('href'));assert.equal(first.searchParams.get('origin'),`${result.waypoints[24].lat}, ${result.waypoints[24].lng}`);
+   await guides.uncheck();
+   for(const limit of ['3','9']){
+    await page.getByRole('combobox',{name:'Paradas intermedias por enlace',exact:true}).selectOption(limit);assert.equal(await resume.inputValue(),'24');
+    const hrefs=await page.locator('.navigation-segments a').evaluateAll(nodes=>nodes.map(n=>n.href));const visited=[];
+    for(const [index,href]of hrefs.entries()){const p=new URL(href).searchParams;assert.equal(p.get('avoid'),'tolls,highways');const part=[p.get('origin'),...(p.get('waypoints')?.split('|')||[]),p.get('destination')];if(index)assert.equal(part[0],visited.at(-1));visited.push(...part.slice(index?1:0));}
+    assert.deepEqual(visited,result.waypoints.slice(24).map(p=>`${p.lat}, ${p.lng}`));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+   }
+   await nav(page).getByRole('button',{name:'Mis rutas',exact:true}).click();await nav(page).getByRole('button',{name:'Planificar',exact:true}).click();assert.equal(await resume.inputValue(),'24');
+   await page.getByRole('button',{name:'Volver al origen del recorrido',exact:true}).click();assert.equal(await resume.inputValue(),'0');
+   const persisted=await client.from('saved_routes').select('route_metadata').eq('id',saved.data).single();assert.equal(persisted.error,null);assert.deepEqual(persisted.data.route_metadata.result,result);
+   const deliveries=await client.from('route_stops').select('location').eq('route_id',saved.data).order('sequence');assert.equal(deliveries.error,null);assert.deepEqual(deliveries.data.map(row=>row.location.label),stops.map(p=>p.label));
+  }finally{await context.close();}
+ }
+});

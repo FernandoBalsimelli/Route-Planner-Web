@@ -1,7 +1,7 @@
 import type { Coordinates } from './locations';
 import { DEFAULT_ROUTE_PREFERENCES, type RoutePreferences } from './route-preferences';
 
-export type NavigationPoint = string | (Coordinates & { navigationLabel?: string }) | null | undefined;
+export type NavigationPoint = string | (Coordinates & { navigationLabel?: string; label?: string }) | null | undefined;
 export type GoogleWaypointLimit = 3 | 9;
 export type NavigationSegment = { url: string; startIndex: number; endIndex: number; startLabel: string; endLabel: string };
 const MAX_URL_LENGTH = 2048;
@@ -21,9 +21,14 @@ function directionsUrl(values: string[], preferences: RoutePreferences) {
 
 export function googleMapsSegments(points: NavigationPoint[], maxWaypoints: GoogleWaypointLimit = 9, preferences: RoutePreferences = DEFAULT_ROUTE_PREFERENCES): NavigationSegment[] {
   const values = points.map(point => {
-    if (typeof point === 'string') return {value:point.trim(),label:''};
+    if (typeof point === 'string') return {value:point.includes('|') ? '' : point.trim(),label:''};
     return point && Number.isFinite(point.lat) && Number.isFinite(point.lng) && Math.abs(point.lat) <= 90 && Math.abs(point.lng) <= 180 ? {value:`${point.lat}, ${point.lng}`,label:point.navigationLabel||''} : {value:'',label:''};
-  }).filter(point=>Boolean(point.value));
+  });
+  // Incomplete drafts cannot navigate. Once endpoints/other points are ready,
+  // never silently discard an invalid delivery and emit a different itinerary.
+  if (values.filter(point => Boolean(point.value)).length < 2) return [];
+  const invalid = values.findIndex(point => !point.value);
+  if (invalid !== -1) throw new Error(`Revisa el punto ${invalid + 1} antes de abrir Google Maps: falta una dirección válida o contiene un separador de paradas. Confírmalo en el mapa. No se omitió ninguna entrega.`);
   const segments: NavigationSegment[] = [];
   const limit = maxWaypoints === 3 ? 3 : 9;
   for (let start = 0; start < values.length - 1;) {
