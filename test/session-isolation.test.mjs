@@ -95,3 +95,11 @@ test('vehicle saved by an unmounted account editor cannot select its private uni
  await account(null);await account(bob);await act(async()=>release({data:{id:'private-vehicle-a',name:'Private unit A',vehicle_type:'delivery',owner_id:alice.id},error:null}));
  assert.doesNotMatch(container.textContent,/Private unit A/);assert.equal(container.querySelector('.route-vehicle-selector select').value,'');
 });
+
+
+test('leaving saved routes discards pending stops instead of reopening the planner later',async()=>{
+ setup();let release;deferStops=()=>new Promise(resolve=>{release=resolve;});await render();await account(alice);await act(async()=>button('Mis rutas').click());await act(async()=>{button('Cargar ruta').click();});assert.ok(release);
+ await act(async()=>button('Vehículos').click());await act(async()=>release({data:[],error:null}));
+ assert.equal(container.querySelector('.app-nav button[aria-current="page"]').textContent.includes('Vehículos'),true);
+ await act(async()=>button('Planificar').click());assert.equal(input('Origen').value,'');assert.equal(input('Destino').value,'');assert.equal(container.querySelector('.metrics'),null);
+});

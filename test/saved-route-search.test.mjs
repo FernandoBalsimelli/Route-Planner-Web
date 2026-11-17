@@ -19,12 +19,12 @@ function database(data){
  rows=data;requests=[];intercept=null;
  supabase.from=table=>{
   const request={table,filters:[],orders:[],limit:0};
-  const q={select(columns){request.columns=columns;return q;},eq(key,value){request.filters.push({key,value,operator:'eq'});return q;},neq(key,value){request.filters.push({key,value,operator:'neq'});return q;},filter(key,operator,value){request.filters.push({key,operator,value});return q;},order(key,options){request.orders.push([key,options]);return q;},limit(value){request.limit=value;return q;},abortSignal(signal){request.signal=signal;return q;},then(resolve,reject){
+  const q={single(){request.single=true;return q;},select(columns){request.columns=columns;return q;},eq(key,value){request.filters.push({key,value,operator:'eq'});return q;},neq(key,value){request.filters.push({key,value,operator:'neq'});return q;},filter(key,operator,value){request.filters.push({key,operator,value});return q;},order(key,options){request.orders.push([key,options]);return q;},limit(value){request.limit=value;return q;},abortSignal(signal){request.signal=signal;return q;},then(resolve,reject){
    requests.push(request);
    if(intercept){const result=intercept(request);if(result)return result.then(resolve,reject);}
    let data=rows.filter(row=>request.filters.every(f=>f.operator==='eq'?row[f.key]===f.value:f.operator==='neq'?row[f.key]!==f.value:new RegExp(f.value,'i').test(row[f.key])));
    data=data.sort((a,b)=>b.created_at.localeCompare(a.created_at)||b.id.localeCompare(a.id)).slice(0,request.limit);
-   return Promise.resolve({data,error:null}).then(resolve,reject);
+   return Promise.resolve({data:request.single?data[0]:data,error:null}).then(resolve,reject);
   }};return q;
  };
 }
@@ -86,4 +86,15 @@ test('changing account clears the search and ignores old account responses',asyn
  intercept=null;await act(async()=>root.render(React.createElement(SavedRoutesPanel,{user:bob,revision:0,onLoad:async()=>{}})));
  assert.equal(input().value,'');assert.equal(old.signal.aborted,true);assert.match(container.textContent,/Segunda/);
  await act(async()=>release({data:[route('one','Primera')],error:null}));assert.doesNotMatch(container.textContent,/Primera/);
+});
+
+
+test('hidden routes do not prefetch; reopening refreshes the list and hiding ignores late detail loads',async()=>{
+ database([route('one','Primera')]);container=document.createElement('div');document.body.append(container);root=createRoot(container);let loads=0,release;
+ const panel=active=>React.createElement(SavedRoutesPanel,{user:alice,revision:0,active,onLoad:async()=>{loads++;}});
+ await act(async()=>root.render(panel(false)));assert.equal(requests.length,0);
+ rows.push(route('two','Nueva en otra sesión'));await act(async()=>root.render(panel(true)));assert.equal(container.querySelectorAll('.saved-route-card').length,2);
+ intercept=request=>request.single?new Promise(resolve=>{release=resolve;}):null;await act(async()=>button('Cargar ruta').click());assert.ok(release);
+ await act(async()=>root.render(panel(false)));await act(async()=>release({data:route('one','Primera'),error:null}));assert.equal(loads,0);
+ rows.push(route('three','Tercera'));intercept=null;await act(async()=>root.render(panel(true)));assert.equal(container.querySelectorAll('.saved-route-card').length,3);
 });

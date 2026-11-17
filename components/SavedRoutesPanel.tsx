@@ -8,7 +8,7 @@ import { literalRouteNamePattern, SAVED_ROUTE_SEARCH_DEBOUNCE_MS, SAVED_ROUTE_QU
 export type SavedRoute = { id: string; name: string; created_at: string; mode?: 'delivery' | 'truck'; status?: string; vehicle_id?: string | null; origin: { label?: string; lat?: number; lng?: number } | null; destination: { label?: string; lat?: number; lng?: number } | null; route_metadata?: { mode?: 'delivery' | 'truck'; vehicle?: { heightM?: number; widthM?: number; lengthM?: number; grossWeightT?: number; axleWeightT?: number; axleCount?: number; configuration?: string; payloadCapacityT?: number } | null; result?: import('@/lib/routes').RouteResult } | null };
 // Fetch large geometry/instructions only when the operator opens that route.
 const COLUMNS = 'id,name,created_at,status,vehicle_id,origin,destination,mode:route_metadata->>mode';
-export default function SavedRoutesPanel({ user, revision, onLoad }: { user: User | null; revision: number; onLoad: (route: SavedRoute) => Promise<void> }) {
+export default function SavedRoutesPanel({ user, revision, onLoad, active = true }: { user: User | null; revision: number; onLoad: (route: SavedRoute) => Promise<void>; active?: boolean }) {
   const [routes, setRoutes] = useState<SavedRoute[]>([]);
   const [trash, setTrash] = useState(false);
   const [limit, setLimit] = useState(20);
@@ -22,11 +22,12 @@ export default function SavedRoutesPanel({ user, revision, onLoad }: { user: Use
   const [undo, setUndo] = useState<SavedRoute | null>(null);
   const owner = useRef(user?.id); owner.current = user?.id;
   const lifetime = useRef(0);
-  useEffect(() => () => { lifetime.current += 1; }, [user?.id]);
+  useEffect(() => () => { lifetime.current += 1; }, [user?.id, active]);
+  useEffect(() => { if (!active) setBusy(false); }, [active]);
   useEffect(() => { setRoutes([]); setUndo(null); setMessage(''); setTrash(false); setLimit(20); setBusy(false); setLoading(false); setHasMore(false); setSearch(''); setQueryError(''); }, [user?.id]);
   useEffect(() => {
-    let active = true;
-    if (!user || !supabase) return;
+    let live = true;
+    if (!active || !user || !supabase) { setLoading(false); return; }
     const controller = new AbortController();
     let deadline: ReturnType<typeof setTimeout> | undefined;
     let debounce: ReturnType<typeof setTimeout> | undefined;
@@ -34,28 +35,28 @@ export default function SavedRoutesPanel({ user, revision, onLoad }: { user: Use
     const execute = () => {
       deadline = setTimeout(() => {
         controller.abort();
-        if (active) { setLoading(false); setQueryError('La consulta de tus rutas tardó demasiado. Reintenta la búsqueda.'); }
+        if (live) { setLoading(false); setQueryError('La consulta de tus rutas tardó demasiado. Reintenta la búsqueda.'); }
       }, SAVED_ROUTE_QUERY_TIMEOUT_MS);
       let query = supabase!.from('saved_routes').select(COLUMNS).eq('owner_id', user.id);
       if (search.trim()) query = query.filter('name', 'imatch', literalRouteNamePattern(search));
       void Promise.resolve((trash ? query.eq('status', 'archived') : query.neq('status', 'archived')).order('created_at', { ascending: false }).order('id', { ascending: false }).limit(limit + 1).abortSignal(controller.signal)).then(({ data, error }) => {
-        if (!active || controller.signal.aborted) return;
+        if (!live || controller.signal.aborted) return;
         if (error) setQueryError('No se pudieron cargar tus rutas: ' + error.message);
         else { setRoutes((data || []).slice(0, limit) as SavedRoute[]); setHasMore((data || []).length > limit); }
       }).catch(() => {
-        if (active && !controller.signal.aborted) setQueryError('No se pudo conectar con tus rutas guardadas. Reintenta la búsqueda.');
+        if (live && !controller.signal.aborted) setQueryError('No se pudo conectar con tus rutas guardadas. Reintenta la búsqueda.');
       }).finally(() => {
         clearTimeout(deadline);
-        if (active && !controller.signal.aborted) setLoading(false);
+        if (live && !controller.signal.aborted) setLoading(false);
       });
     };
     if (search.trim()) debounce = setTimeout(execute, SAVED_ROUTE_SEARCH_DEBOUNCE_MS);
     else execute();
-    return () => { active = false; clearTimeout(debounce); clearTimeout(deadline); controller.abort(); };
-  }, [user?.id, trash, search, limit, revision, refresh]);
+    return () => { live = false; clearTimeout(debounce); clearTimeout(deadline); controller.abort(); };
+  }, [user?.id, trash, search, limit, revision, refresh, active]);
   const pending = busy || loading;
   async function setArchived(route: SavedRoute, archived: boolean) {
-    if (!user || !supabase || pending) return;
+    if (!active || !user || !supabase || pending) return;
     const ownerId = user.id;
     const generation = lifetime.current;
     setBusy(true); setMessage('');
@@ -68,7 +69,7 @@ export default function SavedRoutesPanel({ user, revision, onLoad }: { user: Use
     finally { if (owner.current === ownerId && lifetime.current === generation) setBusy(false); }
   }
   async function load(route: SavedRoute) {
-    if (!user || !supabase || pending) return;
+    if (!active || !user || !supabase || pending) return;
     const ownerId = user.id;
     const generation = lifetime.current;
     setBusy(true); setMessage('');

@@ -36,8 +36,13 @@ máximo de respuesta configurado en Supabase; este ciclo no implementa cursores
 ni garantiza colecciones arbitrariamente grandes. La búsqueda se aplica antes
 de ese máximo. No cambia el límite de puntos de una ruta ni los enlaces Google.
 
-Pruebas: seis casos de componente/helper con transporte controlado; el plazo
-se acorta sólo en el caso unitario. La integración usa Auth/REST/Postgres locales
+La lista se consulta al entrar en «Mis rutas» y se actualiza al volver. No se
+precarga mientras está oculta; salir invalida cargas de detalles/paradas pendientes,
+sin reabrir el planificador por una respuesta tardía.
+
+Pruebas: siete casos de componente/helper con transporte controlado; el plazo
+se acorta sólo en el caso unitario. Una regresión adicional cubre salir durante la restauración. La integración usa
+Auth/REST/Postgres locales
 reales con RLS activa y dos cuentas, nombres con signos, una ruta fuera de la
 primera página, papelera/recuperación y vistas 390/1280 px. No es navegación
 Android física ni acceso autenticado a datos de producción. Resultados exactos,
