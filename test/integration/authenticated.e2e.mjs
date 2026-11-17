@@ -337,3 +337,59 @@ test('real local saved-route search is literal, paginated and recoverable on mob
   }finally{await context.close();}
  }
 });
+
+test('real local bearer sharing preserves 48 deliveries, requires review, isolates owners and honors revoke/archive', {timeout:120000}, async()=>{
+ const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+ const recipients=[];await context.route('https://tile.openstreetmap.org/**',route=>route.abort());
+ const page=await context.newPage();
+ try{
+  await page.goto(base);await createAccount(page,'share-owner');const owner=await session('share-owner'),other=await createLocalAccount('share-other');
+  const origin={label:'Patio sintético compartido',lat:28.632995,lng:-106.0691},destination={label:'Destino sintético compartido',lat:28.63958,lng:-106.08325};
+  const stops=Array.from({length:48},(_,i)=>({label:`Entrega compartida ${i+1}`,lat:28.633+i/100000,lng:-106.07}));
+  const vehicle={heightM:4.1,widthM:2.5,lengthM:18,grossWeightT:38,axleWeightT:9,axleCount:5,configuration:'T3-S2',payloadCapacityT:30.125};
+  const saved=await owner.client.rpc('save_route_with_stops',{p_request_id:crypto.randomUUID(),p_route:{name:'Enlace sintético 48 entregas',origin,destination,route_metadata:{mode:'truck',vehicle,result:{polyline:'PRIVATE_GEOMETRY',preferences:{avoidTolls:true,avoidHighways:false}}}},p_stops:stops});assert.equal(saved.error,null);
+  await nav(page).getByRole('button',{name:'Mis rutas',exact:true}).click();await page.getByRole('button',{name:'Compartir puntos',exact:true}).click();
+  const manager=page.getByRole('region',{name:'Compartir puntos de la ruta'});await manager.getByText('No hay enlaces para esta ruta.',{exact:true}).waitFor();
+  assert.equal(await manager.getByRole('button',{name:'Crear enlace',exact:true}).isDisabled(),true);
+  await manager.getByRole('checkbox').check();await manager.getByRole('button',{name:'Crear enlace',exact:true}).click();
+  const urlInput=manager.getByLabel('Enlace para compartir',{exact:true});await urlInput.waitFor();const url=await urlInput.inputValue(),token=new URL(url).hash.slice('#compartir='.length);
+  assert.match(token,/^[a-f0-9]{64}$/);assert.equal(new URL(url).search,'');
+  const anon=createClient(supabaseUrl,key,{auth:{persistSession:false,autoRefreshToken:false}});
+  const read=await anon.rpc('read_route_share_link',{p_token:token});assert.equal(read.error,null);assert.equal(read.data.draft.stops.length,48);assert.equal(read.data.draft.stops[47].label,stops[47].label);assert.equal(JSON.stringify(read.data).includes('PRIVATE_GEOMETRY'),false);assert.equal(read.data.draft.owner_id,undefined);
+  const metadata=await owner.client.from('route_share_links').select('id,owner_id,route_id,expires_at,revoked_at');assert.equal(metadata.error,null);assert.equal(metadata.data.length,1);
+  assert.ok((await owner.client.from('route_share_links').select('token_hash,snapshot')).error);assert.ok((await anon.from('route_share_links').select('id')).error);
+  const foreignList=await other.client.from('route_share_links').select('id');assert.equal(foreignList.error,null);assert.deepEqual(foreignList.data,[]);
+  assert.equal((await other.client.rpc('revoke_route_share_link',{p_share_id:metadata.data[0].id})).data,false);assert.ok((await other.client.rpc('create_route_share_link',{p_route_id:saved.data,p_expires_hours:24})).error);
+  for(const width of [390,1365]){
+   const receiver=await browser.newContext({viewport:{width,height:844},isMobile:width<768,hasTouch:width<768});recipients.push(receiver);
+   await receiver.route('https://tile.openstreetmap.org/**',route=>route.abort());const incoming=await receiver.newPage();let calculations=0;
+   incoming.on('request',request=>{if(request.url().endsWith('/v1/routes/plan'))calculations++;});
+   await incoming.goto(url);await incoming.getByRole('heading',{name:'Enlace sintético 48 entregas',exact:true}).waitFor();
+   assert.equal(await incoming.locator('.shared-route-points li').count(),50);assert.match(await incoming.locator('.shared-route-review').innerText(),/4.1 m de alto/);assert.equal(calculations,0);
+   assert.ok(await incoming.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+   await incoming.getByRole('button',{name:'Usar estos puntos',exact:true}).click();await incoming.getByRole('combobox',{name:'Origen',exact:true}).waitFor();
+   assert.equal(await incoming.getByRole('combobox',{name:'Origen',exact:true}).inputValue(),origin.label);assert.equal(await incoming.getByRole('combobox',{name:'PARADA 48',exact:true}).inputValue(),stops[47].label);
+   assert.equal(await incoming.getByRole('spinbutton',{name:'Altura (m)',exact:true}).inputValue(),'4.1');assert.equal(await incoming.getByRole('checkbox',{name:'Evitar casetas de peaje',exact:true}).isChecked(),true);
+   assert.equal(await incoming.locator('.metrics').count(),0);assert.equal(calculations,0);assert.equal(new URL(incoming.url()).hash,'#planificador');
+   await incoming.getByRole('combobox',{name:'Origen',exact:true}).fill('Borrador conservado');
+   await incoming.evaluate(hash=>{window.location.hash=hash;},new URL(url).hash);await incoming.getByRole('heading',{name:'Enlace sintético 48 entregas',exact:true}).waitFor();
+   // Revocation must be rechecked on import, after a recipient already opened it.
+   if(width===1365){
+    await manager.getByRole('button',{name:'Revocar enlace',exact:true}).click();await manager.getByText(/Enlace revocado\./).waitFor();
+    assert.equal((await anon.rpc('read_route_share_link',{p_token:token})).data,null);
+    await incoming.getByRole('button',{name:'Usar estos puntos',exact:true}).click();await incoming.getByRole('alert').filter({hasText:'El enlace no está disponible'}).waitFor();
+    assert.equal(await incoming.getByRole('button',{name:'Usar estos puntos',exact:true}).count(),0);
+   }
+   await incoming.getByRole('button',{name:'Cerrar sin importar',exact:true}).click();
+   assert.equal(await incoming.getByRole('combobox',{name:'Origen',exact:true}).inputValue(),'Borrador conservado');
+   assert.equal(await incoming.locator('.metrics').count(),0);
+  }
+  await manager.getByRole('checkbox').check();await manager.getByRole('button',{name:'Crear enlace',exact:true}).click();await urlInput.waitFor();const secondToken=new URL(await urlInput.inputValue()).hash.slice('#compartir='.length);
+  await page.getByRole('button',{name:'Eliminar ruta Enlace sintético 48 entregas',exact:true}).click();await page.getByText(/Ruta eliminada. Puedes recuperarla/).waitFor();
+  assert.equal((await anon.rpc('read_route_share_link',{p_token:secondToken})).data,null);
+  const recovered=await owner.client.from('saved_routes').update({status:'planned'}).eq('id',saved.data);assert.equal(recovered.error,null);
+  assert.equal((await anon.rpc('read_route_share_link',{p_token:secondToken})).data,null,'restoring must not reactivate bearer links');
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ }catch(error){console.error('Disposable share fixture UI at failure:',(await page.locator('body').innerText().catch(()=>'' )).replace(/#compartir=[a-f0-9]+/g,'#compartir=[redacted]').slice(-10000));throw error;}
+ finally{for(const receiver of recipients)await receiver.close();await context.close();}
+});
