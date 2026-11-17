@@ -424,3 +424,41 @@ test('real local saved route resumes Google links from a selected delivery witho
   }finally{await context.close();}
  }
 });
+
+test('real local delivery progress persists across reloads, preserves history and rejects competing sessions',{timeout:120000},async()=>{
+ for(const width of [390,1365]){
+  const context=await browser.newContext({viewport:{width,height:844},isMobile:width<768,hasTouch:width<768});const page=await context.newPage();
+  try{
+   const username='progress-owner-'+width;await page.goto(base);await createAccount(page,username);const owner=await session(username),parallel=await session(username),foreign=await createLocalAccount(username+'-other');
+   const point={label:'Patio sintético',lat:28.63000123,lng:-106.0600456};const stops=Array.from({length:48},(_,i)=>({...point,label:'Entrega sintética '+(i+1)}));
+   const saved=await owner.client.rpc('save_route_with_stops',{p_request_id:crypto.randomUUID(),p_route:{name:'Avance 48 entregas',origin:point,destination:{...point,label:'Destino sintético'},route_metadata:{mode:'delivery'}},p_stops:stops});assert.equal(saved.error,null);
+   await nav(page).getByRole('button',{name:'Mis rutas',exact:true}).click();await page.getByRole('button',{name:'Entregas',exact:true}).click();
+   const panel=page.getByRole('region',{name:'Avance de entregas',exact:true});await panel.getByRole('checkbox',{name:'Entrega 1 completado',exact:true}).waitFor();assert.equal(await panel.getByRole('checkbox').count(),49);
+   assert.equal(await panel.getByRole('button',{name:'Guardar avance',exact:true}).isDisabled(),true);
+   for(const title of ['Entrega 1','Entrega 24','Destino'])await panel.getByRole('checkbox',{name:title+' completado',exact:true}).check();
+   const before=await owner.client.from('route_delivery_events').select('revision');assert.equal(before.error,null);assert.deepEqual(before.data,[]);
+   await panel.getByRole('button',{name:'Guardar avance',exact:true}).click();await panel.getByText(/Avance guardado en tu cuenta/).waitFor();
+   let state=await owner.client.rpc('route_delivery_progress',{p_route_id:saved.data});assert.equal(state.error,null);assert.deepEqual(state.data.completedSequences,[1,24,49]);assert.equal(state.data.points.length,50);
+   await page.reload();await page.getByRole('button',{name:'Entregas',exact:true}).click();await panel.getByRole('checkbox',{name:'Entrega 1 completado',exact:true}).waitFor();assert.equal(await panel.getByRole('checkbox',{name:'Destino completado',exact:true}).isChecked(),true);
+   await panel.getByRole('checkbox',{name:'Entrega 2 completado',exact:true}).check();
+   const elsewhere=await parallel.client.rpc('route_delivery_progress',{p_route_id:saved.data,p_completed:[24],p_expected_revision:1,p_expected_snapshot:state.data.snapshot});assert.equal(elsewhere.error,null);
+   await panel.getByRole('button',{name:'Guardar avance',exact:true}).click();await panel.getByRole('alert').filter({hasText:'otra sesión'}).waitFor();assert.equal(await panel.getByRole('checkbox',{name:'Entrega 2 completado',exact:true}).isChecked(),true);
+   await panel.getByRole('button',{name:'Actualizar avance',exact:true}).click();await panel.getByText(/Revisión 2/).first().waitFor();assert.equal(await panel.getByRole('checkbox',{name:'Entrega 1 completado',exact:true}).isChecked(),false);
+   await panel.locator('summary').click();await panel.getByRole('button',{name:'Revisar selección 1',exact:true}).click();assert.equal(await panel.getByRole('checkbox',{name:'Entrega 1 completado',exact:true}).isChecked(),true);
+   assert.equal((await owner.client.from('route_delivery_events').select('revision')).data.length,2,'reviewing history does not write');
+   await panel.getByRole('button',{name:'Guardar avance',exact:true}).click();await panel.getByText(/Avance guardado en tu cuenta/).waitFor();
+   const history=await owner.client.from('route_delivery_events').select('revision,completed_sequences').order('revision');assert.equal(history.error,null);assert.deepEqual(history.data.map(row=>row.completed_sequences),[[1,24,49],[24],[1,24,49]]);
+   const stored=await owner.client.from('route_stops').select('location').eq('route_id',saved.data).order('sequence');assert.equal(stored.error,null);assert.deepEqual(stored.data.map(row=>row.location),stops,'progress never edits the original deliveries');
+   const hidden=await foreign.client.from('route_delivery_events').select('revision');assert.equal(hidden.error,null);assert.deepEqual(hidden.data,[]);assert.ok((await foreign.client.rpc('route_delivery_progress',{p_route_id:saved.data})).error);
+   const changed=await owner.client.from('route_stops').update({location:{...point,label:'Acceso sintético corregido'}}).eq('route_id',saved.data).eq('sequence',1);assert.equal(changed.error,null);
+   await panel.getByRole('button',{name:'Actualizar avance',exact:true}).click();await panel.getByText(/Los puntos o su orden cambiaron/).waitFor();assert.equal(await panel.getByRole('checkbox',{name:'Entrega 24 completado',exact:true}).isChecked(),false);
+   await panel.getByRole('button',{name:'Guardar avance',exact:true}).click();await panel.getByText(/Avance guardado en tu cuenta/).waitFor();
+   await page.getByRole('button',{name:'Eliminar ruta Avance 48 entregas',exact:true}).click();await page.getByText(/Ruta eliminada. Puedes recuperarla/).waitFor();await page.getByRole('button',{name:'Papelera',exact:true}).click();await page.getByRole('button',{name:'Recuperar Avance 48 entregas',exact:true}).click();await page.getByText('Ruta recuperada.',{exact:true}).waitFor();await page.getByRole('button',{name:'Ver rutas activas',exact:true}).click();await page.getByRole('button',{name:'Entregas',exact:true}).click();await panel.getByText(/Revisión 4/).first().waitFor();
+   assert.equal((await owner.client.from('route_delivery_events').select('revision')).data.length,4);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+   const raceRoute=await owner.client.rpc('save_route_with_stops',{p_request_id:crypto.randomUUID(),p_route:{name:'Synthetic race',origin:point,destination:point,route_metadata:{mode:'delivery'}},p_stops:[]});assert.equal(raceRoute.error,null);
+   const race=await owner.client.rpc('route_delivery_progress',{p_route_id:raceRoute.data});assert.equal(race.error,null);
+   const attempts=await Promise.all([owner.client.rpc('route_delivery_progress',{p_route_id:raceRoute.data,p_completed:[1],p_expected_revision:0,p_expected_snapshot:race.data.snapshot}),parallel.client.rpc('route_delivery_progress',{p_route_id:raceRoute.data,p_completed:[],p_expected_revision:0,p_expected_snapshot:race.data.snapshot})]);
+   assert.equal(attempts.filter(x=>!x.error).length,1);assert.equal(attempts.filter(x=>x.error?.code==='40001').length,1);
+  }finally{await context.close();}
+ }
+});
