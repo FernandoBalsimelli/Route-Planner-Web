@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { literalRouteNamePattern, SAVED_ROUTE_SEARCH_DEBOUNCE_MS, SAVED_ROUTE_QUERY_TIMEOUT_MS } from '@/lib/saved-route-search';
 
 export type SavedRoute = { id: string; name: string; created_at: string; mode?: 'delivery' | 'truck'; status?: string; vehicle_id?: string | null; origin: { label?: string; lat?: number; lng?: number } | null; destination: { label?: string; lat?: number; lng?: number } | null; route_metadata?: { mode?: 'delivery' | 'truck'; vehicle?: { heightM?: number; widthM?: number; lengthM?: number; grossWeightT?: number; axleWeightT?: number; axleCount?: number; configuration?: string; payloadCapacityT?: number } | null; result?: import('@/lib/routes').RouteResult } | null };
 // Fetch large geometry/instructions only when the operator opens that route.
@@ -13,28 +14,48 @@ export default function SavedRoutesPanel({ user, revision, onLoad }: { user: Use
   const [limit, setLimit] = useState(20);
   const [hasMore, setHasMore] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [queryError, setQueryError] = useState('');
   const [message, setMessage] = useState('');
   const [refresh, setRefresh] = useState(0);
   const [undo, setUndo] = useState<SavedRoute | null>(null);
   const owner = useRef(user?.id); owner.current = user?.id;
   const lifetime = useRef(0);
   useEffect(() => () => { lifetime.current += 1; }, [user?.id]);
-  useEffect(() => { setRoutes([]); setUndo(null); setMessage(''); setTrash(false); setLimit(20); setBusy(false); setHasMore(false); }, [user?.id]);
+  useEffect(() => { setRoutes([]); setUndo(null); setMessage(''); setTrash(false); setLimit(20); setBusy(false); setLoading(false); setHasMore(false); setSearch(''); setQueryError(''); }, [user?.id]);
   useEffect(() => {
     let active = true;
     if (!user || !supabase) return;
-    setBusy(true);
-    const query = supabase.from('saved_routes').select(COLUMNS).eq('owner_id', user.id);
-    void (trash ? query.eq('status', 'archived') : query.neq('status', 'archived')).order('created_at', { ascending: false }).limit(limit + 1).then(({ data, error }) => {
-      if (!active) return;
-      if (error) setMessage('No se pudieron cargar tus rutas: ' + error.message);
-      else { setRoutes((data || []).slice(0, limit) as SavedRoute[]); setHasMore((data || []).length > limit); }
-      setBusy(false);
-    });
-    return () => { active = false; };
-  }, [user?.id, trash, limit, revision, refresh]);
+    const controller = new AbortController();
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    let debounce: ReturnType<typeof setTimeout> | undefined;
+    setLoading(true); setQueryError(''); setRoutes([]); setHasMore(false);
+    const execute = () => {
+      deadline = setTimeout(() => {
+        controller.abort();
+        if (active) { setLoading(false); setQueryError('La consulta de tus rutas tardó demasiado. Reintenta la búsqueda.'); }
+      }, SAVED_ROUTE_QUERY_TIMEOUT_MS);
+      let query = supabase!.from('saved_routes').select(COLUMNS).eq('owner_id', user.id);
+      if (search.trim()) query = query.filter('name', 'imatch', literalRouteNamePattern(search));
+      void Promise.resolve((trash ? query.eq('status', 'archived') : query.neq('status', 'archived')).order('created_at', { ascending: false }).order('id', { ascending: false }).limit(limit + 1).abortSignal(controller.signal)).then(({ data, error }) => {
+        if (!active || controller.signal.aborted) return;
+        if (error) setQueryError('No se pudieron cargar tus rutas: ' + error.message);
+        else { setRoutes((data || []).slice(0, limit) as SavedRoute[]); setHasMore((data || []).length > limit); }
+      }).catch(() => {
+        if (active && !controller.signal.aborted) setQueryError('No se pudo conectar con tus rutas guardadas. Reintenta la búsqueda.');
+      }).finally(() => {
+        clearTimeout(deadline);
+        if (active && !controller.signal.aborted) setLoading(false);
+      });
+    };
+    if (search.trim()) debounce = setTimeout(execute, SAVED_ROUTE_SEARCH_DEBOUNCE_MS);
+    else execute();
+    return () => { active = false; clearTimeout(debounce); clearTimeout(deadline); controller.abort(); };
+  }, [user?.id, trash, search, limit, revision, refresh]);
+  const pending = busy || loading;
   async function setArchived(route: SavedRoute, archived: boolean) {
-    if (!user || !supabase || busy) return;
+    if (!user || !supabase || pending) return;
     const ownerId = user.id;
     const generation = lifetime.current;
     setBusy(true); setMessage('');
@@ -47,7 +68,7 @@ export default function SavedRoutesPanel({ user, revision, onLoad }: { user: Use
     finally { if (owner.current === ownerId && lifetime.current === generation) setBusy(false); }
   }
   async function load(route: SavedRoute) {
-    if (!user || !supabase || busy) return;
+    if (!user || !supabase || pending) return;
     const ownerId = user.id;
     const generation = lifetime.current;
     setBusy(true); setMessage('');
@@ -60,12 +81,14 @@ export default function SavedRoutesPanel({ user, revision, onLoad }: { user: Use
   }
   return <section className="saved-routes" aria-labelledby="saved-routes-title"><div className="saved-routes-heading"><div><p className="eyebrow">TUS RECORRIDOS</p><h2 id="saved-routes-title">Mis rutas guardadas</h2><p>Recupera tus entregas o elimina los recorridos que ya no necesitas.</p></div>{user && <button type="button" disabled={busy} aria-pressed={trash} onClick={() => { setTrash(value => !value); setLimit(20); setMessage(''); }}>{trash ? 'Ver rutas activas' : 'Papelera'}</button>}</div>
     {!user ? <p>Inicia sesión para ver tus rutas.</p> : <>
+      <div className="saved-route-search"><label>Buscar rutas por nombre<input type="search" aria-label="Buscar rutas por nombre" maxLength={120} autoComplete="off" value={search} disabled={busy} onChange={event => { setSearch(event.target.value); setLimit(20); }}/></label>{search && <button type="button" className="text-button" disabled={busy} onClick={() => { setSearch(''); setLimit(20); }}>Limpiar búsqueda</button>}</div>
       {trash && <p className="hint">Las rutas de la papelera conservan sus paradas y se pueden recuperar.</p>}
-      {busy && <p role="status">Cargando…</p>}
-      {message && <p role="status">{message} {undo && <button type="button" disabled={busy} onClick={() => void setArchived(undo, false)}>Deshacer</button>}</p>}
-      <div className="saved-routes-list">{routes.map(route => <article className="saved-route-card" key={route.id}><div><strong>{route.name}</strong><small>{new Date(route.created_at).toLocaleDateString('es-MX')} · {route.mode === 'truck' ? 'Camión' : 'Reparto'}<br/>{route.origin?.label || 'Origen guardado'} → {route.destination?.label || 'Destino guardado'}</small></div><div className="route-card-actions">{trash ? <button type="button" disabled={busy} aria-label={`Recuperar ${route.name}`} onClick={() => void setArchived(route, false)}>Recuperar</button> : <><button type="button" disabled={busy} onClick={() => void load(route)}>Cargar ruta</button><button type="button" className="danger-button" disabled={busy} aria-label={`Eliminar ruta ${route.name}`} onClick={() => void setArchived(route, true)}>Eliminar</button></>}</div></article>)}</div>
-      {!busy && !routes.length && <p>{trash ? 'La papelera está vacía.' : 'Todavía no has guardado recorridos.'}</p>}
-      {hasMore && <button type="button" disabled={busy} onClick={() => setLimit(value => value + 20)}>Cargar más rutas</button>}
+      {pending && <p role="status">{loading ? 'Buscando rutas…' : 'Actualizando…'}</p>}
+      {queryError && <p role="alert">{queryError} <button type="button" disabled={pending} onClick={() => setRefresh(value => value + 1)}>Reintentar búsqueda de rutas</button></p>}
+      {message && <p role="status">{message} {undo && <button type="button" disabled={pending} onClick={() => void setArchived(undo, false)}>Deshacer</button>}</p>}
+      <div className="saved-routes-list" aria-busy={loading}>{routes.map(route => <article className="saved-route-card" key={route.id}><div><strong>{route.name}</strong><small>{new Date(route.created_at).toLocaleDateString('es-MX')} · {route.mode === 'truck' ? 'Camión' : 'Reparto'}<br/>{route.origin?.label || 'Origen guardado'} → {route.destination?.label || 'Destino guardado'}</small></div><div className="route-card-actions">{trash ? <button type="button" disabled={pending} aria-label={`Recuperar ${route.name}`} onClick={() => void setArchived(route, false)}>Recuperar</button> : <><button type="button" disabled={pending} onClick={() => void load(route)}>Cargar ruta</button><button type="button" className="danger-button" disabled={pending} aria-label={`Eliminar ruta ${route.name}`} onClick={() => void setArchived(route, true)}>Eliminar</button></>}</div></article>)}</div>
+      {!pending && !queryError && !routes.length && <p>{search.trim() ? trash ? 'No hay rutas en la papelera con este nombre.' : 'No hay rutas activas con este nombre.' : trash ? 'La papelera está vacía.' : 'Todavía no has guardado recorridos.'}</p>}
+      {hasMore && <button type="button" disabled={pending} onClick={() => setLimit(value => value + 20)}>Cargar más rutas</button>}
     </>}
   </section>;
 }
