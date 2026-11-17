@@ -318,13 +318,14 @@ test('real local saved-route search is literal, paginated and recoverable on mob
    const hidden=await owner.client.from('saved_routes').select('id').eq('id',foreign.data.id).filter('name','imatch',literalRouteNamePattern(names[0]));assert.equal(hidden.error,null);assert.deepEqual(hidden.data,[]);
    await nav(page).getByRole('button',{name:'Mis rutas',exact:true}).click();await page.getByRole('button',{name:'Cargar más rutas',exact:true}).waitFor();
    assert.equal(await page.locator('.saved-route-card').count(),20);assert.equal(await page.locator('.saved-route-card').filter({hasText:names[0]}).count(),0);
-   await page.getByRole('button',{name:'Cargar más rutas',exact:true}).click();await page.locator('.saved-routes-list[aria-busy="false"]').waitFor();assert.equal(await page.locator('.saved-route-card').count(),30);
+   const moreResponse=page.waitForResponse(response=>{const u=new URL(response.url());return u.pathname.endsWith('/rest/v1/saved_routes')&&u.searchParams.get('limit')==='41';});
+   await page.getByRole('button',{name:'Cargar más rutas',exact:true}).click();const more=await moreResponse;assert.equal(more.status(),200);assert.equal((await more.json()).length,30);await page.locator('.saved-route-card').nth(29).waitFor();assert.equal(await page.locator('.saved-route-card').count(),30);
    const input=page.getByRole('searchbox',{name:'Buscar rutas por nombre',exact:true});
    for(const name of names){
     const term=name.toLowerCase();const responsePromise=page.waitForResponse(response=>{const u=new URL(response.url());return u.pathname.endsWith('/rest/v1/saved_routes')&&u.searchParams.get('name')==='imatch.'+literalRouteNamePattern(term);});
     await input.fill(term);const response=await responsePromise;assert.equal(response.status(),200);const results=await response.json();assert.equal(results.length,1);assert.equal(results[0].name,name);
     const url=new URL(response.url());assert.equal(url.searchParams.get('limit'),'21');assert.equal(url.searchParams.get('owner_id'),'eq.'+owner.uid);assert.equal(url.searchParams.get('select').includes(',route_metadata'),false);
-    await page.locator('.saved-routes-list[aria-busy="false"]').waitFor();assert.equal(await page.locator('.saved-route-card').count(),1);assert.equal(await page.locator('.saved-route-card strong').innerText(),name);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+    await page.locator('.saved-route-card').getByText(name,{exact:true}).waitFor();assert.equal(await page.locator('.saved-route-card').count(),1);assert.equal(await page.locator('.saved-route-card strong').innerText(),name);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
    }
    await input.fill('No existe esta ruta');await page.getByText('No hay rutas activas con este nombre.',{exact:true}).waitFor();
    await page.getByRole('button',{name:'Limpiar búsqueda',exact:true}).click();await page.getByRole('button',{name:'Cargar más rutas',exact:true}).waitFor();assert.equal(await input.inputValue(),'');assert.equal(await page.locator('.saved-route-card').count(),20);
