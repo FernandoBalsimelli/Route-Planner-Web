@@ -69,6 +69,7 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
   await context.route('https://fonts.googleapis.com/**',route=>route.abort());
   await context.route('https://fonts.gstatic.com/**',route=>route.abort());
   const page = await context.newPage();
+  let releaseSavedStops;
   try {
     await page.goto(base);
     const createdId=await createAccount(page, 'e2e-owner-one');
@@ -199,12 +200,38 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
     assert.equal(last[1].body.vehicles[0].profile, 'driving-car');
     assert.match(last[2].path, /driving-car/);
     assert.equal(last[2].body.options, undefined);
+    // Hold a genuine REST response from account one across sign-out. The
+    // database still enforces RLS; this checks that old browser work cannot
+    // write its already-authorized data into the new account's draft.
+    let stopsReady;
+    const heldStops=new Promise(resolve=>{stopsReady=resolve;});
+    const releaseStops=new Promise(resolve=>{releaseSavedStops=resolve;});
+    await page.route('**/rest/v1/route_stops?**',async route=>{
+      if(route.request().method()!=='GET')return route.continue();
+      const response=await route.fetch();assert.equal(response.status(),200);
+      stopsReady();await releaseStops;await route.fulfill({response});
+    });
+    await nav(page).getByRole('button',{name:'Mis rutas',exact:true}).click();
+    await page.getByRole('button',{name:'Cargar ruta',exact:true}).click();await heldStops;
     await page.locator('.account-button').click();
     const logout=page.waitForResponse(response=>response.url().includes('/auth/v1/logout')&&response.request().method()==='POST');
     await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
     assert.equal((await logout).status(),204);await page.locator('.account-button').filter({hasText:'Iniciar sesión'}).waitFor();
     if(await page.getByRole('dialog',{name:'Cuenta de Route Planner'}).isVisible())await page.locator('.account-button').click();
+    await nav(page).getByRole('button',{name:'Planificar',exact:true}).click();
+    assert.equal(await page.getByRole('combobox',{name:'Origen',exact:true}).inputValue(),'');
+    assert.equal(await page.getByRole('combobox',{name:'Destino',exact:true}).inputValue(),'');
+    assert.equal(await page.getByRole('combobox',{name:'PARADA 1',exact:true}).count(),0);
+    assert.equal(await page.locator('.metrics').count(),0);
     await createAccount(page, 'e2e-owner-two');
+    await nav(page).getByRole('button',{name:'Planificar',exact:true}).click();
+    await page.getByRole('combobox',{name:'Origen',exact:true}).fill('Borrador segunda cuenta');
+    const oldResponse=page.waitForResponse(response=>response.url().includes('/rest/v1/route_stops?')&&response.request().method()==='GET');
+    releaseSavedStops();await oldResponse;
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    assert.equal(await page.getByRole('combobox',{name:'Origen',exact:true}).inputValue(),'Borrador segunda cuenta');
+    assert.equal(await page.getByRole('combobox',{name:'Destino',exact:true}).inputValue(),'');
+    assert.equal(await page.locator('.metrics').count(),0);
     const second = await session('e2e-owner-two');
     assert.notEqual(first.uid, second.uid);
     await nav(page).getByRole('button', { name: 'Vehículos', exact: true }).click();
@@ -221,7 +248,7 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
     const unauthorized = await fetch(base + '/api/route-planner/v1/routes/plan', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
     assert.equal(unauthorized.status, 401);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
-  } catch(error){console.error('Disposable fixture UI at failure:',(await page.locator('body').innerText().catch(()=>'' )).slice(-16000));throw error;} finally { await context.close(); }
+  } catch(error){console.error('Disposable fixture UI at failure:',(await page.locator('body').innerText().catch(()=>'' )).slice(-16000));throw error;} finally { releaseSavedStops?.();await context.close(); }
 });
 
 test('real local session plans and saves 48 deliveries atomically, retries without duplicates and rejects a 49th', {timeout:60000}, async()=>{

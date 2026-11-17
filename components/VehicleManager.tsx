@@ -21,9 +21,12 @@ export default function VehicleManager({ user, vehicles, onSaved, onSelect }: { 
   const [message, setMessage] = useState('');
   const currentUser = useRef(user?.id);
   currentUser.current = user?.id;
+  const lifetime = useRef(0);
+  useEffect(() => () => { lifetime.current += 1; }, [user?.id]);
   useEffect(() => {
     let active = true;
-    setEditing(null); setMessage(''); setDisplayName(''); setFleets([]);
+    setEditing(null); setMessage(''); setDisplayName(''); setFleets([]); setBusy(false);
+    setName(''); setType('delivery'); setDimensions({}); setOperating(EMPTY_OPERATING_FORM); setFleetId(''); setNewFleet('');
     if (user && supabase) void supabase.from('profiles').select('display_name').eq('id', user.id).maybeSingle().then(({ data, error }) => {
       if (!active) return;
       if (error) setMessage('No se pudo cargar tu perfil: ' + error.message);
@@ -42,40 +45,43 @@ export default function VehicleManager({ user, vehicles, onSaved, onSelect }: { 
   async function saveProfile() {
     if (!user || !supabase || busy) return;
     const ownerId = user.id;
+    const generation = lifetime.current;
     setBusy(true); setMessage('');
     try {
       const { error } = await supabase.from('profiles').upsert({ id: ownerId, display_name: displayName.trim().slice(0, 120) }, { onConflict: 'id' });
       if (error) throw new Error(error.message);
-      if (currentUser.current === ownerId) setMessage('Perfil actualizado.');
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'No se pudo guardar el perfil.'); }
-    finally { setBusy(false); }
+      if (currentUser.current === ownerId && lifetime.current === generation) setMessage('Perfil actualizado.');
+    } catch (error) { if (currentUser.current === ownerId && lifetime.current === generation) setMessage(error instanceof Error ? error.message : 'No se pudo guardar el perfil.'); }
+    finally { if (currentUser.current === ownerId && lifetime.current === generation) setBusy(false); }
   }
   async function saveVehicle(event: React.FormEvent) {
     event.preventDefault();
     if (!user || !supabase || busy) return;
     const ownerId = user.id;
+    const generation = lifetime.current;
     setBusy(true); setMessage('');
     try {
       const values = vehicleValues(name, type, dimensions, fleetId, operating);
       const query = editing === 'new' ? supabase.from('vehicles').insert({ ...values, owner_id: ownerId }) : supabase.from('vehicles').update(values).eq('id', editing!).eq('owner_id', ownerId);
       const { data, error } = await query.select(VEHICLE_COLUMNS).single();
       if (error) throw new Error(error.message);
-      if (currentUser.current !== ownerId) return;
+      if (currentUser.current !== ownerId || lifetime.current !== generation) return;
       onSaved(data as VehicleProfile); setEditing(null); setMessage('Vehículo guardado y seleccionado para el recorrido.');
-    } catch (error) { if (currentUser.current === ownerId) setMessage(error instanceof Error ? error.message : 'No se pudo guardar el vehículo.'); }
-    finally { setBusy(false); }
+    } catch (error) { if (currentUser.current === ownerId && lifetime.current === generation) setMessage(error instanceof Error ? error.message : 'No se pudo guardar el vehículo.'); }
+    finally { if (currentUser.current === ownerId && lifetime.current === generation) setBusy(false); }
   }
   async function addFleet() {
     if (!user || !supabase || busy || !newFleet.trim()) return;
     const ownerId = user.id;
+    const generation = lifetime.current;
     setBusy(true);
     try {
       const { data, error } = await supabase.from('fleets').insert({ owner_id: ownerId, name: newFleet.trim().slice(0, 120) }).select('id,name').single();
       if (error) throw new Error(error.message);
-      if (currentUser.current !== ownerId) return;
+      if (currentUser.current !== ownerId || lifetime.current !== generation) return;
       setFleets(items => [...items, data]); setFleetId(data.id); setNewFleet(''); setMessage('Flota creada.');
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'No se pudo crear la flota.'); }
-    finally { setBusy(false); }
+    } catch (error) { if (currentUser.current === ownerId && lifetime.current === generation) setMessage(error instanceof Error ? error.message : 'No se pudo crear la flota.'); }
+    finally { if (currentUser.current === ownerId && lifetime.current === generation) setBusy(false); }
   }
   return <section className="saved-routes vehicle-account" id="mi-perfil" aria-labelledby="profile-title">
     <p className="eyebrow">TU CUENTA</p><h2 id="profile-title">Mi perfil y vehículos</h2>

@@ -758,3 +758,18 @@ test('municipal publication history distinguishes historical publication and sup
   }finally{await context.close();}
  }
 });
+
+test('signing out clears the account route and stops active GPS on mobile',{timeout:60000},async()=>{
+ const {context,page}=await navigationSetup(15000);
+ try{
+  await page.route('https://auth.example.test/auth/v1/logout*',route=>route.fulfill({status:204,body:''}));
+  await page.getByRole('checkbox',{name:/Revisé los accesos y permisos/}).check();await page.getByRole('button',{name:'Iniciar navegación en la app'}).click();
+  assert.equal(await page.evaluate(()=>window.__gps.started),1);
+  await page.locator('.account-button').click();await page.getByRole('button',{name:'Cerrar sesión',exact:true}).click();
+  await page.locator('.account-button').filter({hasText:'Iniciar sesión'}).waitFor();
+  assert.equal(await page.getByRole('combobox',{name:'Origen',exact:true}).inputValue(),'');assert.equal(await page.getByRole('combobox',{name:'Destino',exact:true}).inputValue(),'');
+  assert.equal(await page.locator('.metrics').count(),0);assert.deepEqual(await page.evaluate(()=>window.__gps.cleared),[1]);
+  assert.equal(await page.getByRole('button',{name:'Reparto',exact:true}).getAttribute('aria-pressed'),'true');
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ }finally{await context.close();}
+});

@@ -17,6 +17,8 @@ export default function SavedRoutesPanel({ user, revision, onLoad }: { user: Use
   const [refresh, setRefresh] = useState(0);
   const [undo, setUndo] = useState<SavedRoute | null>(null);
   const owner = useRef(user?.id); owner.current = user?.id;
+  const lifetime = useRef(0);
+  useEffect(() => () => { lifetime.current += 1; }, [user?.id]);
   useEffect(() => { setRoutes([]); setUndo(null); setMessage(''); setTrash(false); setLimit(20); setBusy(false); setHasMore(false); }, [user?.id]);
   useEffect(() => {
     let active = true;
@@ -34,25 +36,27 @@ export default function SavedRoutesPanel({ user, revision, onLoad }: { user: Use
   async function setArchived(route: SavedRoute, archived: boolean) {
     if (!user || !supabase || busy) return;
     const ownerId = user.id;
+    const generation = lifetime.current;
     setBusy(true); setMessage('');
     try {
       const { data, error } = await supabase.from('saved_routes').update({ status: archived ? 'archived' : 'planned', updated_at: new Date().toISOString() }).eq('id', route.id).eq('owner_id', ownerId).select('id').single();
       if (error || !data) throw new Error(error?.message || 'No se encontró la ruta en tu cuenta.');
-      if (owner.current !== ownerId) return;
+      if (owner.current !== ownerId || lifetime.current !== generation) return;
       setUndo(archived ? route : null); setMessage(archived ? 'Ruta eliminada. Puedes recuperarla desde la papelera.' : 'Ruta recuperada.'); setRefresh(value => value + 1);
-    } catch (error) { if (owner.current === ownerId) setMessage(error instanceof Error ? error.message : 'No se pudo actualizar la ruta.'); }
-    finally { setBusy(false); }
+    } catch (error) { if (owner.current === ownerId && lifetime.current === generation) setMessage(error instanceof Error ? error.message : 'No se pudo actualizar la ruta.'); }
+    finally { if (owner.current === ownerId && lifetime.current === generation) setBusy(false); }
   }
   async function load(route: SavedRoute) {
     if (!user || !supabase || busy) return;
     const ownerId = user.id;
+    const generation = lifetime.current;
     setBusy(true); setMessage('');
     try {
       const { data, error } = await supabase.from('saved_routes').select('id,name,created_at,status,vehicle_id,origin,destination,route_metadata').eq('id', route.id).eq('owner_id', ownerId).single();
       if (error || !data) throw new Error('No se pudo cargar la ruta: ' + (error?.message || 'No se encontró el registro.'));
-      if (owner.current === ownerId) await onLoad(data as SavedRoute);
-    } catch (error) { if (owner.current === ownerId) setMessage(error instanceof Error ? error.message : 'No se pudo cargar la ruta.'); }
-    finally { setBusy(false); }
+      if (owner.current === ownerId && lifetime.current === generation) await onLoad(data as SavedRoute);
+    } catch (error) { if (owner.current === ownerId && lifetime.current === generation) setMessage(error instanceof Error ? error.message : 'No se pudo cargar la ruta.'); }
+    finally { if (owner.current === ownerId && lifetime.current === generation) setBusy(false); }
   }
   return <section className="saved-routes" aria-labelledby="saved-routes-title"><div className="saved-routes-heading"><div><p className="eyebrow">TUS RECORRIDOS</p><h2 id="saved-routes-title">Mis rutas guardadas</h2><p>Recupera tus entregas o elimina los recorridos que ya no necesitas.</p></div>{user && <button type="button" disabled={busy} aria-pressed={trash} onClick={() => { setTrash(value => !value); setLimit(20); setMessage(''); }}>{trash ? 'Ver rutas activas' : 'Papelera'}</button>}</div>
     {!user ? <p>Inicia sesión para ver tus rutas.</p> : <>

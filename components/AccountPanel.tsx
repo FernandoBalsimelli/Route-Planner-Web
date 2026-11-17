@@ -17,13 +17,18 @@ export default function AccountPanel({ onUserChange }: { onUserChange: (user: Us
   useEffect(() => {
     if (!supabase) return;
     let active = true;
+    let authChanged = false;
     supabase.auth.getUser().then(({ data, error }) => {
-      if (!active) return;
+      if (!active || authChanged) return;
       if (error) setNotice('No se pudo comprobar la sesión. Intenta actualizar la página.');
       setUser(data.user);
       onUserChange(data.user);
+    }).catch(() => {
+      if (active && !authChanged) setNotice('No se pudo comprobar la sesión. Intenta actualizar la página.');
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return;
+      authChanged = true;
       const nextUser = session?.user ?? null;
       setUser(nextUser);
       onUserChange(nextUser);
