@@ -1,16 +1,15 @@
 # Route Planner — estado de ingeniería
 
-Fecha de revisión: 2026-11-17. Alcance: exclusivamente Route Planner.
+Fecha de revisión: 2026-11-18. Alcance: exclusivamente Route Planner.
 
-Estado vigente: **Mis rutas → Entregas → Revisar navegación** consulta el avance
-actual y propone retomar sólo después de un prefijo consecutivo completado, con
-elección explícita. Conserva visitas posteriores y avisa de pendientes anteriores
-al origen elegido. Mantiene historial privado, conflictos, GPS, vehículos,
-manifiestos, papelera y enlaces compartidos. No certifica entrega o legalidad.
-Web publicada a6336b0; API 0c972ad incorpora dos PDF oficiales de Puebla al monitor;
-checkpoint posterior 5787c11 sólo actualiza el reporte técnico. Sin migración nueva.
-Reporte 18-11-2026T01:06:33.575Z (17-11, 19:06 Chihuahua): ambos PDF descargados,
-sin revisión legal; Juárez sigue HTTP 403. Detalles y deployment final en el cierre.
+Estado vigente: la consulta de Puebla permite contrastar cada corredor con las
+páginas del acta y del adjunto oficial de Gaceta. Un proceso reproducible contrasta
+128 registros, conserva 29 diferencias tipográficas y la ambigüedad 5/6, sin
+modificar los datos originales ni aprobar normas o rutas. Web fe1601b y API 8891b1b
+publicadas; verificación pública de consulta y filtros realizada.
+Se mantienen avance de entregas, revisión antes de retomar, vehículos, manifiestos,
+GPS, búsqueda cercana, rutas múltiples, enlaces Google completos y recuperación.
+Reporte técnico 18-11-2026T01:06:33.575Z: no obsoleto al consultar, Juárez HTTP 403.
 Hay 15 municipios con referencias parciales y cero con validación legal completa.
 Resultados, commits, rollback y próxima prioridad en el último cierre al final.
 Las entradas anteriores son historial. El programa maestro sigue incompleto.
@@ -3298,3 +3297,139 @@ ambigüedad 5/6 hasta corroborarla; revisar actos oficiales posteriores de 2026.
 Continuar la revisión del recorrido calculado junto a pendientes sin aplicar
 saltos o recalcular automáticamente. El programa maestro sigue incompleto y se
 conserva la tarea periódica existente activa, sin duplicarla ni desactivarla.
+
+
+## Cierre de ciclo · contraste de anexos oficiales por corredor · 18-11-2026
+
+### Diagnóstico y causa
+
+Se consultaron de nuevo main y ambos dominios antes de modificar. Web main
+08a7d8c7d219aedc6b8852cba587f5a82cdd020d, producción a6336b0/dpl_72kFGuVRnN1DNSJVCqzESUbNT124;
+API main/producción 5787c11b456bf26a3eb8aad29ec3d2679c7574c0,
+dpl_EtsjrQWemC81bEYiLu2ZH2cStybr. Se leyeron ENGINEERING-STATUS.md y
+MEXICO-COVERAGE.md de esa main y se conservaron los avances y reportes.
+No se reprodujeron errores críticos de red/búsqueda en la comprobación inicial.
+
+La referencia de corredores sólo enlazaba las páginas del acta. Los adjuntos de
+Gaceta ya estaban localizados y vigilados, pero no existía una correspondencia
+por registro ni comparación reproducible. No se supuso que encontrar dos archivos
+parecidos o un enlace publicado resolviera la discrepancia 5/6 o la vigencia legal.
+
+### Implementación y evidencia
+
+Se descargaron otra vez los PDF reales con HTTP 200. Acta: 2395402 bytes,
+167 páginas, anexo en 80–88, SHA256
+0917dc30ac70594a6e954243800bc5219d7ea3f2bc8017f7ea532b8ec510555c.
+Adjunto: 339465 bytes, siete páginas, SHA256
+1244f0f66db366f8b0f4612c32b64a6a857bc5d9f41c5117843448e95088a8a8.
+Fuentes, método y límites en
+[PUEBLA-ANNEX-COMPARISON.md](https://github.com/FernandoBalsimelli/Route-Planner-API/blob/main/docs/PUEBLA-ANNEX-COMPARISON.md).
+
+El script nuevo primero debe reproducir íntegramente el snapshot anterior del
+acta con su importador existente. Después verifica la huella del adjunto y
+contrasta 128 números/ocurrencias en orden, etiquetas de polígono, nombres de
+corredor, extremos y horarios por días/estado/horas. Sólo normaliza espacios,
+palabras partidas ya revisadas del importador y espacios alrededor del guion
+ASCII; no elimina acentos, números, sufijos A/B o palabras. Excluye de horarios
+los contadores flotantes de página del acta, sin convertir «No aplica» en permiso.
+
+Los 128 registros coinciden en esos campos tras normalizar. Hay 29 registros con
+diferencias de espacios alrededor de guiones en los nombres extraídos: 38/41
+(Norte-Sur) y 42–68 (Carmen-Huexotitla). El JSON conserva ambos valores, huellas y
+cada correspondencia de página. No se afirma identidad literal de los PDF.
+Cambiar bytes detiene con SOURCE_CHANGED; discrepancia de campo con CONTENT_CHANGED.
+Se reprodujo el JSON idéntico y se rechazó un PDF alterado. Python/pdfplumber
+0.11.9 se ejecutaron localmente; no se atribuye esa reproducción a GitHub CI.
+
+Se inspeccionaron las siete páginas renderizadas del adjunto y las páginas 87/88
+del acta. Ambos mantienen ocho filas con etiqueta 5 y cuatro con etiqueta 6 para
+San Alejandro–Ortopedia: **la ambigüedad persiste**, no se corrige por inferencia.
+Duplicados 10/15 y 126/128 intactos. El registro 124 corresponde a páginas 87/88
+del acta y página 7 del adjunto; se conserva como una sola ocurrencia.
+
+API añade annexComparison sólo en Puebla y publishedSourcePages a sus filas.
+El snapshot original y todos sus nombres/horarios quedan intactos. La respuesta
+omite las 29 diferencias extraídas y la tabla redundante completa de mappings;
+la evidencia íntegra queda en Git. No se cambia publicationDate, reglas,
+timeRules, geometrías ni ruta. La Web anterior ignora los campos adicionales;
+la nueva conserva su comportamiento si la comparación falta.
+
+Web añade **Contraste de anexos** plegado dentro de los 128 corredores, con fuentes,
+conteos, alcance, normalización y pendientes. Cada corredor conserva sus enlaces
+del acta y añade la página del adjunto. Para emitir enlaces de contraparte requiere
+comparación sin aprobación legal ni ruteo, conteo coincidente, HTTPS del dominio
+oficial y página válida. Se conservan búsqueda, filtros, orden y repeticiones.
+
+Archivos API: scripts/compare-puebla-parking.py,
+data/mx/21114-parking-comparison.json, lib/municipal-regulations.js,
+test/municipal-regulations.test.js y docs/PUEBLA-ANNEX-COMPARISON.md. Web:
+lib/parking-corridors.ts, components/MunicipalParkingCorridors.tsx,
+components/MunicipalAnnexComparison.tsx, app/globals.css,
+test/parking-corridors.test.mjs, test/geolocation.e2e.mjs y
+test/fixtures/parking-comparison.mjs. Estos dos informes cierran el ciclo.
+
+### Verificación
+
+- API: build, **76 pruebas**, auditoría npm --omit=dev cero vulnerabilidades,
+  migraciones/SQL/RLS en Postgres desechable aprobados.
+  [CI 44248872518](https://github.com/FernandoBalsimelli/Route-Planner-API/actions/runs/44248872518),
+  job 134614370132. Verifica 128 correspondencias, 29 diferencias, hashes,
+  duplicados, páginas partidas, original intacto y ausencia de aprobación legal.
+- Web: TypeScript, build de producción y **177 pruebas unitarias/componentes**
+  aprobados localmente, auditoría npm --omit=dev cero vulnerabilidades.
+  CI navegador/autenticación: **177 pruebas**, **37 casos de navegador** y **ocho flujos Auth/REST/PostgreSQL locales** aprobados, cero omitidos. [44248888311](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/44248888311), jobs 134614425453 (Web) y 134614425234 (Auth). El caso nuevo en 390/1280 px comprueba contraste plegado, filtros exactos, páginas de ambas versiones, repeticiones y ausencia de desbordamiento. El retraso observado fue preparación de Chromium; ambos trabajos terminaron correctamente..
+- Chromium local no logró iniciarse. No se reporta ese intento como aprobado;
+  navegadores se ejecutan en GitHub o en la comprobación pública separada.
+- Producción pública antes de la Web nueva: búsqueda/confirmación de Plus Code
+  completo y coordenadas reales comprobada en navegador, sin interceptar respuestas.
+  El punto conserva sus coordenadas completas en la corroboración. La Web anterior
+  con API nueva conserva 128 registros y no muestra enlaces de contraparte nuevos.
+- Producción nueva: navegador real sin interceptar respuestas, viewport 1348×926: consulta Puebla, abre contraste de 128 registros, observa método y límites, filtra 29 A Norte a un registro y comprueba acta páginas 87/88 más adjunto página 7. El filtro de polígono 6 conserva cuatro registros. Se dejó la consulta preparada para revisión. Es prueba pública de escritorio, no Android físico ni cálculo autenticado alojado..
+- Probes finales HTTP/API/Plus Codes/búsqueda/límites/CORS: salud Web/API/proxy, coordenadas decimales, Plus Code completo 75WMMW72+52, compuesto MW72+52 Monterrey y Express: 200; ocho sugerencias Express. Validación 0/2/48 paradas 200 y 49 devuelve 400. Plan sin sesión 401/AUTH_REQUIRED. CORS autorizado 204 con cabecera y ajeno 404 sin autorización. Tras publicar Web se volvió a comprobar salud, Plus Code, coordenadas y la nueva referencia por su proxy..
+- Logs Vercel: ambos proyectos, sin filas error/fatal agregadas en los 30 minutos consultados. Es comprobación puntual, no monitoreo continuo garantizado.
+- Supabase alojado sólo se consultó: **3 rutas, 10 paradas, 1 vehículo,
+  0 eventos de avance, 0 enlaces**, sin cambios ni datos/cuentas de prueba nuevos.
+  No hay migración, modificación de privilegios, configuración, secretos o servicios
+  de pago. Los avisos previos documentados de Supabase no se resuelven en este ciclo.
+- No ejecutado: cálculo ORS autenticado alojado o navegación física Android/Google.
+  Los flujos Auth de CI usan sesiones/REST/Postgres locales reales y cálculos ORS
+  sintéticos; los fixtures municipales sólo prueban interacción, no normas reales.
+  La comprobación pública de la consulta se registra por separado.
+
+### Publicación y recuperación
+
+API PR [#26](https://github.com/FernandoBalsimelli/Route-Planner-API/pull/26),
+candidato 20d659b1ad15a5ff81af944c12f9442032a902dc; merge
+**8891b1b041e2924da47634be23ad58639563376b**, deployment
+**dpl_BFakA27xhMoDv6EyvDdUS2N3vDBa**, READY/production. Alias comprobado
+https://route-planner-api.vercel.app/ al mismo SHA.
+
+Web PR [#33](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/33),
+candidato d9b5c049e1c718cfac74c200b1036c5b065b7c9a; merge **fe1601b7c87b8eb69ffa6bf2f3a4d734c94ef389**,
+deployment **dpl_33HgrktzfaWXGsG53pkK9b1F5564**, READY/production, alias comprobado al mismo SHA. Alias
+https://route-planner-web-sand.vercel.app/.
+
+Rollback conservado: Web **dpl_72kFGuVRnN1DNSJVCqzESUbNT124** (a6336b0), API
+**dpl_EtsjrQWemC81bEYiLu2ZH2cStybr** (5787c11). Revertir oculta contraste/enlaces
+nuevos conservando todos los datos e historial. No hay SQL que revertir. No se
+hizo rollback ni se modificó Gestión u otros recursos, variables o credenciales.
+El cierre posterior [skip ci] sólo modifica estos dos informes, sin funcionalidad
+pendiente de publicar. Se mantienen candidatos y ramas de recuperación.
+
+### Normativa y siguiente prioridad
+
+No se cambia el monitor, sus URL, frecuencia, cuotas o límites; ambos PDF ya estaban
+vigilados. Reporte público observado: 2026-11-18T01:06:33.575Z, no obsoleto en esta comprobación; Juárez unavailable/HTTP_403 y los adjuntos sin aprobación legal. No se convierte su status
+unreviewed en aprobación legal por contrastar campos. La búsqueda dirigida de
+actos de 2026 no prueba ausencia de reformas; no se inventa vigencia ni una cadena
+completa. Permanecen **15 municipios parciales y cero con validación legal completa**.
+No se añade ninguna calle, horario HGV, permiso, sentido o geometría al motor.
+Google sigue recalculando sin dimensiones/peso ni garantía de trazado exacto.
+
+Completado/publicado: comparación reproducible y enlaces de corroboración por
+corredor entre dos anexos. Parcial: cadena de publicación/consolidación y cambios
+posteriores de 2026; sin resolver 5/6, permisos y geometrías. Próxima prioridad:
+contrastar los artículos de maniobras de las reglas adjuntas con el acta y sus
+reformas, conservando sus ámbitos y fechas; continuar revisión de navegación junto
+al trazado calculado, sin saltos automáticos. El programa maestro sigue abierto
+y la tarea periódica existente se mantiene activa sin duplicarla.

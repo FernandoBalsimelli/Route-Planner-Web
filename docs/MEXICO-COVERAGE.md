@@ -1,6 +1,6 @@
 # Cobertura municipal mexicana y navegación
 
-Revisión: 2026-11-17. Exclusivamente Route Planner. El programa general sigue abierto.
+Revisión: 2026-11-18. Exclusivamente Route Planner. El programa general sigue abierto.
 
 ## Qué existe realmente
 
@@ -564,3 +564,36 @@ La revisión utiliza puntos, sin transferir el trazado/guías del cálculo, peso
 dimensiones o permisos HGV a Google. No acredita entrega, circulación segura/legal
 ni trazado exacto. **Siguen 15 municipios con referencias parciales y cero con
 validación legal completa**; ninguna regla o geometría nueva se aplica al motor.
+
+
+## Contraste por registro entre acta y adjunto de Puebla · 18-11-2026
+
+Web PR #33 y API PR #26 añaden una comparación reproducible de los 128 registros
+del acta C26/11, páginas 80–88, con el adjunto de RES. 2025/148, páginas 1–7.
+Números, etiquetas, nombres, extremos y horarios citados coinciden después de
+normalizar espacios y guiones según el método documentado. No se declara identidad
+literal de archivos: 29 registros tienen diferencias tipográficas en los nombres
+extraídos, conservadas en la evidencia. Se verificaron los PDF reales y sus hashes.
+
+Cada registro mantiene sus datos y enlaces del acta, y ofrece la contraparte del
+adjunto; el 124 corresponde a acta 87/88 y adjunto 7. Se preservan los 128 registros,
+duplicados 10/15 y 126/128 y las ocho etiquetas 5/cuatro etiquetas 6 para San
+Alejandro–Ortopedia. La ambigüedad sigue en ambos documentos y no se renumera.
+Fuentes, huellas, extracción y límites en
+[PUEBLA-ANNEX-COMPARISON.md](https://github.com/FernandoBalsimelli/Route-Planner-API/blob/main/docs/PUEBLA-ANNEX-COMPARISON.md).
+
+La comparación sólo cubre esos campos seleccionados del anexo. No acredita
+publicación íntegra/consolidación de las reglas, cadena de cambios posterior de
+2026, vigencia actual, permisos, horarios de maniobras, sentidos o geometrías.
+No cambia source.entryIntoForce.publicationDate del snapshot, reglas o exclusiones
+del motor. **Siguen 15 municipios con referencias parciales y cero con validación
+legal completa**. Google continúa sin recibir restricciones HGV ni garantizar
+el trazado exacto. La igualdad de campos no constituye autorización vial.
+
+No se modifica el monitor existente ni sus fuentes, frecuencia o límites. El
+reporte observado sigue 2026-11-18T01:06:33.575Z, no obsoleto en la consulta,
+con Juárez HTTP_403/unavailable. El contraste no convierte unreviewed en aprobación
+legal. La búsqueda dirigida no demuestra ausencia de actos posteriores. Resultados
+CI, verificación pública de filtros/enlaces, commits, deployments y rollback en
+ENGINEERING-STATUS.md. Próximo paso: contrastar los artículos de maniobras de las
+reglas adjuntas con el acta y sus reformas, sin inferir permisos o vigencia.
