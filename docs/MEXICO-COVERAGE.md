@@ -645,3 +645,27 @@ estacionamiento. Falta revisión íntegra, publicación/cadena de cambios y eval
 de su alcance antes de incorporar reglas o vigilancia. No se declara vigencia
 por esta localización ni ausencia de otros actos. Continúan 15 municipios con
 referencias parciales y cero completos, sin restricciones HGV transmitidas a Google.
+
+
+## Validación de respuestas y discrepancias documentales por corroborar · 18-11-2026
+
+API PR #28 comprueba estimaciones, trazado e índices completos/ordenados también
+en rutas normales y de camión. Es integridad estructural del resultado, no
+validación geográfica o normativa. No se añaden calles prohibidas, horarios,
+permisos o geometrías legales y siguen 15 municipios parciales/cero completos.
+Web PR #36 prueba el error con Auth/REST/PostgreSQL locales reales y ORS sintético;
+no es Android ni cálculo autenticado con proveedor real en producción.
+
+Pista oficial CDMX que requiere corroboración: Maniobras_info.pdf y la guía enero
+2024 del mismo organismo describen horarios de maniobras distintos para Perímetro
+A en sus lecturas indexadas. Las descargas directas actuales devolvieron 503;
+no hay nuevas huellas, cotejo visual ni vigencia comprobada. No se reemplaza el
+snapshot previo por inferencia o se elige el horario más permisivo. Recuperar
+ambos y el aviso de Gaceta 15-12-2021, sus reformas, ámbitos y excepciones:
+https://www.autoridadcentrohistorico.cdmx.gob.mx/storage/app/media/Maniobras_info.pdf
+https://www.autoridadcentrohistorico.cdmx.gob.mx/storage/app/media/Que_Si_y_Que_NoCH_2024.pdf
+El monitor existente y los datos municipales quedan intactos. No se encontró en
+la búsqueda dirigida una fuente que certifique y actualice toda la geometría
+legal nacional; tampoco se afirma que no pueda existir. Google sigue sin recibir
+restricciones HGV o conservar obligatoriamente el trazado. Resultados reales,
+commits, despliegue, rollback y punto de reanudación en ENGINEERING-STATUS.md.

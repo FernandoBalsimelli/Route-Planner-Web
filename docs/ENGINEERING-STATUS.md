@@ -2,20 +2,21 @@
 
 Fecha de revisión: 2026-11-18. Alcance: exclusivamente Route Planner.
 
-Estado vigente: Mis rutas → Entregas → Revisar navegación permite consultar por
-petición explícita el trazado guardado completo junto al avance. Conserva todos
-los puntos y sus repeticiones, sin recalcular, escribir avance o cambiar Google.
-Un cambio de revisión, snapshot, puntos, perfil o preferencias cierra también
-los enlaces antiguos y obliga a revisar antes de navegar. Web da3efef publicada; pruebas funcionales
-con Auth/REST/PostgreSQL locales en CI. La comprobación privada alojada y Android
-físico siguen pendientes. API 27e161c conserva contraste reproducible de artículos
-11–13; las tres fichas y los 128 corredores ofrecen ambas fuentes oficiales sin
-aprobar vigencia o rutas. Reporte técnico observado 2026-11-18T07:49:38.924Z,
-no obsoleto al consultar; Juárez HTTP_403, CDMX Centro NETWORK_OR_TIMEOUT.
-Se mantienen vehículos, manifiestos, GPS, búsqueda cercana, rutas múltiples,
-enlaces Google completos y recuperación. Hay 15 municipios parciales y cero
-con validación legal completa. Resultados y rollback en el último cierre al final.
-Las entradas anteriores son historial. El programa maestro sigue incompleto.
+Estado vigente: API 1d1e916 rechaza respuestas Directions incompletas también en
+rutas normales/camión; la validación estricta antes sólo se aplicaba a alternativas.
+Comprueba estimaciones, geometría, correspondencia ordenada de todos los puntos e
+instrucciones opcionales. No inventa ceros ni presenta una ruta parcial como válida.
+Web conserva runtime da3efef; el nuevo commit e3c9b04 sólo actualiza pruebas/CI
+contra la API verificada. El flujo de error conserva ubicaciones, unidad y preferencias.
+Se mantienen trazado guardado junto al avance, vehículos, manifiestos/OCR, GPS,
+búsqueda cercana, coordenadas/Plus Codes, rutas múltiples y enlaces Google por tramos.
+Las pruebas Auth/REST/PostgreSQL son locales; Android físico, sesión privada y ORS
+autenticado alojados siguen pendientes. Hay 15 municipios parciales y cero con
+validación legal completa. La investigación detectó referencias históricas de CDMX
+con horarios diferentes; descargas directas 503, sin reemplazar reglas por inferencia.
+Reporte técnico público observado 2026-11-18T07:49:38.924Z, no obsoleto al consultar.
+Resultados, commits, rollback y próxima prioridad en el último cierre al final.
+Las entradas anteriores son historial; el programa maestro sigue incompleto.
 
 ## Recursos verificados
 
@@ -3679,3 +3680,161 @@ Se deja para revisión íntegra y cotejo con publicación oficial antes de incor
 reglas o ampliar el monitor. La búsqueda dirigida no prueba ausencia de otros
 actos de 2026. El monitor existente permanece sin cambios y no aprueba normas.
 El programa maestro sigue abierto; automatización de cinco horas conservada activa.
+
+
+## Cierre de ciclo · integridad de todas las respuestas Directions · 18-11-2026
+
+### Diagnóstico y causa real
+
+Preflight GitHub fresco: Web main cbbc659157f65d56cab2ce3b2829f1fc7c38cbf5,
+producción da3efef0a4ef580804857bd537c0f4419f52b362 /
+dpl_3x4t7Q3ixeiCpaCCMtuHwyzzFELv; API main/producción
+27e161c7eb325d2524ff02577073ad457908affc /
+dpl_2qZB8kkDGAFqQQr8Yw1hoA6Q2ogt. Se leyeron ambos informes de esa main,
+se preservaron los avances y se trabajó en árboles aislados. No hubo AGENTS.md
+aplicable. El preflight HTTP no reprodujo Failed to fetch: búsquedas, formatos
+directos, proxy, salud y validaciones respondieron correctamente.
+
+La auditoría de index.js encontró una omisión verificable: sólo alternativas
+rechazaba un resultado exitoso sin geometría/estimaciones válidas. En una ruta
+normal, summary.distance/duration ausentes se sustituían por cero y una
+correspondencia way_points defectuosa se descartaba, conservando los puntos
+solicitados como si formasen un cálculo completo. También un tipo inesperado de
+instrucción podía llegar a la interfaz. Es un defecto de contrato reproducido con
+respuestas de proveedor controladas, no un incidente de datos ORS reales observado
+en producción. No se presenta esa reproducción como navegación real.
+
+La documentación primaria de Directions JSON confirma summary, geometry e índices
+way_points cuando se solicita geometría (valor predeterminado de esta petición):
+https://giscience.github.io/openrouteservice/api-reference/endpoints/directions/requests-and-return-types
+
+### Implementación
+
+lib/directions-integrity.js inspecciona todas las rutas: estimaciones numéricas
+finitas no negativas; polyline decodificable dentro de los límites existentes;
+exactamente un índice por punto, enteros dentro del trazado, no decrecientes y con
+origen/fin correspondientes a sus extremos. Repetir un índice es válido: no se
+colapsan visitas repetidas. Si hay segmentos/pasos, comprueba su estructura,
+tipos de texto y estimaciones opcionales. Es validación estructural de la
+respuesta, no corroboración geográfica, física o legal del proveedor.
+
+La API devuelve un mensaje humano específico según el dato defectuoso,
+502/ORS_INVALID_ROUTE y un reason seguro ante errores de JSON,
+contenedor, estimaciones, geometría, índices o instrucciones. No incluye puntos,
+credenciales ni respuesta cruda en el registro; sólo motivo y cantidad de puntos.
+Una lista de rutas vacía sigue siendo 422/ORS_NO_ROUTE y el timeout del cuerpo
+sigue siendo 504/ORS_TIMEOUT. No hay reintento automático, relajación de medidas,
+exclusiones o permisos. Se conserva el cero numérico explícito del proveedor y
+se deja de fabricarlo cuando falta el dato. Las alternativas usan la misma
+inspección y omiten opciones incompletas/repetidas; se conservan sus conteos.
+Los índices de maniobras fuera de los vértices se omiten de la salida cartográfica.
+
+Los fixtures correctos ahora incluyen geometrías sintéticas codificadas y mapeos
+reales en vez de cadenas inválidas o trazado ausente. Web CI se fija al SHA
+inmutable de la API candidata y añade un caso Auth → navegador → proxy → API
+real local que recibe una respuesta ORS sintética incompleta. No cambia código
+de interfaz, dependencias, proveedor, variables, secretos, SQL o permisos.
+
+Archivos API: index.js, lib/directions-integrity.js, test/routing.test.js.
+Web: .github/workflows/checks.yml, test/integration/ors-fixture.mjs y
+test/integration/authenticated.e2e.mjs; cierre en estos dos informes.
+
+### Pruebas, resultados y límites
+
+API local: build, 80 pruebas y auditoría npm --omit=dev (cero vulnerabilidades),
+aprobados. [CI 44346217186](https://github.com/FernandoBalsimelli/Route-Planner-API/actions/runs/44346217186),
+job 134949196941: 80 pruebas, build, migraciones/SQL/RLS de rutas, compartición y
+avance en PostgreSQL desechable y auditoría aprobados. Casos de respuestas
+incompletas, tipos incorrectos, instrucciones inválidas, índices ausentes/fuera
+de orden/fuera de rango, JSON roto, ausencia de ruta y timeout. Comprueba un único
+llamado, conservación de HGV/preferencias, 48 entregas repetidas/50 posiciones
+y ceros explícitos, sin convertir respuestas incompletas en cálculos válidos.
+
+Web local: build, typecheck, 184 pruebas unitarias/componentes y auditoría con
+cero vulnerabilidades. [CI 44346274933](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/44346274933)
+con resultados finales registrados antes de publicar: 184 pruebas, 38 casos de
+navegador y diez flujos Auth/REST/PostgreSQL locales reales. Jobs 134949633331
+(Web) y 134949632786 (Auth). El caso nuevo, en 390/1365 px, comprueba error
+502 específico, ausencia de detalle calculado/botón de guardar, permanencia de
+origen/parada/destino confirmados, altura y evitar peajes, una sola petición y
+cero registros creados. La clave/usuarios son desechables locales; el proveedor
+ORS y geometría siguen siendo fixtures. No consumen cuota externa de ruteo.
+
+La primera ejecución Auth de la prueba nueva (44344331684) pasó nueve flujos y
+falló antes del cálculo por un selector que no incluía el signo ＋ de Agregar parada.
+Se corrigió sólo el selector y se repitió la verificación sobre el candidato final;
+no se publicó código mientras esa comprobación estaba pendiente.
+
+Un intento de iniciar Chromium local volvió a fallar con Target closed; no se
+reporta aprobado. CI sí ejecuta navegador. No se ejecutan sesión privada de
+producción, cálculo ORS autenticado real ni Android físico. La compatibilidad
+funcional completa se verifica con la pila local real de CI y se distingue del
+smoke público. Supabase alojado sólo leído: 3 rutas, 10 paradas, 1 vehículo,
+cero eventos de avance y cero enlaces, sin escrituras ni cuentas de prueba.
+Los avisos previos SECDEF/contraseñas filtradas continúan sin cambios.
+
+Smoke después de verificar el alias API nuevo: salud por proxy, coordenadas,
+Plus Code completo 75XMRW22+22, compuesto RW22+22 Chihuahua, Express y Puebla:
+200; ocho sugerencias Express. Validación 0/2/48 intermedias: 200, 49: 400;
+plan sin sesión: 401. Ningún cálculo autenticado real se infiere de estos probes.
+Ambos proyectos Vercel sin filas error/fatal agregadas en los 30 minutos
+consultados. El reporte de fuentes conserva 2026-11-18T07:49:38.924Z, no obsoleto;
+Juárez HTTP_403 y CDMX NETWORK_OR_TIMEOUT en ese reporte anterior, distintos de
+los HTTP 503 del intento documental directo de este ciclo. Verificación puntual.
+
+### Publicación y recuperación
+
+API PR [#28](https://github.com/FernandoBalsimelli/Route-Planner-API/pull/28),
+candidato final 772a6b2ba6bc56f79c3ac3adfbbfe149e9679e07
+(anterior 942d25d992af87f8d8d85bd1785764fc49d1aad3 conservado), merge **1d1e916a44a115f2c0101704c908d77189b447b1**,
+deployment **dpl_3Din4YGhKtTrS5Qr9NKKJwUHXEGa** READY/production; alias
+https://route-planner-api.vercel.app/ comprobado al mismo SHA.
+Rollback API conservado **dpl_2qZB8kkDGAFqQQr8Yw1hoA6Q2ogt** /27e161c.
+No se ejecutó rollback ni hay SQL que revertir; volver al anterior restituiría
+la omisión de validación, sin perder datos de usuarios.
+
+Web PR [#36](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/36),
+candidato final 2209a3553827de818657c9ad12d4173e8ae9283a
+(selector corregido en 035da706b65f7d71513e578653d6a453266a7753)
+(anterior 1bfd2c54618ba901c2f77f846b6894b98943619a conservado), merge **e3c9b045c6e622cd1c8b0d4147bcb75ae6807843**.
+Sólo pruebas/CI; no necesita redeploy funcional. Producción Web permanece
+**da3efef0a4ef580804857bd537c0f4419f52b362**, deployment
+**dpl_3x4t7Q3ixeiCpaCCMtuHwyzzFELv**, READY; alias
+https://route-planner-web-sand.vercel.app/ al mismo SHA. Se comprueba que el diff
+desde ese código de producción sólo contiene informes, pruebas y workflow,
+sin funcionalidad pendiente de publicar ni volver a Preview. La interfaz
+existente muestra el error nuevo de API y conserva sus puntos según el flujo CI.
+
+Gestión y demás proyectos intactos; ningún servicio de pago activado. Se conservan
+ramas/candidatos e historial. El cierre posterior [skip ci] sólo cambia informes.
+
+### Normativa y próxima prioridad
+
+No se cambia ningún horario, norma, geometría o autorización en el motor. Siguen
+15 municipios parciales y cero con validación legal completa. Índices/estimaciones
+estructuralmente correctos no acreditan una ruta segura/legal. Google conserva sus
+límites y recalcula sin recibir HGV ni garantizar trazado exacto.
+
+Investigación oficial de continuación: dos documentos de la Autoridad del Centro
+Histórico de CDMX muestran referencias distintas de maniobras para Perímetro A.
+La lectura indexada de Maniobras_info.pdf indica 22:00–07:00 todos los días; la
+guía identificada como enero de 2024 describe 20:00–10:00 y 20:00–07:00 en vías
+principales, por categorías y excepciones. No se resuelve la diferencia eligiendo
+el horario más permisivo. El documento breve no ofrece en esa lectura una fecha
+que permita ordenar su vigencia. Ambas descargas directas de este intento dieron
+HTTP 503; no se inventan huellas, revisión visual o comprobación actual de bytes.
+Fuentes:
+https://www.autoridadcentrohistorico.cdmx.gob.mx/storage/app/media/Maniobras_info.pdf
+https://www.autoridadcentrohistorico.cdmx.gob.mx/storage/app/media/Que_Si_y_Que_NoCH_2024.pdf
+No se encontró una fuente cartográfica continuamente actualizada que permita
+certificar legalmente las calles de todos los municipios. La búsqueda dirigida
+no acredita inexistencia de una fuente ni ausencia de actos posteriores.
+
+Próxima P0: comprobar con sesión alojada y proveedor real cuando existan medios
+apropiados, sin sustituirlo por fixtures. Continuar P1 de navegación/pendientes
+sobre el trazado: distinguir marcas manuales y enfocar una entrega desde la
+lista sin recalcular ni omitir puntos; corroboración física Android separada.
+En normativa: recuperar documentos
+CDMX y contrastar la Gaceta del 15-12-2021 y actos posteriores antes de cambiar
+reglas; retomar publicación y reformas de Puebla, permisos y geometrías. El
+programa maestro sigue incompleto y se conserva la continuación existente activa.
