@@ -534,3 +534,33 @@ nacional completa. Las verificaciones autenticadas locales de este ciclo y sus
 límites alojados/Android se detallan en ENGINEERING-STATUS.md. El seguimiento
 existente permanece activo y las fuentes bloqueadas requieren corroboración
 oficial sin eludir controles.
+
+
+## Adjuntos oficiales de Puebla y revisión de navegación · 17-11-2026
+
+Se localizaron y descargaron los dos PDF enlazados en RES. 2025/148: el anexo de
+corredores (7 páginas, 339465 bytes) y las reglas de operación (18 páginas,
+340080 bytes). API PR #25 añade ambos al monitor existente como documentos
+independientes, sin reemplazar el snapshot de 128 registros extraído del acta.
+URLs, fecha de consulta y SHA256 en
+[PUEBLA-ATTACHMENTS-MONITOR.md](https://github.com/FernandoBalsimelli/Route-Planner-API/blob/main/docs/PUEBLA-ATTACHMENTS-MONITOR.md).
+
+El intento real del monitor de 2026-11-18T01:06:33.575Z (17-11, 19:06 Chihuahua)
+descargó ambos con las mismas huellas directas, status unreviewed. Falta comparar
+versiones y resolver documentalmente la discrepancia 5/6, publicación íntegra,
+reformas posteriores de 2026, vigencia, permisos, sentidos y geometrías. Una
+primera descarga o un cambio técnico de huella no equivale a revisión legal ni
+actualiza normas. Juárez permanece HTTP_403/unavailable. No se cambia programación,
+cuotas ni límites del monitor. La caché pública previa de 15 minutos se distingue
+del intento nuevo. Tras publicar el checkpoint, el endpoint público sirve
+el reporte de 01:06:33.575Z con ambos PDF unreviewed y huellas contrastadas.
+Deployment, pruebas y recuperación en ENGINEERING-STATUS.md.
+
+Web PR #32 permite revisar pendientes y proponer dónde retomar desde el avance
+guardado, únicamente mediante elección explícita. Conserva todas las visitas
+posteriores incluso repetidas o marcadas fuera de orden, y advierte si se dejan
+pendientes antes del inicio elegido. No modifica entregas guardadas por navegar.
+La revisión utiliza puntos, sin transferir el trazado/guías del cálculo, peso,
+dimensiones o permisos HGV a Google. No acredita entrega, circulación segura/legal
+ni trazado exacto. **Siguen 15 municipios con referencias parciales y cero con
+validación legal completa**; ninguna regla o geometría nueva se aplica al motor.
