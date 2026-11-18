@@ -2,21 +2,22 @@
 
 Fecha de revisión: 2026-11-18. Alcance: exclusivamente Route Planner.
 
-Estado vigente: API 1d1e916 rechaza respuestas Directions incompletas también en
-rutas normales/camión; la validación estricta antes sólo se aplicaba a alternativas.
-Comprueba estimaciones, geometría, correspondencia ordenada de todos los puntos e
-instrucciones opcionales. No inventa ceros ni presenta una ruta parcial como válida.
-Web conserva runtime da3efef; el nuevo commit e3c9b04 sólo actualiza pruebas/CI
-contra la API verificada. El flujo de error conserva ubicaciones, unidad y preferencias.
-Se mantienen trazado guardado junto al avance, vehículos, manifiestos/OCR, GPS,
-búsqueda cercana, coordenadas/Plus Codes, rutas múltiples y enlaces Google por tramos.
-Las pruebas Auth/REST/PostgreSQL son locales; Android físico, sesión privada y ORS
-autenticado alojados siguen pendientes. Hay 15 municipios parciales y cero con
-validación legal completa. La investigación detectó referencias históricas de CDMX
-con horarios diferentes; descargas directas 503, sin reemplazar reglas por inferencia.
-Reporte técnico público observado 2026-11-18T07:49:38.924Z, no obsoleto al consultar.
-Resultados, commits, rollback y próxima prioridad en el último cierre al final.
-Las entradas anteriores son historial; el programa maestro sigue incompleto.
+Estado vigente: el trazado guardado distingue avance manual en el mapa y permite
+ubicar una visita concreta o la primera pendiente, conservando ocurrencias
+repetidas y números originales. Ver recorrido completo restaura la vista. Estas
+acciones no recalculan, escriben avance ni modifican enlaces Google; se mantiene
+el cierre de revisiones antiguas cuando cambia el recorrido o su avance.
+Web 341372f publicada; API 46b5ec1 incorpora el enlace histórico oficial de la
+Gaceta CDMX 15-12-2021 como evidencia pendiente, sin cambiar las cinco reglas.
+La descarga directa dio 503; el monitor de 2026-11-18T21:15:11.351Z informa
+NETWORK_OR_TIMEOUT y hash nulo. Reporte reciente no equivale a fuente disponible
+ni vigencia aprobada. Continúan 15 municipios parciales y cero completos.
+Se mantienen integridad Directions, vehículos, manifiestos/OCR, GPS, búsqueda
+cercana, coordenadas/Plus Codes y enlaces Google consecutivos sin perder entregas.
+Pruebas locales/CI y comprobaciones públicas se documentan al final. La sesión
+privada alojada, ORS real y Android físico siguen pendientes; Google no recibe
+HGV ni conserva obligatoriamente el trazado. Commits, despliegues y rollback en
+el último cierre. Las entradas anteriores son historial y el programa continúa.
 
 ## Recursos verificados
 
@@ -3838,3 +3839,169 @@ En normativa: recuperar documentos
 CDMX y contrastar la Gaceta del 15-12-2021 y actos posteriores antes de cambiar
 reglas; retomar publicación y reformas de Puebla, permisos y geometrías. El
 programa maestro sigue incompleto y se conserva la continuación existente activa.
+
+
+## Cierre de ciclo · localizar entregas en el mapa y fuente histórica CDMX · 18-11-2026
+
+### Diagnóstico y alcance
+
+Se consultaron GitHub, producción y los dos informes de main antes de editar.
+Web main 5f7017e171625c28f5ba8e613f234d16d3ca98d1; producción
+da3efef0a4ef580804857bd537c0f4419f52b362 / dpl_3x4t7Q3ixeiCpaCCMtuHwyzzFELv.
+API main ae4d89ecbc93ec85d6cc37f7ef264451363946fd; producción
+1d1e916a44a115f2c0101704c908d77189b447b1 / dpl_3Din4YGhKtTrS5Qr9NKKJwUHXEGa.
+La diferencia API era sólo el reporte automático de fuentes y se conservó.
+Árboles aislados; no se encontró AGENTS.md aplicable. No se reprodujo un P0
+de conexión en las comprobaciones públicas. No se sustituyen fallos por ceros
+ni se alteran las comprobaciones de integridad Directions del ciclo anterior.
+
+La vista de trazado guardado ya tenía lista de avance, pero sus marcadores
+no distinguían las marcas manuales y no permitían localizar una visita concreta.
+Dos entregas con la misma dirección requerían seguir siendo ocurrencias distintas.
+La referencia CDMX citaba Gaceta 15-12-2021 sin ofrecer su publicación original
+como documento relacionado dentro del seguimiento técnico existente.
+
+### Implementación Web
+
+Mis rutas → Entregas → Revisar navegación → Ver trazado guardado distingue
+marcadores pendientes y completados manualmente. Conserva O/D, números y todas
+las ocurrencias, incluso coordenadas repetidas. Cada fila tiene Ubicar en mapa;
+Ubicar primera pendiente enfoca explícitamente la primera sin marca. Ver recorrido
+completo restaura los límites del trazado y cierra el cuadro del punto elegido.
+Con todo completado sigue siendo posible consultar cada punto y el recorrido.
+
+La selección conserva la identidad de la ocurrencia, abre su cuadro y realza
+su marcador; desplaza la lista hasta el mapa y anuncia el punto mediante status.
+Reutiliza los puntos y geometría ya cargados: no consulta otra vez el recorrido,
+no consume ruteo, no escribe avance y no cambia resultados, orden o enlaces Google.
+La protección frente a cambios de revisión/snapshot/puntos/perfil/preferencias
+sigue cerrando el mapa y la navegación revisada antiguos. El mapa de búsqueda y
+planificación mantiene su comportamiento cuando no recibe estas opciones.
+
+Archivos Web: components/RouteMap.tsx, components/SavedRouteTraceReview.tsx,
+components/SavedTracePointList.tsx, app/globals.css, test/saved-trace-points.test.mjs
+y test/integration/authenticated.e2e.mjs. next-env.d.ts generado por build
+se excluye de la publicación. Sin dependencias, variables, secretos o SQL nuevos.
+
+### Fuente histórica CDMX y comprobaciones reales
+
+Se localizó en el buscador la publicación oficial de Consejería:
+https://data.consejeria.cdmx.gob.mx/portal_old/uploads/gacetas/0830deebda0a6b9e7fb44d6d2cef2ab0.pdf
+Es la Gaceta histórica del 15-12-2021 citada por la guía de enero de 2024.
+La lectura indexada no sustituye recuperación y revisión íntegra del PDF.
+Los intentos directos de este ciclo a esa Gaceta, Maniobras_info.pdf, la guía 2024
+y regulacionPdf/1679 devolvieron HTTP 503. No se obtuvieron bytes, hashes nuevos,
+capturas de páginas ni comprobación de vigencia. El aviso breve y la guía
+describen horarios distintos; no se elige uno ni se normalizan umbrales ambiguos
+de la lectura indexada para convertirlos en reglas.
+
+La ficha 09015 ofrece el enlace histórico y explica su estado pendiente. El
+monitor lo comprueba por separado mediante relatedUrls; no se cambia su frecuencia,
+límites de descarga, política de red ni reglas. El push del archivo de referencias
+activó el workflow ya existente. La ejecución real
+[44399465966](https://github.com/FernandoBalsimelli/Route-Planner-API/actions/runs/44399465966)
+terminó correctamente y generó checkedAt 2026-11-18T21:15:11.351Z. La Gaceta quedó
+unavailable / NETWORK_OR_TIMEOUT, sin sha256 ni lastSuccessAt. Ese resultado es
+distinto del HTTP 503 del intento directo. El endpoint público sirvió el mismo
+reporte, stale=false: un reporte reciente puede describir una fuente inaccesible.
+No representa revisión legal aprobada ni evidencia de que el documento no exista.
+
+Permanecen intactas las cinco reglas previas, sus horarios, citas y tramos; no hay
+geometría legal del perímetro A, routingEnforced sigue false. La jurisdicción es
+sólo ese perímetro, no toda la alcaldía ni CDMX. Se mantienen 15 municipios con
+referencias parciales y cero con validación completa. Ningún catálogo, PDF localizado,
+hash o consulta técnica acredita por sí solo circulación segura o legal.
+
+Archivos API: data/mx/national-references.json, test/source-monitor.test.js y
+docs/CDMX-GACETA-2021-SOURCE.md. Los dos casos nuevos usan documentos simulados
+para probar independencia del seguimiento y conservación del estado sin revisión;
+no se presentan sus hashes sintéticos como descargas reales.
+
+### Pruebas y límites
+
+Web local: typecheck, build, 187 pruebas y auditoría de producción sin vulnerabilidades.
+Tres casos nuevos de componente comprueban 50 ocurrencias, direcciones repetidas,
+marcas manuales, primera pendiente y revisión de todo-completado.
+La primera ejecución Auth (44398099560) pasó 9/10 flujos y falló al contar cuadros
+inmediatamente tras cerrarlos: Leaflet aún conservaba nodos durante su retirada.
+Se corrigió sólo la espera de la prueba a estado detached, sin sleeps ni cambio
+del producto. El candidato final es 96aafd81560e158e2c9275a4fedc220f433975ed.
+[CI final 44399840169](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/44399840169):
+job 135139539718 pasó 187 pruebas, build/typecheck, 38 casos de navegador y
+auditoría sin vulnerabilidades; job 135139540318 pasó diez flujos autenticados.
+El caso de trazado en 390/1365 px comprobó tres marcadores completados y 46
+pendientes, selección independiente de las visitas repetidas 1/2, cuadro correcto,
+marcador dentro del mapa, retorno al recorrido completo con 50 marcadores,
+una única consulta de geometría, enlaces y resultado guardado sin cambios, y
+cierre del mapa/enlaces ante cambio de revisión. La integración usa la API
+fijada en 772a6b2 (código funcional Directions idéntico a 1d1e916); el cambio de
+fuente CDMX posterior se verifica por pruebas API y comprobaciones públicas.
+
+API local: build, 82 pruebas y auditoría de producción con cero vulnerabilidades.
+[CI 44399218591](https://github.com/FernandoBalsimelli/Route-Planner-API/actions/runs/44399218591),
+job 135137330265: 82 pruebas, build, migraciones/SQL/RLS de rutas, compartición y
+avance en PostgreSQL desechable y auditoría, aprobados. Sin cambios de esquema
+ni migraciones en producción. Supabase alojado sólo leído: 3 rutas, 10 paradas,
+1 vehículo, cero eventos de avance y cero enlaces; no se crean cuentas de prueba.
+Los avisos previos de seguridad no se modificaron ni se declaran resueltos.
+
+Smoke público: salud/proxy, coordenadas, Plus Code completo 75XMRW22+22,
+compuesto RW22+22 Chihuahua y búsqueda Bodega Aurrera Express: HTTP 200;
+uno por formato directo y ocho resultados Express. Validación 0/2/48 intermedias
+aceptada y 49 rechazada con 400, conforme a 50 posiciones ORS. Plan sin sesión:
+401. La ficha 09015 expone el nuevo enlace pendiente y conserva sus cinco reglas.
+No son cálculos reales de dos/múltiples destinos autenticados. El cálculo,
+aislamiento de cuentas y flujo privado se prueban en CI con Auth/REST/PostgreSQL
+reales locales y ORS/trazado sintéticos; no equivalen a Android físico ni navegación
+real con Google ni prueba privada de producción con ORS. Esas verificaciones
+siguen pendientes. El intento Chromium local devolvió Executable does not exist
+para chromium_headless_shell-1234; no se presenta como navegador local aprobado.
+Tras publicar Web se repitieron todos esos probes por el alias nuevo con los
+mismos resultados. La interfaz pública recargada confirmó una coordenada como
+origen y un Plus Code completo como destino; ambos quedaron confirmados con
+marcadores O/D y mapa visible. También se verificó visualmente la ficha histórica
+Cuauhtémoc publicada. Esto comprueba superficies públicas; el enfoque de visitas
+guardadas con sesión se verificó en CI, no en una cuenta alojada. Se conservó
+evidencia visual de ambas superficies. Logs Vercel de los dos proyectos, error/fatal
+por requestPath en los últimos 30 minutos: sin filas. Es una consulta puntual,
+no una garantía continua de ausencia de errores.
+
+### Publicación, historial y rollback
+
+API PR [#29](https://github.com/FernandoBalsimelli/Route-Planner-API/pull/29),
+candidato 94b020a0ff458a73ea9215b09a5965a2f30ddf60, merge
+46b5ec160d777399bb8b3fc36ac1a778ef01d133. Deployment
+dpl_3ddjor55pNbutkjyzDtpfNq66DCv READY/production; alias
+https://route-planner-api.vercel.app/ verificado al mismo SHA. El bot dejó después main a60105162429e549868e94bb3a82b8cd2e54b9ac,
+sólo data/mx/source-status.json; se preserva sin desplegar por cada sondeo.
+Rollback API: dpl_3Din4YGhKtTrS5Qr9NKKJwUHXEGa /1d1e916.
+Web PR [#37](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/37),
+candidato inicial 1ca6ce27ad044eb335df4b48a84979179a060edc y final
+96aafd81560e158e2c9275a4fedc220f433975ed (sólo espera de prueba corregida),
+merge 341372febb9ed315c05d0e6ea071d3e315f52d35. Deployment
+dpl_Dm7TAQzPrVv6hT8Zb2DEYvAyT2Q1 READY/production; alias
+https://route-planner-web-sand.vercel.app/ verificado al mismo SHA 341372febb9ed315c05d0e6ea071d3e315f52d35.
+Rollback Web conservado: dpl_3x4t7Q3ixeiCpaCCMtuHwyzzFELv /da3efef.
+
+Los candidatos/ramas e historial quedan conservados. Recuperar el despliegue previo
+no requiere borrar ni revertir datos; no se ejecutó rollback. Gestión y los demás
+proyectos no se tocaron y no se activaron servicios de pago. El cierre posterior
+[skip ci] sólo actualiza estos informes, sin funcionalidad pendiente de publicar.
+
+### Estado y continuación
+
+Completado y verificado: enfoque de entregas, marcadores manuales y
+seguimiento independiente de la fuente histórica. Parcial: normativa municipal y
+corroboración CDMX. Bloqueado en este intento: descarga íntegra de cuatro fuentes
+CDMX; no se considera un bloqueo global del programa. Pendiente: prueba privada
+alojada/ORS real, Android físico y cobertura legal con geometrías y permisos.
+
+Próxima P0: comprobar sesión y cálculo reales alojados cuando existan medios de
+prueba apropiados. Próxima P1: mejorar la revisión del acceso de descarga de cada
+entrega desde la lista conservando coordenadas verificadas, identidad de visita,
+avance e historial; no alterar una ruta ya guardada sin revisión explícita.
+En normativa: recuperar Gaceta, guía y aviso breve, contrastar artículos/tablas,
+reformas posteriores, excepciones, ámbito y permisos antes de cambiar reglas;
+continuar publicación/reformas y geometrías verificables de Puebla. Google no
+recibe HGV y los puntos guía no bloquean su trazado. El programa maestro sigue
+incompleto. La continuación existente se comprobó habilitada y se mantiene activa.

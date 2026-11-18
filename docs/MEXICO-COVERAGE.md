@@ -669,3 +669,40 @@ la búsqueda dirigida una fuente que certifique y actualice toda la geometría
 legal nacional; tampoco se afirma que no pueda existir. Google sigue sin recibir
 restricciones HGV o conservar obligatoriamente el trazado. Resultados reales,
 commits, despliegue, rollback y punto de reanudación en ENGINEERING-STATUS.md.
+
+
+## Gaceta histórica CDMX bajo seguimiento independiente · 18-11-2026
+
+API PR #29 / merge 46b5ec160d777399bb8b3fc36ac1a778ef01d133 incorpora la
+publicación histórica de Consejería citada por la guía 2024 de Perímetro A:
+https://data.consejeria.cdmx.gob.mx/portal_old/uploads/gacetas/0830deebda0a6b9e7fb44d6d2cef2ab0.pdf
+La ficha Cuauhtémoc 09015 muestra el enlace y aviso fechado. El ámbito sigue
+siendo sólo Perímetro A, no toda la alcaldía ni CDMX. Se conservan exactamente
+las cinco reglas/ventanas/citas/tramos previos; ninguna aplica automáticamente
+al trazado y no se incorpora geometría legal. Las diferencias de horarios entre
+folletos y los umbrales de la lectura indexada no se resuelven por inferencia.
+
+Los intentos directos de Gaceta, Maniobras_info.pdf, guía 2024 y regulacionPdf/1679
+devolvieron HTTP 503 el 18-11-2026. No se verificaron bytes, hashes nuevos, páginas,
+texto íntegro ni reformas posteriores. La lectura indexada sirve para localizar
+la fuente, no para aprobar vigencia. Documento de investigación reproducible:
+[CDMX-GACETA-2021-SOURCE.md](https://github.com/FernandoBalsimelli/Route-Planner-API/blob/46b5ec160d777399bb8b3fc36ac1a778ef01d133/docs/CDMX-GACETA-2021-SOURCE.md).
+
+El monitor existente ejecutó 44399465966 tras el cambio: checkedAt
+2026-11-18T21:15:11.351Z. La nueva Gaceta aparece por separado como unavailable,
+NETWORK_OR_TIMEOUT, sha256 y lastSuccessAt nulos. La API pública sirve ese
+reporte con stale=false. No se confunde este fallo del monitor con el HTTP 503
+del intento directo ni se inventa una descarga anterior correcta. El seguimiento
+no aprueba reglas, no cambia horarios y conserva su periodicidad y límites.
+82 pruebas/build/SQL/RLS y auditoría aprobados; los nuevos tests de documento
+son simulados y no se presentan como bytes oficiales recuperados. La consulta
+pública se verificó visualmente en producción. No se activan servicios de pago.
+
+Próxima revisión: recuperar íntegramente esas fuentes, cotejar tablas/artículos,
+permisos, excepciones, sentidos y reformas antes de alterar las reglas; continuar
+publicación/reformas y geometrías de Puebla. Se mantienen 15 municipios con
+referencias parciales y cero completos; catálogo geográfico o fuente localizada
+no equivalen a cobertura legal nacional. Tampoco el enfoque visual de entregas
+del Web PR #37 ni el avance manual validan circulación o transmiten HGV a Google.
+Los puntos guía orientan y Google puede recalcular. Resultados y rollback en el
+último cierre de ENGINEERING-STATUS.md.
