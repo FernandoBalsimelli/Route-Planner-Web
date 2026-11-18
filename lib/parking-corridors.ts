@@ -1,7 +1,7 @@
 export type ParkingSchedule = { days: number[]; status: string; start?: string; end?: string; literal?: string };
 export type ParkingCorridor = {
   sourceRow: number; polygon: string; corridor: string; betweenStreets: string;
-  sourcePages: number[]; schedules: ParkingSchedule[]; directionStatus: string;
+  sourcePages: number[]; publishedSourcePages?: number[]; schedules: ParkingSchedule[]; directionStatus: string;
   geometry: null; geometryStatus: string; routingEnforced: false;
 };
 export type ParkingCorridorReference = {
@@ -10,6 +10,7 @@ export type ParkingCorridorReference = {
   source: { url: string; approvedAt: string; consultedAt: string; pages: number[]; reviewStatus: string; publicationAndCurrentValidity: string };
   notices: string[]; duplicateGroups: number[][]; rows: ParkingCorridor[];
   publicationReview?: ParkingPublicationReview;
+  annexComparison?: ParkingAnnexComparison;
 };
 export type ParkingPublicationReview = {
   status: 'partial_history'; reviewedAt: string; routingEnforced: false;
@@ -35,4 +36,21 @@ export function citedParkingHours(schedule: ParkingSchedule): string {
   if (schedule.status === 'not_applicable_in_source') return '«No aplica» en el anexo';
   if (schedule.status === 'hours_cited' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(schedule.start || '') && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(schedule.end || '')) return `${schedule.start}–${schedule.end}`;
   return 'Sin horario verificado';
+}
+
+export type ParkingAnnexComparison = {
+  status: 'selected_fields_match_after_normalization'; reviewedAt: string;
+  routingEnforced: false; legalValidityVerified: false; scope: string;
+  matchedRows: number; extractedTextDifferenceCount: number; normalization: string[]; notices: string[];
+  documents: { id: 'acta' | 'published'; title: string; url: string; sha256: string; pages: number[] }[];
+};
+// A comparison page is corroboration only, never a replacement permission.
+export function publishedAnnexPageLinks(reference: ParkingCorridorReference, row: ParkingCorridor): { page: number; url: string }[] {
+  const comparison = reference.annexComparison;
+  const source = comparison?.documents.find(doc => doc.id === 'published');
+  if (!comparison || comparison.status !== 'selected_fields_match_after_normalization' || comparison.routingEnforced !== false || comparison.legalValidityVerified !== false || comparison.matchedRows !== reference.rows.length || !source || !row.publishedSourcePages?.length) return [];
+  try { const url = new URL(source.url); if (url.protocol !== 'https:' || url.hostname !== 'gaceta.pueblacapital.gob.mx' || url.username || url.password || url.port) return []; } catch { return []; }
+  const pages = row.publishedSourcePages;
+  if (new Set(pages).size !== pages.length || pages.some(page => !Number.isSafeInteger(page) || !source.pages.includes(page) || page < 1 || page > 7)) return [];
+  return pages.map(page => ({ page, url: `${source.url}#page=${page}` }));
 }

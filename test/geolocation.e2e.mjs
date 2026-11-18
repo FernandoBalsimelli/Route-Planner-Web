@@ -826,3 +826,19 @@ for(const width of [390,1280])test(`Google links block an incomplete delivery in
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  }finally{await context.close();}
 });
+
+test('annex counterpart pages remain reviewable without replacing original records on mobile and desktop',{timeout:60000},async()=>{
+ const {comparisonFixture}=await import('./fixtures/parking-comparison.mjs');
+ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
+  const {context,page}=await setup(()=>{},viewport);
+  const row=(sourceRow,polygon,corridor,sourcePages)=>({sourceRow,polygon,corridor,betweenStreets:'Cruce sintético',sourcePages,publishedSourcePages:[7],schedules:[{days:[7],status:'not_applicable_in_source'}],geometry:null,geometryStatus:'not_validated',directionStatus:'not_specified_in_annex',routingEnforced:false});
+  const annex={municipalityId:'21114',activity:'parking_operation',timezone:'America/Mexico_City',status:'reference_only',routingEnforced:false,source:{url:'https://gaceta.pueblacapital.gob.mx/acta-fixture.pdf',approvedAt:'2025-08-14',consultedAt:'2026-11-15',pages:[87,88]},notices:[],duplicateGroups:[[126,128]],annexComparison:comparisonFixture,rows:[row(124,'Polígono 5 San Alejandro - Ortopedia','29 A Norte',[87,88]),row(125,'Polígono 6 San Alejandro - Ortopedia','29 B Norte',[88]),row(126,'Polígono 6 San Alejandro - Ortopedia','Diagonal 10 Poniente',[88]),row(128,'Polígono 6 San Alejandro - Ortopedia','Diagonal 10 Poniente',[88])]};
+  try{
+   await page.route('**/api/route-planner/**',route=>{const path=new URL(route.request().url()).pathname;if(path.endsWith('/source-status'))return route.fulfill({json:{sources:[],intervalHours:6,stale:false}});if(path.endsWith('/21114'))return route.fulfill({json:{name:'Puebla',status:'reference_only',routingEnforced:false,source:{url:'https://official.example.test/source',checkedAt:'2026-11-18T00:00:00Z'},notices:[],trunkSegments:[],timeRules:[],rules:[],parkingCorridorReference:annex}});return route.fulfill({json:{states:[{id:'21',name:'Puebla'}],municipalities:[{id:'21114',state:'21',name:'Puebla',coverage:'reference_only'}],totalMunicipalities:2478,municipalitiesWithPartialReference:15}});});
+   await page.goto(base);await page.getByRole('button',{name:'Guía camión',exact:true}).click();await page.getByRole('button',{name:'Consultar cobertura municipal',exact:true}).click();await page.getByLabel('Entidad federativa',{exact:true}).selectOption('21');await page.getByLabel('Municipio o demarcación',{exact:true}).selectOption('21114');
+   await page.getByText('4 registros de corredores · estacionamiento rotativo',{exact:true}).click();await page.getByText('Contraste de anexos · 4 registros',{exact:true}).click();await page.getByText(/No significa que los PDF sean idénticos/).waitFor();await page.getByText(/La ambigüedad no queda resuelta/).waitFor();
+   await page.getByLabel('Buscar corredor o cruce',{exact:true}).fill('29 A Norte');await page.waitForFunction(()=>document.querySelectorAll('.parking-corridors-list>li').length===1);assert.deepEqual(await page.locator('.parking-corridors-list a').evaluateAll(nodes=>nodes.map(n=>n.href)),[annex.source.url+'#page=87',annex.source.url+'#page=88',comparisonFixture.documents[1].url+'#page=7']);
+   await page.getByLabel('Buscar corredor o cruce',{exact:true}).fill('');await page.getByLabel('Polígono citado',{exact:true}).selectOption('Polígono 6 San Alejandro - Ortopedia');await page.waitForFunction(()=>document.querySelectorAll('.parking-corridors-list>li').length===3);assert.equal(await page.locator('.parking-corridors-list>li').count(),3);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  }finally{await context.close();}
+ }
+});
