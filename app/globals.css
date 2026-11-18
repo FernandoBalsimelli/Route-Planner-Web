@@ -96,3 +96,13 @@
 .saved-trace-points { list-style: none; padding: 0; max-height: 18rem; overflow: auto; }
 .saved-trace-points li { display: grid; gap: .25rem; padding-block: .75rem; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
 .saved-trace-points small { color: var(--muted); }
+.saved-trace-controls{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.8rem}
+.saved-trace-legend{font-size:.8rem;color:var(--muted);margin-block:.8rem}
+.saved-trace-points li{grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.7rem}
+.saved-trace-points li>div{display:grid;gap:.25rem;min-width:0}
+.saved-trace-points button[aria-pressed=true]{border-color:var(--primary);background:var(--primary-soft)}
+.rp-map-pin-completed{position:relative;background:var(--surface)!important;color:var(--muted)!important;border:2px solid var(--muted)}
+.rp-map-pin-completed small{position:absolute;right:-7px;top:-8px;background:var(--green);color:var(--surface);border:1px solid var(--surface);border-radius:50%;width:17px;height:17px;line-height:15px;text-align:center;font-size:11px}
+.rp-map-pin-pending{border:2px solid var(--surface)}
+.rp-map-pin-focused{outline:3px solid var(--primary);outline-offset:4px}
+@media(max-width:460px){.saved-trace-points li{grid-template-columns:minmax(0,1fr)}.saved-trace-points button{justify-self:start}}
