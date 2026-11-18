@@ -89,3 +89,5 @@
 
 .navigation-progress-review,.delivery-navigation{margin:16px 0;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-soft);min-width:0;overflow-wrap:anywhere}.navigation-progress-review button{white-space:normal;max-width:100%;min-height:44px}.navigation-progress-review p[role=alert]{color:var(--danger);font-weight:600}
 .annex-comparison{margin:16px 0;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-soft);min-width:0;overflow-wrap:anywhere}.annex-comparison summary{min-height:44px;cursor:pointer;font-weight:600}.annex-comparison small{display:block;color:var(--muted)}.annex-comparison li{margin:10px 0}.parking-corridors-list a{overflow-wrap:anywhere}
+
+.provision-review{margin:14px 0;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-soft);min-width:0;overflow-wrap:anywhere}.provision-review summary{cursor:pointer;min-height:44px;font-weight:600}.provision-review li{margin:10px 0}.provision-review a{overflow-wrap:anywhere}
