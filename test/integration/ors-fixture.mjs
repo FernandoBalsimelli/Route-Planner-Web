@@ -22,6 +22,8 @@ globalThis.fetch = async (input, init) => {
     if (url.pathname.includes('/directions/')) {
       const body = JSON.parse(init.body);
       appendFileSync(process.env.RP_ORS_CAPTURE_FILE, JSON.stringify({ path: url.pathname, body }) + '\n');
+      // Explicit synthetic failure used only by the malformed-response UI case.
+      if(body.coordinates.some(([,lat])=>lat===28.660099)) return Response.json({routes:[{summary:{distance:3421},segments:[]}]});
       const routes = [{ summary: { distance: 3421, duration: 620 }, geometry: polyline(body.coordinates), way_points: body.coordinates.map((_,i)=>i), segments: [{ distance: 3421, duration: 620, steps: [{ instruction: 'Indicación sintética de la prueba, sin validación vial', distance: 3421, duration: 620, type: 0 }] }] }];
       if (body.alternative_routes) {
         const [start,end] = body.coordinates;

@@ -529,3 +529,21 @@ test('real local saved trace review loads geometry only on demand and rejects an
   }finally{await context.close();}
  }
 });
+
+test('real local authenticated proxy rejects an incomplete provider route and preserves confirmed inputs',{timeout:120000},async()=>{
+ for(const width of [390,1365]){
+  const context=await browser.newContext({viewport:{width,height:844},isMobile:width<768,hasTouch:width<768});await context.route('https://tile.openstreetmap.org/**',r=>r.abort());const page=await context.newPage();
+  try{
+   const username='invalid-provider-'+width;await page.goto(base);await createAccount(page,username);const owner=await session(username);
+   await page.getByRole('button',{name:'Camión',exact:true}).click();await page.getByRole('spinbutton',{name:'Altura (m)',exact:true}).fill('3.8');await page.getByRole('checkbox',{name:'Evitar casetas de peaje',exact:true}).check();
+   await point(page,'Origen','28.632995, -106.0691');await point(page,'Destino','28.660099, -106.08');await page.getByRole('button',{name:'＋ Agregar parada',exact:true}).click();await point(page,'PARADA 1','28.64, -106.07');
+   const labels=await Promise.all(['Origen','PARADA 1','Destino'].map(name=>page.getByRole('combobox',{name,exact:true}).inputValue()));const before=readFileSync(capture,'utf8').trim().split('\n').length;
+   const pending=page.waitForResponse(r=>r.url().endsWith('/v1/routes/plan'));await page.getByRole('button',{name:'Calcular ruta',exact:true}).click();const response=await pending,payload=await response.json();
+   assert.equal(response.status(),502);assert.equal(payload.code,'ORS_INVALID_ROUTE');assert.equal(payload.reason,'INVALID_SUMMARY');assert.equal(payload.route,undefined);
+   await page.getByRole('alert').filter({hasText:'recorrido incompleto o inconsistente'}).waitFor();assert.equal(await page.getByRole('button',{name:'Guardar esta ruta',exact:true}).count(),0);assert.equal(await page.getByRole('heading',{name:'Detalle del recorrido',exact:true}).count(),0);
+   assert.deepEqual(await Promise.all(['Origen','PARADA 1','Destino'].map(name=>page.getByRole('combobox',{name,exact:true}).inputValue())),labels);assert.equal(await page.getByRole('spinbutton',{name:'Altura (m)',exact:true}).inputValue(),'3.8');assert.equal(await page.getByRole('checkbox',{name:'Evitar casetas de peaje',exact:true}).isChecked(),true);
+   const requests=readFileSync(capture,'utf8').trim().split('\n').map(JSON.parse);assert.equal(requests.length,before+1,'incomplete response must never trigger a second request with weaker constraints');assert.equal(requests.at(-1).body.coordinates.length,3);assert.deepEqual(requests.at(-1).body.options.avoid_features,['tollways']);assert.equal(requests.at(-1).body.options.profile_params.restrictions.height,3.8);
+   assert.deepEqual(await rows(owner.client,'saved_routes'),[]);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  }finally{await context.close();}
+ }
+});
