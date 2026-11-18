@@ -842,3 +842,17 @@ test('annex counterpart pages remain reviewable without replacing original recor
   }finally{await context.close();}
  }
 });
+
+test('loading references expose selected article counterparts without replacing vehicle conditions or granting permits',{timeout:60000},async()=>{
+ const {provisionReviewFixture:review}=await import('./fixtures/provision-review.mjs');
+ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
+  const {context,page}=await setup(()=>{},viewport);
+  const rules=[{id:'small',title:'Hasta 3.5 t de prueba',description:'08:00–20:59; permiso por corroborar.',citation:'Acta de prueba, artículo 11',activity:'loading',vehicleConditions:{payloadCapacityT:{lte:3.5}},page:70,sourceUrl:review.documents[0].url,documentReview:review},{id:'permit',title:'Permiso previo de prueba',description:'20 minutos y 10 de tolerancia; sin autorización automática.',citation:'Acta de prueba, artículos 12–13',activity:'loading',page:70,sourceUrl:review.documents[0].url,documentReview:{...review,articles:[{number:12,normalizedSha256:'d'.repeat(64),characters:286},{number:13,normalizedSha256:'e'.repeat(64),characters:394}]}},{id:'legacy',title:'Fuente anterior de prueba',description:'Ámbito independiente.',citation:'Lineamientos de prueba',vehicleConditions:{payloadCapacityT:{lt:3.5}}}];
+  try{
+   await page.route('**/api/route-planner/**',route=>{const path=new URL(route.request().url()).pathname;if(path.endsWith('/source-status'))return route.fulfill({json:{sources:[],intervalHours:6,stale:false}});if(path.endsWith('/21114'))return route.fulfill({json:{municipalityId:'21114',name:'Puebla',status:'reference_only',routingEnforced:false,source:{url:review.documents[0].url,checkedAt:'2026-11-18T00:00:00Z'},notices:[],trunkSegments:[],timeRules:[],rules}});return route.fulfill({json:{states:[{id:'21',name:'Puebla'}],municipalities:[{id:'21114',state:'21',name:'Puebla',coverage:'reference_only'}],totalMunicipalities:2478,municipalitiesWithPartialReference:15}});});
+   await page.goto(base);await page.getByRole('button',{name:'Guía camión',exact:true}).click();await page.getByRole('button',{name:'Consultar cobertura municipal',exact:true}).click();await page.getByLabel('Entidad federativa',{exact:true}).selectOption('21');await page.getByLabel('Municipio o demarcación',{exact:true}).selectOption('21114');
+   const small=page.getByRole('article',{name:'Referencia Hasta 3.5 t de prueba',exact:true});await small.getByText('Contrastar esta referencia · artículos 11',{exact:true}).click();await small.getByText(/No acredita permiso vigente/).waitFor();assert.deepEqual(await small.locator('.provision-review a').evaluateAll(nodes=>nodes.map(n=>n.href)),[review.documents[0].url+'#page=70',review.documents[1].url+'#page=7']);assert.match(await small.locator('.vehicle-reference-comparison').innerText(),/hasta 3.5 t/);
+   const permit=page.getByRole('article',{name:'Referencia Permiso previo de prueba',exact:true});await permit.getByText('Contrastar esta referencia · artículos 12, 13',{exact:true}).click();await permit.getByText(/permiso vigente/).waitFor();assert.equal(await page.getByRole('article',{name:'Referencia Fuente anterior de prueba',exact:true}).locator('.provision-review').count(),0);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  }finally{await context.close();}
+ }
+});
