@@ -4,14 +4,14 @@ import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { supabase } from '@/lib/supabase';
 import { useShareRequest } from '@/lib/use-share-request';
-import { parseSavedRouteTrace, type SavedRouteTrace } from '@/lib/saved-route-trace';
+import { parseSavedRouteTrace, SavedRouteTraceChangedError, type SavedRouteTrace } from '@/lib/saved-route-trace';
 import type { DeliveryProgress } from '@/lib/delivery-progress';
 import type { RoutePreferences } from '@/lib/route-preferences';
 
 const RouteMap = dynamic(() => import('./RouteMap'), { ssr: false, loading: () => <p role="status">Preparando mapa del trazado guardado…</p> });
 const COLUMNS = 'mode:route_metadata->>mode,preferences:route_metadata->result->preferences,polyline:route_metadata->result->>polyline,waypoints:route_metadata->result->waypoints,distanceMeters:route_metadata->result->distanceMeters,durationSeconds:route_metadata->result->durationSeconds';
 
-export default function SavedRouteTraceReview({ progress, truck, preferences }: { progress: DeliveryProgress; truck: boolean; preferences: RoutePreferences }) {
+export default function SavedRouteTraceReview({ progress, truck, preferences, onStale }: { progress: DeliveryProgress; truck: boolean; preferences: RoutePreferences; onStale: () => void }) {
   const [trace, setTrace] = useState<SavedRouteTrace | null>(null);
   const { busy, error, run } = useShareRequest({ timeout: 'La consulta del trazado tardó demasiado. Reintenta o carga la ruta completa.', connection: 'No se pudo conectar con el trazado guardado.' });
   function load() {
@@ -23,7 +23,10 @@ export default function SavedRouteTraceReview({ progress, truck, preferences }: 
       // Refresh after reading geometry to reject a changed route/order/revision.
       const latest = await supabase!.rpc('route_delivery_progress', { p_route_id: progress.routeId }).abortSignal(signal);
       return { data: { record: record.data, progress: latest.data }, error: latest.error };
-    }, data => setTrace(parseSavedRouteTrace(data.record, data.progress, progress, truck, preferences)));
+    }, data => {
+      try { setTrace(parseSavedRouteTrace(data.record, data.progress, progress, truck, preferences)); }
+      catch (cause) { if (cause instanceof SavedRouteTraceChangedError) onStale(); else throw cause; }
+    });
   }
   return <section className="saved-trace-review" aria-label="Trazado guardado junto al avance">
     <button type="button" className="secondary-button" disabled={busy} onClick={() => trace ? setTrace(null) : load()} aria-expanded={Boolean(trace)}>{trace ? 'Ocultar trazado guardado' : 'Ver trazado guardado'}</button>
