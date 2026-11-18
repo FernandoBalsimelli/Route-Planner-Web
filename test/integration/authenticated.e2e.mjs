@@ -496,3 +496,36 @@ test('real local saved progress is refreshed before explicit Google review and n
   }finally{await context.close();}
  }
 });
+
+test('real local saved trace review loads geometry only on demand and rejects an intervening progress change',{timeout:120000},async()=>{
+ for(const width of [390,1365]){
+  const context=await browser.newContext({viewport:{width,height:844},isMobile:width<768,hasTouch:width<768});await context.route('https://tile.openstreetmap.org/**',r=>r.abort());const page=await context.newPage();
+  try{
+   const username='trace-owner-'+width;await page.goto(base);await createAccount(page,username);const owner=await session(username),parallel=await session(username);
+   const points=Array.from({length:50},(_,i)=>({label:'Acceso sintético '+i,lat:28.63000123+i/100000,lng:-106.0600456}));points[2]={...points[1]};
+   let polyline='',lat=0,lng=0;const encode=value=>{let n=value<0?~(value<<1):value<<1,out='';while(n>=32){out+=String.fromCharCode((32|(n&31))+63);n>>=5;}return out+String.fromCharCode(n+63);};
+   for(const p of points){const a=Math.round(p.lat*1e5),b=Math.round(p.lng*1e5);polyline+=encode(a-lat)+encode(b-lng);lat=a;lng=b;}
+   const result={polyline,waypoints:points.map((p,i)=>({...p,type:i===0?'origin':i===49?'destination':'stop',geometryIndex:i})),distanceMeters:3200,durationSeconds:780,sections:[],preferences:{avoidTolls:true,avoidHighways:false}};
+   const saved=await owner.client.rpc('save_route_with_stops',{p_request_id:crypto.randomUUID(),p_route:{name:'Trazado sintético 48 entregas',origin:points[0],destination:points[49],route_metadata:{mode:'truck',result}},p_stops:points.slice(1,-1)});assert.equal(saved.error,null);
+   let state=await owner.client.rpc('route_delivery_progress',{p_route_id:saved.data});assert.equal(state.error,null);
+   const update=async completed=>{const r=await parallel.client.rpc('route_delivery_progress',{p_route_id:saved.data,p_completed:completed,p_expected_revision:state.data.revision,p_expected_snapshot:state.data.snapshot});assert.equal(r.error,null);state=r;};await update([1,3,49]);
+   const geometryRequests=[];page.on('request',request=>{const u=new URL(request.url());if(u.pathname.endsWith('/saved_routes')&&u.searchParams.get('select')?.includes('polyline:'))geometryRequests.push(request);});
+   await nav(page).getByRole('button',{name:'Mis rutas',exact:true}).click();await page.getByRole('button',{name:'Entregas',exact:true}).click();const panel=page.getByRole('region',{name:'Avance de entregas',exact:true});await panel.getByText(/Revisión 1/).first().waitFor();
+   await panel.getByRole('button',{name:'Revisar navegación',exact:true}).click();const review=panel.getByRole('region',{name:'Navegación de la ruta guardada',exact:true});await review.getByText('Avance consultado · Revisión 1',{exact:true}).waitFor();
+   const preview=review.getByRole('region',{name:'Trazado guardado junto al avance',exact:true});assert.equal(geometryRequests.length,0);assert.equal(await preview.locator('.leaflet-container').count(),0);
+   const linksBefore=await review.locator('.navigation-segments a').evaluateAll(nodes=>nodes.map(n=>n.href));
+   await preview.getByRole('button',{name:'Ver trazado guardado',exact:true}).click();await preview.getByRole('heading',{name:'Trazado guardado completo',exact:true}).waitFor();await preview.locator('.leaflet-container').waitFor();
+   assert.equal(geometryRequests.length,1);assert.equal(await preview.getByRole('list',{name:'Puntos del trazado y avance consultado',exact:true}).locator('li').count(),50);
+   const entries=await preview.locator('.saved-trace-points li').allTextContents();assert.match(entries[1],/Entrega 1.*Completado manualmente/);assert.match(entries[2],/Entrega 2.*Pendiente/);assert.match(entries[3],/Entrega 3.*Completado manualmente/);assert.match(entries[49],/Destino.*Completado manualmente/);
+   assert.deepEqual(await review.locator('.navigation-segments a').evaluateAll(nodes=>nodes.map(n=>n.href)),linksBefore,'preview cannot replace navigation points, guides or order');assert.equal(await review.getByRole('combobox',{name:'Retomar desde',exact:true}).inputValue(),'0');
+   assert.ok((await preview.innerText()).includes('No es un cálculo actualizado desde tu posición'));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+   await preview.getByRole('button',{name:'Ocultar trazado guardado',exact:true}).click();assert.equal(await preview.locator('.leaflet-container').count(),0);
+   await update([1,2,3,49]);await preview.getByRole('button',{name:'Ver trazado guardado',exact:true}).click();await preview.getByRole('alert').filter({hasText:'El recorrido o su avance cambió'}).waitFor();assert.equal(await preview.locator('.leaflet-container').count(),0,'a concurrent change cannot be shown with stale completion marks');
+   await panel.getByRole('button',{name:'Revisar navegación',exact:true}).click();await review.getByText('Avance consultado · Revisión 2',{exact:true}).waitFor();await preview.getByRole('button',{name:'Ver trazado guardado',exact:true}).click();await preview.getByRole('heading',{name:'Trazado guardado completo',exact:true}).waitFor();
+   assert.match((await preview.locator('.saved-trace-points li').allTextContents())[2],/Completado manualmente/);
+   await panel.getByRole('checkbox',{name:'Entrega 4 completado',exact:true}).check();assert.equal(await review.count(),0,'editing completion removes the old map and its reviewed snapshot');
+   assert.equal((await owner.client.from('route_delivery_events').select('revision').eq('route_id',saved.data)).data.length,2,'preview is read-only and creates no progress events');
+   assert.deepEqual((await owner.client.from('saved_routes').select('route_metadata').eq('id',saved.data).single()).data.route_metadata.result,result,'preview never changes the stored calculation');
+  }finally{await context.close();}
+ }
+});
