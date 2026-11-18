@@ -2,18 +2,19 @@
 
 Fecha de revisión: 2026-11-18. Alcance: exclusivamente Route Planner.
 
-Estado vigente: las tres fichas de maniobras del estacionamiento rotativo de
-Puebla permiten contrastar los artículos 11–13 del acta y las reglas adjuntas.
-Comparación reproducible por huella y texto seleccionado; originales intactos,
-sin aprobación legal ni cambios al ruteo. Se conserva el contraste de 128
-corredores, sus diferencias y la ambigüedad 5/6. Web 453f937 y API 27e161c
-publicadas y verificadas en sus alias de producción.
-Se mantienen avance de entregas, revisión antes de retomar, vehículos, manifiestos,
-GPS, búsqueda cercana, rutas múltiples, enlaces Google completos y recuperación.
-Reporte técnico 2026-11-18T07:49:38.924Z: no obsoleto al consultar; Juárez HTTP_403,
-CDMX Centro NETWORK_OR_TIMEOUT. Son estados técnicos, no aprobación normativa.
-Hay 15 municipios con referencias parciales y cero con validación legal completa.
-Resultados, commits, rollback y próxima prioridad en el último cierre al final.
+Estado vigente: Mis rutas → Entregas → Revisar navegación permite consultar por
+petición explícita el trazado guardado completo junto al avance. Conserva todos
+los puntos y sus repeticiones, sin recalcular, escribir avance o cambiar Google.
+Un cambio de revisión, snapshot, puntos, perfil o preferencias cierra también
+los enlaces antiguos y obliga a revisar antes de navegar. Web da3efef publicada; pruebas funcionales
+con Auth/REST/PostgreSQL locales en CI. La comprobación privada alojada y Android
+físico siguen pendientes. API 27e161c conserva contraste reproducible de artículos
+11–13; las tres fichas y los 128 corredores ofrecen ambas fuentes oficiales sin
+aprobar vigencia o rutas. Reporte técnico observado 2026-11-18T07:49:38.924Z,
+no obsoleto al consultar; Juárez HTTP_403, CDMX Centro NETWORK_OR_TIMEOUT.
+Se mantienen vehículos, manifiestos, GPS, búsqueda cercana, rutas múltiples,
+enlaces Google completos y recuperación. Hay 15 municipios parciales y cero
+con validación legal completa. Resultados y rollback en el último cierre al final.
 Las entradas anteriores son historial. El programa maestro sigue incompleto.
 
 ## Recursos verificados
@@ -3556,3 +3557,125 @@ posteriores de Puebla conservando versiones y la ambigüedad 5/6; continuar P1
 revisión del trazado calculado junto al avance antes de navegar, sin omitir
 entregas automáticamente. El programa maestro sigue incompleto y la automatización
 existente permanece activa; no se duplica ni elimina.
+
+
+## Cierre de ciclo · trazado guardado junto al avance de entregas · 18-11-2026
+
+### Problema e implementación
+
+Se continuó desde Web main abb89d1c2119e28dd65fadac76776f0be71a64df, tras el
+cierre anterior. Producción Web 453f937/dpl_4bsYL7c4VNwzNpiBQizAMQpiaEz1 y
+API 27e161c/dpl_2qZB8kkDGAFqQQr8Yw1hoA6Q2ogt. No se reutilizaron archivos
+pendientes de otros ciclos. Los informes se conservan íntegros como historial.
+
+La revisión de entregas mostraba puntos pendientes y enlaces Google, pero para
+consultar el cálculo almacenado el operador debía cargar la ruta y abandonar esa
+revisión. Se añadió **Ver trazado guardado**, opcional y bajo demanda, dentro de
+Mis rutas → Entregas → Revisar navegación. Muestra mapa original completo,
+distancia/tiempo estimados del cálculo guardado y lista numerada con las marcas
+manuales consultadas. Si detecta una discrepancia, cierra la revisión completa y retira sus enlaces
+anteriores; debe actualizarse antes de volver a navegar. No recorta el mapa al
+elegir Retomar desde, no calcula
+una ruta nueva desde GPS y no modifica ningún enlace o guía de Google.
+
+La lista de rutas y la apertura normal del avance siguen sin descargar geometría.
+Sólo la petición explícita obtiene campos específicos del resultado de una ruta
+activa bajo RLS; después consulta otra vez el avance. Rechaza cambios de revisión,
+snapshot, puntos/orden/etiquetas, perfil o preferencias. Conserva las 50 ocurrencias
+posibles, incluida dirección repetida, origen y destino. Coordenadas no se redondean.
+Los datos incompletos o geometrías inválidas/extensas producen un error específico;
+no se omiten puntos para forzar una vista parcial. Límite de vista previa de
+500000 caracteres de polyline y 100000 vértices; no es un nuevo límite de entregas.
+Puede cargarse la ruta completa si esa vista no está disponible.
+
+La consulta no escribe eventos ni datos. Editar avance, cerrar revisión, cambiar
+ruta/cuenta o salir del panel descarta la vista; las solicitudes se cancelan o
+sus respuestas tardías se ignoran mediante el control de ciclo de vida existente.
+El mapa sólo representa el cálculo guardado: no acredita actualidad, circulación,
+permisos ni seguridad. Google sigue recalculando sin recibir trazado o HGV.
+
+Archivos: components/SavedRouteTraceReview.tsx, lib/saved-route-trace.ts,
+components/DeliveryProgressPanel.tsx, app/globals.css,
+test/saved-route-trace.test.mjs y test/integration/authenticated.e2e.mjs.
+Sin cambios API, SQL, dependencias, variables, credenciales o servicios de pago.
+
+### Verificación
+
+Local: build de producción, typecheck, 184 pruebas unitarias/componentes,
+cuatro casos nuevos de integridad/concurrencia/límites/etiquetas históricas y
+auditoría npm --omit=dev con cero vulnerabilidades conocidas, aprobados.
+Diff sin errores de espacios. next-env.d.ts generado no se publica.
+
+[CI 44295634742](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/44295634742):
+Web job 134771958722: typecheck, build, 184 pruebas, 38 casos de navegador y auditoría con cero vulnerabilidades. Auth job 134771958546: nueve flujos Auth/REST/PostgreSQL locales reales, incluido el rechazo de cambios y cierre de enlaces antiguos. Ambos trabajos success; cero fallos u omisiones.
+La prueba autenticada nueva, en 390/1365 px, guarda 50 puntos sintéticos mediante
+sesiones y REST/PostgreSQL locales reales. Comprueba carga de geometría sólo al
+pedirla, mapa, lista completa y marcas manuales, direcciones repetidas, enlaces
+Google idénticos antes/después, origen sin salto automático, ausencia de desborde,
+rechazo de cambio paralelo del avance y retirada de enlaces antiguos,
+actualización explícita, desaparición del
+mapa al editar y resultado/eventos persistidos intactos. No invoca ORS para la
+vista previa; la geometría de esa prueba es sintética, no navegación real.
+
+El entorno local continúa sin Chromium operativo; no se atribuye a él la ejecución
+de navegador. La comprobación del flujo privado en producción y Android físico
+no se ejecutó: no hay sesión privada alojada utilizada ni nuevas cuentas de prueba
+en el servicio alojado. Una consulta agregada de sólo lectura comprobó que las
+tres rutas existentes tienen geometría, perfil, estimaciones y el número íntegro
+de puntos, además de igualdad de coordenadas/etiquetas en su orden guardado; es
+compatibilidad de datos, no una sesión funcional de navegador.
+La publicación de la función se apoya en la integración
+funcional local real de CI, además del build, y se distingue del smoke público.
+
+Supabase alojado sólo leído al terminar: 3 rutas, 10 paradas, 1 vehículo, cero
+eventos de avance y cero enlaces, igual al preflight. No se cambió esquema/RLS,
+configuración o privilegios, ni se tocaron Gestión u otros proyectos. Permanecen
+los avisos previos SECDEF/contraseñas filtradas, sin asumir que estén resueltos.
+
+Smoke público después de verificar el alias nuevo: Web/manifest, salud por proxy,
+coordenadas, Plus Code completo/compuesto, Express y consulta municipal: 200;
+ocho sugerencias Express y tres contrastes de maniobras conservados. Validación
+0/2/48 intermedias: 200; 49: 400; plan sin sesión: 401. No equivale a un cálculo
+ORS autenticado alojado. El reporte de fuentes sigue 2026-11-18T07:49:38.924Z,
+no obsoleto. Ambos proyectos Vercel sin filas error/fatal agregadas en la ventana
+de 30 minutos; comprobación puntual, no garantía de ausencia futura.
+
+### Publicación y recuperación
+
+Web PR [#35](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/35),
+candidato final 51af3f86110403224faaa2d01b011c0fed6b2359 (anterior
+1e99ae1e942f21105d1ec4c6ad416d37cfd64ba8 conservado en la rama), merge **da3efef0a4ef580804857bd537c0f4419f52b362**.
+Deployment **dpl_3x4t7Q3ixeiCpaCCMtuHwyzzFELv** READY/production; alias de
+https://route-planner-web-sand.vercel.app/ comprobado al mismo SHA.
+API permanece en **27e161c7eb325d2524ff02577073ad457908affc**,
+**dpl_2qZB8kkDGAFqQQr8Yw1hoA6Q2ogt**; no requiere despliegue nuevo por este cambio.
+Rollback Web conservado **dpl_4bsYL7c4VNwzNpiBQizAMQpiaEz1** /453f937;
+revertir oculta la vista nueva sin perder avance o cálculos. Sin SQL que revertir.
+El cierre documental posterior [skip ci] sólo cambia los dos informes.
+
+### Estado y continuación
+
+Completado/publicado: vista del trazado guardado bajo demanda junto al avance,
+control de consistencia y conservación íntegra de puntos/Google. Parcial/bloqueado:
+verificación privada alojada y Android físico. El trazado es completo y guardado,
+no un recálculo actualizado desde una entrega elegida; no se presenta como tal.
+Próximo P1: corroborar en equipo real el flujo de navegación/reanudación y mejorar
+la relación entre los puntos pendientes y el trazado sin omitir visitas o prometer
+que Google lo conservará. Mantener las solicitudes autenticadas reales separadas
+de fixtures en todos los reportes.
+
+Normativa: ninguna regla o geometría nueva se aplica al ruteo. Permanecen 15
+municipios parciales, cero completos, y pendientes publicación/consolidación,
+actos posteriores, permisos, días, ámbitos, sentidos y geometrías verificadas.
+Se localizó como pista independiente una versión estatal del Reglamento de la
+Ley de Transporte de Puebla: índice OJP y tabla de reformas del PDF citan
+21/abr/2026. Su archivo conserva un nombre de 2024; no debe inferirse la fecha de
+contenido por la URL. Es jurisdicción estatal, no autorización municipal ni una
+reforma automáticamente aplicable a las fichas de carga/estacionamiento. Fuente:
+https://ojp.puebla.gob.mx/media/k2/attachments/Reglamento_de_la_Ley_de_Transporte_del_Estado_de_Puebla_T5_11112024_1.pdf
+La lectura web recuperó la tabla de reformas de un PDF de 255 páginas; la descarga
+directa local devolvió HTTP 503 y no se realizó revisión íntegra ni cotejo visual.
+Se deja para revisión íntegra y cotejo con publicación oficial antes de incorporar
+reglas o ampliar el monitor. La búsqueda dirigida no prueba ausencia de otros
+actos de 2026. El monitor existente permanece sin cambios y no aprueba normas.
+El programa maestro sigue abierto; automatización de cinco horas conservada activa.

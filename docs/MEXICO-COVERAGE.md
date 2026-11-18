@@ -624,3 +624,24 @@ previas; reporte 2026-11-18T07:49:38.924Z no obsoleto al consultar, Juárez HTTP
 y CDMX Centro NETWORK_OR_TIMEOUT. La coincidencia textual no convierte cambios
 técnicos o documentos unreviewed en aprobación legal. Resultados reales, CI,
 commits, producción, límites de prueba, rollback y continuación en ENGINEERING-STATUS.md.
+
+
+## Vista de trazado y avance sin ampliar validación legal · 18-11-2026
+
+Web PR #35 añade Ver trazado guardado dentro de la revisión de entregas: cálculo
+completo bajo demanda, lista original con marcas manuales y rechazo de cambios
+en el avance o los puntos. No recorta, recalcula, modifica Google ni certifica
+entrega/circulación. Sus distancias y tiempos son estimaciones del cálculo
+almacenado. Prueba funcional con Auth/REST/PostgreSQL locales reales y geometría
+sintética, diferenciada de Android o sesión alojada; resultados en el cierre de
+ENGINEERING-STATUS.md. No incorpora una norma o geometría legal nueva.
+
+Pista oficial de continuación: OJP y la tabla de reformas del Reglamento de la Ley
+de Transporte del Estado de Puebla citan 21/abr/2026. El PDF mantiene un nombre de
+2024; la fecha de contenido no se deduce del archivo:
+https://ojp.puebla.gob.mx/media/k2/attachments/Reglamento_de_la_Ley_de_Transporte_del_Estado_de_Puebla_T5_11112024_1.pdf
+Su jurisdicción es estatal y no se mezcla con reglas municipales del programa de
+estacionamiento. Falta revisión íntegra, publicación/cadena de cambios y evaluación
+de su alcance antes de incorporar reglas o vigilancia. No se declara vigencia
+por esta localización ni ausencia de otros actos. Continúan 15 municipios con
+referencias parciales y cero completos, sin restricciones HGV transmitidas a Google.
