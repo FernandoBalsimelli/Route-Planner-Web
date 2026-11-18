@@ -54,3 +54,17 @@ test('publication history keeps publication, replaced sanctions and present vali
  assert.deepEqual([...history.querySelectorAll('a')].map(a=>a.href),parkingPublicationFixture.sources.map(s=>s.url));
  assert.equal(container.querySelectorAll('.parking-corridors-list>li').length,4);
 });
+
+test('published-page links require a nonlegal matching comparison and reject invalid pages or unsafe sources',async()=>{
+ const {comparisonFixture}=await import('./fixtures/parking-comparison.mjs');const {publishedAnnexPageLinks}=await import('../lib/parking-corridors.ts');const ref={...reference,annexComparison:comparisonFixture};const record={...rows[1],publishedSourcePages:[7]};
+ assert.deepEqual(publishedAnnexPageLinks(ref,record),[{page:7,url:comparisonFixture.documents[1].url+'#page=7'}]);assert.deepEqual(publishedAnnexPageLinks(reference,record),[]);
+ for(const pages of [[0],[8],[null],[1.5],[7,7]])assert.deepEqual(publishedAnnexPageLinks(ref,{...record,publishedSourcePages:pages}),[]);
+ for(const change of [{routingEnforced:true},{legalValidityVerified:true},{matchedRows:999},{status:'not_checked'},{documents:[comparisonFixture.documents[0],{...comparisonFixture.documents[1],url:'javascript:alert(1)'}]}])assert.deepEqual(publishedAnnexPageLinks({...ref,annexComparison:{...comparisonFixture,...change}},record),[]);
+});
+test('comparison remains folded and adds counterpart pages without replacing the acta or resolving labels',async()=>{
+ const {comparisonFixture}=await import('./fixtures/parking-comparison.mjs');const compared={...reference,annexComparison:comparisonFixture,rows:rows.map((row,i)=>({...row,publishedSourcePages:[i===0?1:7]}))};
+ container=document.createElement('div');document.body.append(container);root=createRoot(container);await act(async()=>root.render(React.createElement(Corridors,{reference:compared})));
+ await act(async()=>{const details=container.querySelector('details');details.open=true;details.dispatchEvent(new dom.window.Event('toggle'));});
+ assert.equal(container.querySelector('.annex-comparison').open,false);assert.match(container.querySelector('.annex-comparison').textContent,/No significa que los PDF sean idénticos/);assert.match(container.querySelector('.annex-comparison').textContent,/ambigüedad no queda resuelta/);
+ const record=container.querySelector('[aria-label="Registro 124: 29 A Norte"]');assert.deepEqual([...record.querySelectorAll('a')].map(a=>a.href),['https://official.gob.mx/annex.pdf#page=87','https://official.gob.mx/annex.pdf#page=88',comparisonFixture.documents[1].url+'#page=7']);assert.equal(container.querySelectorAll('.parking-corridors-list>li').length,4);
+});
