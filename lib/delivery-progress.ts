@@ -1,4 +1,5 @@
 import type { Coordinates } from './locations';
+import type { NavigationPoint } from './navigation';
 export type ProgressRevision = { revision: number; completedSequences: number[]; samePoints: boolean; createdAt: string };
 export type DeliveryProgress = { routeId: string; snapshot: string; revision: number; stale: boolean; points: (Coordinates & { label: string })[]; completedSequences: number[]; history: ProgressRevision[]; updatedAt: string | null };
 function object(value: unknown): Record<string, unknown> { if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('El servidor devolvió un avance incompleto. Actualiza la consulta.'); return value as Record<string, unknown>; }
@@ -12,4 +13,18 @@ export function parseDeliveryProgress(value: unknown, routeId: string): Delivery
   const points = p.points.map(input => { const point = object(input); if (typeof point.label !== 'string' || !point.label.trim() || point.label.length > 180 || typeof point.lat !== 'number' || !Number.isFinite(point.lat) || Math.abs(point.lat) > 90 || typeof point.lng !== 'number' || !Number.isFinite(point.lng) || Math.abs(point.lng) > 180) throw Error('Faltan ubicaciones verificadas en el avance.'); return { label: point.label, lat: point.lat, lng: point.lng }; });
   const history = p.history.map(input => { const row = object(input); if (!Number.isSafeInteger(row.revision) || (row.revision as number) < 1 || typeof row.samePoints !== 'boolean' || typeof row.createdAt !== 'string' || !Number.isFinite(Date.parse(row.createdAt))) throw Error('No se pudo verificar el historial del avance.'); return { revision: row.revision as number, samePoints: row.samePoints, createdAt: row.createdAt, completedSequences: sequences(row.completedSequences, row.samePoints ? points.length - 1 : 49) }; });
   return { routeId, snapshot: p.snapshot, revision: p.revision as number, stale: p.stale, points, history, completedSequences: sequences(p.completedSequences, points.length - 1), updatedAt: p.updatedAt as string | null };
+}
+
+// Use ordered occurrences; a completed visit after a gap remains in the links.
+export function reviewDeliveryNavigation(progress: DeliveryProgress, points: NavigationPoint[]) {
+  const checked = parseDeliveryProgress(progress, progress.routeId);
+  if (checked.stale || points.length !== checked.points.length || points.some((point, index) => {
+    const expected = checked.points[index];
+    return !point || typeof point !== 'object' || point.lat !== expected.lat || point.lng !== expected.lng || point.label !== expected.label;
+  })) throw Error('El avance no corresponde a los puntos actuales. Actualiza y revisa las entregas antes de navegar.');
+  const completed = new Set(checked.completedSequences);
+  const pending = checked.points.slice(1).flatMap((_, index) => completed.has(index + 1) ? [] : [index + 1]);
+  let prefix = 0;
+  while (completed.has(prefix + 1)) prefix++;
+  return { prefix, pending, suggestedStart: prefix > 0 && prefix < points.length - 1 ? prefix : null };
 }

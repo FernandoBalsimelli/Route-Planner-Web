@@ -5,16 +5,19 @@ import { readRoutePreferences, roadPreferencesLabel, type RoutePreferences } fro
 import { googleRouteGuides } from '@/lib/google-route-guides';
 import { googleMapsSegments, type GoogleWaypointLimit, type NavigationPoint } from '@/lib/navigation';
 import { deliveryPointLabel, remainingNavigationPoints } from '@/lib/navigation-continuation';
+import { reviewDeliveryNavigation, type DeliveryProgress } from '@/lib/delivery-progress';
 
-export default function NavigationLinks({ points, route, truck = false, preferences }: { points: NavigationPoint[]; route?: RouteResult | null; truck?: boolean; preferences?: RoutePreferences }) {
+export default function NavigationLinks({ points, route, truck = false, preferences, deliveryProgress }: { points: NavigationPoint[]; route?: RouteResult | null; truck?: boolean; preferences?: RoutePreferences; deliveryProgress?: DeliveryProgress }) {
   const selectedPreferences = readRoutePreferences(route ? route.preferences : preferences);
   const { avoidTolls, avoidHighways } = selectedPreferences;
   const [includeGuides,setIncludeGuides] = useState(truck);
   const guidePlan = useMemo(() => { if(!route || !truck) return {points:null,guideCount:0,error:''}; try{return {...googleRouteGuides(route),error:''};}catch(error){return {points:null,guideCount:0,error:error instanceof Error?error.message:'No se pudieron preparar puntos guía.'};} },[route,truck]);
-  const [continuation, setContinuation] = useState<{ points: NavigationPoint[]; route: typeof route; truck: boolean; avoidTolls: boolean; avoidHighways: boolean; index: number } | null>(null);
-  const canResume = Boolean(route && points.length > 2);
+  const review = useMemo(() => { try { return { plan: deliveryProgress ? reviewDeliveryNavigation(deliveryProgress, points) : null, error: '' }; } catch (cause) { return { plan: null, error: cause instanceof Error ? cause.message : 'Actualiza el avance antes de navegar.' }; } }, [deliveryProgress, points]);
+  const [continuation, setContinuation] = useState<{ points: NavigationPoint[]; route: typeof route; progress: typeof deliveryProgress; truck: boolean; avoidTolls: boolean; avoidHighways: boolean; index: number } | null>(null);
+  const canResume = Boolean((route || review.plan) && points.length > 2);
   // Ignore old selection synchronously when inputs change, before effects run.
-  const startIndex = canResume && continuation?.points === points && continuation.route === route && continuation.truck === truck && continuation.avoidTolls === avoidTolls && continuation.avoidHighways === avoidHighways ? continuation.index : 0;
+  const startIndex = canResume && continuation?.points === points && continuation.route === route && continuation.progress === deliveryProgress && continuation.truck === truck && continuation.avoidTolls === avoidTolls && continuation.avoidHighways === avoidHighways ? continuation.index : 0;
+  function resume(index: number) { setContinuation({ points, route, progress: deliveryProgress, truck, avoidTolls, avoidHighways, index }); }
   const [limit, setLimit] = useState<GoogleWaypointLimit>(9);
   useEffect(() => {
     try { if (window.localStorage.getItem('route-planner:google-waypoints') === '3') setLimit(3); } catch {}
@@ -30,12 +33,19 @@ export default function NavigationLinks({ points, route, truck = false, preferen
     }
     catch (error) { return { segments: [], guideCount: 0, error: error instanceof Error ? error.message : 'No se pudo preparar el enlace de navegación.' }; }
   }, [points, startIndex, includeGuides, guidePlan.points, limit, avoidTolls, avoidHighways]);
-  if (error) return <p className="location-search-error" role="alert">{error}</p>;
+  if (error || review.error) return <p className="location-search-error" role="alert">{review.error || error}</p>;
   if (!segments.length) return null;
   return <div className="navigation-links">
+    {review.plan && deliveryProgress && <section className="navigation-progress-review" aria-label="Revisar pendientes para navegar">
+      <strong>Avance consultado · Revisión {deliveryProgress.revision}</strong>
+      <p>{review.plan.pending.length ? `${review.plan.pending.length} puntos pendientes. Primero: ${deliveryPointLabel(review.plan.pending[0], points.length).toLowerCase()}.` : 'Todos los puntos figuran completados. Puedes revisar el recorrido completo; no se inicia ni recorta automáticamente.'}</p>
+      {review.plan.suggestedStart !== null && <button type="button" className="secondary-button" onClick={() => resume(review.plan!.suggestedStart!)}>Retomar después de entrega {review.plan.suggestedStart}</button>}
+      <p className="navigation-note">La propuesta sólo considera las entregas iniciales completadas consecutivamente. Hasta que elijas, los enlaces incluyen el recorrido entero. Los puntos completados después de una entrega pendiente se conservan en orden.</p>
+      {!!review.plan.pending.filter(sequence => sequence <= startIndex).length && <p role="alert">Hay {review.plan.pending.filter(sequence => sequence <= startIndex).length} puntos pendientes hasta el origen elegido. Revisa «Retomar desde» para no dejarlos atrás.</p>}
+    </section>}
     {route && truck && <div className="google-guide-option"><label><input type="checkbox" checked={includeGuides && Boolean(guidePlan.points)} disabled={!guidePlan.points} onChange={event=>setIncludeGuides(event.target.checked)}/><span><b>Añadir puntos guía del recorrido</b><small>{guidePlan.points ? `${includeGuides ? guideCount : guidePlan.guideCount} puntos sobre el trazado, además de tus entregas.` : guidePlan.error}</small></span></label><p className="navigation-note">Estos puntos orientan la ruta que calcula Google. No la bloquean ni verifican legalidad; Google puede desviarse entre ellos y pedir continuar al llegar a cada guía.</p></div>}
     <div className="navigation-heading"><strong>Continuar en Google Maps</strong><span>{segments.length === 1 ? startIndex ? 'Puntos desde la selección en un enlace' : 'Todos los puntos en un enlace' : `${segments.length} tramos · orden completo desde ${deliveryPointLabel(startIndex, points.length).toLowerCase()}`}</span></div>
-    {canResume && <div className="navigation-continuation"><label>Retomar desde<select aria-label="Retomar desde" value={startIndex} onChange={event => setContinuation({ points, route, truck, avoidTolls, avoidHighways, index: Number(event.target.value) })}>{points.slice(0, -1).map((point, index) => <option key={index} value={index}>{deliveryPointLabel(index, points.length)} · {typeof point === 'string' ? point : point?.label || (point ? `${point.lat}, ${point.lng}` : 'Punto por confirmar')}</option>)}</select></label>
+    {canResume && <div className="navigation-continuation"><label>Retomar desde<select aria-label="Retomar desde" value={startIndex} onChange={event => resume(Number(event.target.value))}>{points.slice(0, -1).map((point, index) => <option key={index} value={index}>{deliveryPointLabel(index, points.length)} · {typeof point === 'string' ? point : point?.label || (point ? `${point.lat}, ${point.lng}` : 'Punto por confirmar')}</option>)}</select></label>
       <p className="navigation-note">El punto elegido será el origen de Google Maps. Se conservan todos los puntos posteriores en orden. Esta selección temporal no marca entregas como realizadas ni modifica la ruta guardada.</p>
       {startIndex > 0 && <><p role="status">Desde {deliveryPointLabel(startIndex, points.length).toLowerCase()} hasta destino · {points.length - startIndex} puntos del recorrido, además de los guías habilitados.</p><button type="button" className="text-button" onClick={() => setContinuation(null)}>Volver al origen del recorrido</button></>}
     </div>}
