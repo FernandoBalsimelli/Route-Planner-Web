@@ -597,3 +597,30 @@ legal. La búsqueda dirigida no demuestra ausencia de actos posteriores. Resulta
 CI, verificación pública de filtros/enlaces, commits, deployments y rollback en
 ENGINEERING-STATUS.md. Próximo paso: contrastar los artículos de maniobras de las
 reglas adjuntas con el acta y sus reformas, sin inferir permisos o vigencia.
+
+
+## Contraste de disposiciones de maniobras · 18-11-2026
+
+Web PR #34 y API PR #27 añaden evidencia delimitada a los artículos 11–13 de las
+reglas del estacionamiento rotativo: acta C26/11 página 70 frente a reglas adjuntas
+de RES. 2025/148 página 7. Se descargaron e inspeccionaron ambos PDF y se comprobó
+igualdad del texto seleccionado normalizando sólo espacios y saltos de línea.
+Huellas, método reproducible, alcance y pendientes en
+[PUEBLA-LOADING-COMPARISON.md](https://github.com/FernandoBalsimelli/Route-Planner-API/blob/main/docs/PUEBLA-LOADING-COMPARISON.md).
+
+Las tres fichas originales conservan capacidad, horarios, permiso previo,
+duración, fuente y ámbito. Añaden un contraste plegado con ambas páginas, fecha
+y límites; no sustituyen los lineamientos de 2021 ni COREMUN. Hasta 3.5 t sigue
+siendo inclusivo sólo en la referencia 2025, capacidad no es peso bruto y los
+20+10 minutos no acreditan permiso ni eliminan otras prohibiciones. No se modifica
+ninguna regla del motor ni se añade una geometría por comparar textos.
+
+Faltan publicación íntegra/consolidación, actos posteriores de 2026, vigencia,
+autoridad/permiso actual, días, sustancias, zonas, calles/sentidos y geometrías.
+**Siguen 15 municipios parciales y cero con validación legal completa**. Google no
+recibe restricciones HGV ni garantiza el trazado exacto. No se alteran las 128
+filas ni la ambigüedad 5/6 de los anexos. El monitor mantiene fuentes/frecuencia
+previas; reporte 2026-11-18T07:49:38.924Z no obsoleto al consultar, Juárez HTTP_403
+y CDMX Centro NETWORK_OR_TIMEOUT. La coincidencia textual no convierte cambios
+técnicos o documentos unreviewed en aprobación legal. Resultados reales, CI,
+commits, producción, límites de prueba, rollback y continuación en ENGINEERING-STATUS.md.

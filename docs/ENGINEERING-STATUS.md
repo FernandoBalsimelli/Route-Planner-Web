@@ -2,14 +2,16 @@
 
 Fecha de revisión: 2026-11-18. Alcance: exclusivamente Route Planner.
 
-Estado vigente: la consulta de Puebla permite contrastar cada corredor con las
-páginas del acta y del adjunto oficial de Gaceta. Un proceso reproducible contrasta
-128 registros, conserva 29 diferencias tipográficas y la ambigüedad 5/6, sin
-modificar los datos originales ni aprobar normas o rutas. Web fe1601b y API 8891b1b
-publicadas; verificación pública de consulta y filtros realizada.
+Estado vigente: las tres fichas de maniobras del estacionamiento rotativo de
+Puebla permiten contrastar los artículos 11–13 del acta y las reglas adjuntas.
+Comparación reproducible por huella y texto seleccionado; originales intactos,
+sin aprobación legal ni cambios al ruteo. Se conserva el contraste de 128
+corredores, sus diferencias y la ambigüedad 5/6. Web 453f937 y API 27e161c
+publicadas y verificadas en sus alias de producción.
 Se mantienen avance de entregas, revisión antes de retomar, vehículos, manifiestos,
 GPS, búsqueda cercana, rutas múltiples, enlaces Google completos y recuperación.
-Reporte técnico 18-11-2026T01:06:33.575Z: no obsoleto al consultar, Juárez HTTP 403.
+Reporte técnico 2026-11-18T07:49:38.924Z: no obsoleto al consultar; Juárez HTTP_403,
+CDMX Centro NETWORK_OR_TIMEOUT. Son estados técnicos, no aprobación normativa.
 Hay 15 municipios con referencias parciales y cero con validación legal completa.
 Resultados, commits, rollback y próxima prioridad en el último cierre al final.
 Las entradas anteriores son historial. El programa maestro sigue incompleto.
@@ -3433,3 +3435,124 @@ contrastar los artículos de maniobras de las reglas adjuntas con el acta y sus
 reformas, conservando sus ámbitos y fechas; continuar revisión de navegación junto
 al trazado calculado, sin saltos automáticos. El programa maestro sigue abierto
 y la tarea periódica existente se mantiene activa sin duplicarla.
+
+
+## Cierre de ciclo · contrastar las disposiciones de maniobras · 18-11-2026
+
+### Diagnóstico y alcance
+
+Preflight fresco: Web main 89ef838b9e669f18d479bead2b48c0db3b5be2c6,
+producción fe1601b/dpl_33HgrktzfaWXGsG53pkK9b1F5564; API main
+03c900e0113bb7372664e1c0009a9fcc31fcfcfd, producción
+8891b1b/dpl_BFakA27xhMoDv6EyvDdUS2N3vDBa. Main API sólo adelantaba el reporte
+automático de fuentes; se conservó. Se leyeron ambos informes de Web main.
+No se reprodujo un P0 de red. Las tres fichas de maniobras seguían citando sólo
+el acta aunque las reglas adjuntas estaban descargadas y vigiladas. Faltaba un
+contraste delimitado por artículo que el operador pudiera consultar.
+
+### Implementación y evidencia
+
+Se descargaron otra vez los PDF oficiales, HTTP 200, y se inspeccionaron sus
+páginas renderizadas. Acta: 167 páginas, 2395402 bytes, página 70, SHA256
+0917dc30ac70594a6e954243800bc5219d7ea3f2bc8017f7ea532b8ec510555c.
+Reglas adjuntas: 18 páginas, 340080 bytes, página 7, SHA256
+49da56a082baac634fd004f9a24e224dc0eab4d2a532d7ac2d6bc1949532006f.
+Los artículos 11, 12 y 13 coinciden en texto seleccionado al normalizar únicamente
+espacios y saltos de línea. Palabras, signos, números y comparadores se conservan.
+El script verifica huellas, páginas, límites de artículos, hash íntegro normalizado
+y las condiciones originales asociadas; no descarga ni publica normas. Se
+reprodujo localmente el JSON idéntico y un PDF alterado se rechazó SOURCE_CHANGED.
+No se atribuye esta reproducción Python/pdfplumber a CI.
+
+API añade documentReview a exactamente las tres fichas de corredores: artículo
+11 para capacidad hasta/mayor de 3.5 t y 12–13 para permiso/duración. Se conserva
+la fuente primaria, todos los campos originales y el ámbito particular del
+programa. No se cambia national-references.json, timeRules, permisos, geometrías,
+monitor, SQL, variables ni dependencias. LegalValidityVerified y routingEnforced
+siguen false. No se confunde capacidad de carga con peso bruto ni se resuelven
+por inferencia los comparadores de 2021 o el tonelaje de COREMUN.
+
+Web muestra un contraste plegado por ficha, con fecha, método, ámbito y ambos
+enlaces a páginas exactas. Valida municipio, estado sin aprobación, fechas,
+huellas, artículos, páginas dentro del documento y HTTPS del dominio oficial;
+si el bloque falla conserva el enlace primario sin generar contrapartes.
+Las fichas anteriores de otras fuentes no adquieren este contraste.
+
+Archivos API: scripts/compare-puebla-loading.py, data/mx/21114-loading-review.json,
+lib/municipal-regulations.js, test/municipal-regulations.test.js,
+docs/PUEBLA-LOADING-COMPARISON.md. Web: lib/provision-review.ts,
+components/MunicipalProvisionReview.tsx, components/MunicipalCoverage.tsx,
+app/globals.css, test/provision-review.test.mjs, test/fixtures/provision-review.mjs,
+test/geolocation.e2e.mjs; cierre en estos dos informes.
+
+### Pruebas y límites prácticos
+
+- API: build y 77 pruebas aprobadas localmente y en
+  [CI 44291786883](https://github.com/FernandoBalsimelli/Route-Planner-API/actions/runs/44291786883),
+  job 134758545929. Migraciones/SQL/RLS y auditoría npm --omit=dev (cero
+  vulnerabilidades) aprobadas en PostgreSQL desechable.
+- Web: typecheck, build, 180 pruebas unitarias/componentes y auditoría de producción
+  cero vulnerabilidades, local y
+  [CI 44291803059](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/44291803059).
+  Job 134758601707: 38 casos de navegador, incluido el contraste en 390/1280 px,
+  páginas exactas, ámbito, original intacto y ausencia de desbordamiento.
+  Job 134758601402: ocho flujos Auth/REST/PostgreSQL locales reales, aprobados.
+  Los fixtures de rutas/municipios no son validación normativa o cálculo ORS real.
+- Chromium local no pudo iniciarse; no se reporta como aprobado. CI sí ejecutó
+  Chromium. Android físico, Google real en movimiento y cálculo ORS autenticado
+  alojado no ejecutados; no hay cuenta/sesión privada utilizada para esos fines.
+- Producción real, navegador sin interceptar: Guía camión → Puebla → tres fichas;
+  apertura de los tres contrastes, artículos 11/12–13, fuentes acta 70/reglas 7,
+  aviso de no acreditar permisos y ausencia de contraste en ficha de 2021.
+  Captura de escritorio 1348×926; no equivale a Android físico.
+- HTTP público API nueva: salud, coordenadas decimales, Plus Code completo
+  75XMRW22+22, compuesto RW22+22 Chihuahua y Bodega Aurrera Express: 200;
+  una sugerencia en cada formato directo y ocho Express. Municipio Puebla
+  expone tres bloques revisados, otro municipio ninguno. Validación 0/2/48
+  intermedias: 200; 49: 400; plan sin sesión: 401. Es validación de entrada,
+  no cálculo autenticado. CORS autorizado: 204 con cabecera; ajeno: 400 sin ella.
+- Vercel: ambos alias READY y apuntando a los merges indicados abajo; no hubo
+  filas error/fatal agregadas en los 30 minutos consultados. Verificación puntual.
+- Supabase alojado, sólo lectura: 3 rutas, 10 paradas, 1 vehículo, cero eventos
+  de avance y cero enlaces. Sin cambios de datos, esquema, políticas o secretos.
+  Avisos previos de funciones SECDEF/contraseñas filtradas siguen pendientes.
+
+### Publicación y recuperación
+
+API PR [#27](https://github.com/FernandoBalsimelli/Route-Planner-API/pull/27),
+candidato f8df550551f4c7fbe080ba13ea46a5caac658d20, merge
+27e161c7eb325d2524ff02577073ad457908affc, deployment
+**dpl_2qZB8kkDGAFqQQr8Yw1hoA6Q2ogt** READY/production. Alias comprobado al SHA:
+https://route-planner-api.vercel.app/.
+
+Web PR [#34](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/34),
+candidato b89a5207a323805fabd4f0a3ca364e6773c90811, merge
+453f937002871ffa68b0faf9f54c9c04238aca46, deployment
+**dpl_4bsYL7c4VNwzNpiBQizAMQpiaEz1** READY/production. Alias comprobado al SHA:
+https://route-planner-web-sand.vercel.app/.
+
+Rollback previo conservado: Web dpl_33HgrktzfaWXGsG53pkK9b1F5564/fe1601b,
+API dpl_BFakA27xhMoDv6EyvDdUS2N3vDBa/8891b1b. No se ejecutó rollback;
+revertir oculta los bloques nuevos sin perder datos. API es aditiva y Web admite
+su ausencia. No hay SQL que revertir. Gestión y otros proyectos intactos;
+ningún servicio de pago activado. Cierre documental [skip ci] sólo en estos dos
+informes, sin código funcional adicional pendiente de publicar.
+
+### Cobertura y continuación
+
+Completado/publicado: contraste reproducible delimitado a tres artículos y
+corroboración desde las tres fichas. Parcial: publicación íntegra/consolidación,
+actos posteriores de 2026, vigencia, permisos actuales, días, sustancias, zonas,
+sentidos y geometrías. El contraste no convierte documentos unreviewed o cambios
+de huella en aprobación legal ni habilita circulación. Se mantienen 15 municipios
+parciales y cero completos, sin nueva regla aplicada al motor. Google sigue sin
+recibir HGV ni conservar obligatoriamente el trazado exacto.
+
+Monitor sin cambios; reporte observado 2026-11-18T07:49:38.924Z, no obsoleto.
+Juárez unavailable/HTTP_403 y CDMX Centro unavailable/NETWORK_OR_TIMEOUT.
+No se interpreta un cambio técnico como reforma ni una búsqueda como prueba de
+ausencia de actos posteriores. Próxima prioridad: revisar publicación y cambios
+posteriores de Puebla conservando versiones y la ambigüedad 5/6; continuar P1
+revisión del trazado calculado junto al avance antes de navegar, sin omitir
+entregas automáticamente. El programa maestro sigue incompleto y la automatización
+existente permanece activa; no se duplica ni elimina.
