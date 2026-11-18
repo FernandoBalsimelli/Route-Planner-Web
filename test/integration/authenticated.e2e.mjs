@@ -462,3 +462,37 @@ test('real local delivery progress persists across reloads, preserves history an
   }finally{await context.close();}
  }
 });
+
+test('real local saved progress is refreshed before explicit Google review and never skips pending occurrences',{timeout:120000},async()=>{
+ for(const width of [390,1365]){
+  const context=await browser.newContext({viewport:{width,height:844},isMobile:width<768,hasTouch:width<768});await context.route('https://tile.openstreetmap.org/**',r=>r.abort());const page=await context.newPage();
+  try{
+   const username='review-owner-'+width;await page.goto(base);await createAccount(page,username);const owner=await session(username),parallel=await session(username);
+   const points=Array.from({length:50},(_,i)=>({label:'Visita sintética '+i,lat:28.630001+i/100000,lng:-106.06000456}));points[2]={...points[1]};
+   const saved=await owner.client.rpc('save_route_with_stops',{p_request_id:crypto.randomUUID(),p_route:{name:'Revisión de 49 entregas',origin:points[0],destination:points[49],route_metadata:{mode:'truck',result:{preferences:{avoidTolls:true,avoidHighways:true}}}},p_stops:points.slice(1,-1)});assert.equal(saved.error,null);
+   let state=await owner.client.rpc('route_delivery_progress',{p_route_id:saved.data});assert.equal(state.error,null);
+   const update=async completed=>{const r=await parallel.client.rpc('route_delivery_progress',{p_route_id:saved.data,p_completed:completed,p_expected_revision:state.data.revision,p_expected_snapshot:state.data.snapshot});assert.equal(r.error,null);state=r;};
+   await update([1,2,24,49]);
+   await nav(page).getByRole('button',{name:'Mis rutas',exact:true}).click();await page.getByRole('button',{name:'Entregas',exact:true}).click();const panel=page.getByRole('region',{name:'Avance de entregas',exact:true});await panel.getByText(/Revisión 1/).first().waitFor();
+   assert.equal(await panel.locator('.navigation-segments a').count(),0);await update([1,3]);
+   await panel.getByRole('button',{name:'Revisar navegación',exact:true}).click();const review=panel.getByRole('region',{name:'Navegación de la ruta guardada',exact:true});await review.getByText('Avance consultado · Revisión 2',{exact:true}).waitFor();
+   assert.equal(await panel.getByRole('checkbox',{name:'Entrega 2 completado',exact:true}).isChecked(),false,'review refreshes the persisted selection');
+   assert.equal(await review.getByRole('combobox',{name:'Retomar desde',exact:true}).inputValue(),'0');assert.equal(new URL(await review.locator('.navigation-segments a').first().getAttribute('href')).searchParams.get('origin'),`${points[0].lat}, ${points[0].lng}`);
+   assert.ok((await review.innerText()).includes('No se transfiere la ruta exacta del camión'));assert.equal(await review.getByRole('checkbox').count(),0,'no computed trace/guide points are claimed');
+   await review.getByRole('button',{name:'Retomar después de entrega 1',exact:true}).click();
+   for(const limit of ['3','9']){
+    await review.getByRole('combobox',{name:'Paradas intermedias por enlace',exact:true}).selectOption(limit);const visited=[];const links=await review.locator('.navigation-segments a').evaluateAll(nodes=>nodes.map(n=>n.href));
+    for(const [i,href]of links.entries()){const p=new URL(href).searchParams;assert.equal(p.get('avoid'),'tolls,highways');const part=[p.get('origin'),...(p.get('waypoints')?.split('|')||[]),p.get('destination')];if(i)assert.equal(part[0],visited.at(-1));visited.push(...part.slice(i?1:0));}
+    assert.deepEqual(visited,points.slice(1).map(p=>`${p.lat}, ${p.lng}`),'both repeated visits and the later completed point stay in order');
+   }
+   await review.getByRole('combobox',{name:'Retomar desde',exact:true}).selectOption('24');await review.getByRole('alert').filter({hasText:'puntos pendientes'}).waitFor();
+   await panel.getByRole('checkbox',{name:'Entrega 2 completado',exact:true}).check();assert.equal(await review.count(),0);assert.equal(await panel.getByRole('button',{name:'Revisar navegación',exact:true}).isDisabled(),true);
+   await panel.getByRole('checkbox',{name:'Entrega 2 completado',exact:true}).uncheck();assert.equal(await review.count(),0,'undoing a checkbox cannot restore an old review');
+   const history=await owner.client.from('route_delivery_events').select('revision').eq('route_id',saved.data);assert.equal(history.error,null);assert.equal(history.data.length,2,'navigation review never writes completion');
+   await update(Array.from({length:49},(_,i)=>i+1));await panel.getByRole('button',{name:'Revisar navegación',exact:true}).click();await review.getByText(/Todos los puntos figuran completados/).waitFor();assert.equal(await review.getByRole('button',{name:/Retomar después de entrega/}).count(),0);assert.equal(await review.getByRole('combobox',{name:'Retomar desde',exact:true}).inputValue(),'0');
+   const changed=await owner.client.from('route_stops').update({location:{...points[2],label:'Acceso corregido'}}).eq('route_id',saved.data).eq('sequence',2);assert.equal(changed.error,null);
+   await panel.getByRole('button',{name:'Revisar navegación',exact:true}).click();await panel.getByText(/Los puntos o su orden cambiaron/).waitFor();assert.equal(await review.count(),0);assert.equal(await panel.getByRole('button',{name:'Revisar navegación',exact:true}).isDisabled(),true);
+   assert.equal((await owner.client.from('route_delivery_events').select('revision').eq('route_id',saved.data)).data.length,3);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  }finally{await context.close();}
+ }
+});
