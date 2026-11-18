@@ -536,7 +536,7 @@ test('real local authenticated proxy rejects an incomplete provider route and pr
   try{
    const username='invalid-provider-'+width;await page.goto(base);await createAccount(page,username);const owner=await session(username);
    await page.getByRole('button',{name:'Camión',exact:true}).click();await page.getByRole('spinbutton',{name:'Altura (m)',exact:true}).fill('3.8');await page.getByRole('checkbox',{name:'Evitar casetas de peaje',exact:true}).check();
-   await point(page,'Origen','28.632995, -106.0691');await point(page,'Destino','28.660099, -106.08');await page.getByRole('button',{name:'Agregar parada',exact:true}).click();await point(page,'PARADA 1','28.64, -106.07');
+   await point(page,'Origen','28.632995, -106.0691');await point(page,'Destino','28.660099, -106.08');await page.getByRole('button',{name:'＋ Agregar parada',exact:true}).click();await point(page,'PARADA 1','28.64, -106.07');
    const labels=await Promise.all(['Origen','PARADA 1','Destino'].map(name=>page.getByRole('combobox',{name,exact:true}).inputValue()));const before=readFileSync(capture,'utf8').trim().split('\n').length;
    const pending=page.waitForResponse(r=>r.url().endsWith('/v1/routes/plan'));await page.getByRole('button',{name:'Calcular ruta',exact:true}).click();const response=await pending,payload=await response.json();
    assert.equal(response.status(),502);assert.equal(payload.code,'ORS_INVALID_ROUTE');assert.equal(payload.reason,'INVALID_SUMMARY');assert.equal(payload.route,undefined);
