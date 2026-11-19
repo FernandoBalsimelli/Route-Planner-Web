@@ -554,3 +554,26 @@ test('real local authenticated proxy rejects an incomplete provider route and pr
   }finally{await context.close();}
  }
 });
+
+test('real local restore rejects a calculation with a changed delivery access and preserves all current occurrences',{timeout:120000},async()=>{
+ for(const width of [390,1365]){
+  const context=await browser.newContext({viewport:{width,height:844},isMobile:width<768,hasTouch:width<768});await context.route('https://tile.openstreetmap.org/**',r=>r.abort());const page=await context.newPage();
+  try{
+   const username='restore-access-'+width;await page.goto(base);await createAccount(page,username);const owner=await session(username);
+   const points=Array.from({length:50},(_,i)=>({label:'Entrega sintética '+i,lat:28.63000123+i/100000,lng:-106.0600456}));points[2]={...points[1]};
+   let polyline='',lat=0,lng=0;const encode=value=>{let n=value<0?~(value<<1):value<<1,out='';while(n>=32){out+=String.fromCharCode((32|(n&31))+63);n>>=5;}return out+String.fromCharCode(n+63);};for(const p of points){const a=Math.round(p.lat*1e5),b=Math.round(p.lng*1e5);polyline+=encode(a-lat)+encode(b-lng);lat=a;lng=b;}
+   const result={polyline,waypoints:points.map((p,i)=>({...p,type:i===0?'origin':i===49?'destination':'stop',geometryIndex:i})),distanceMeters:3200,durationSeconds:780,sections:[],preferences:{avoidTolls:true,avoidHighways:true}};
+   const saved=await owner.client.rpc('save_route_with_stops',{p_request_id:crypto.randomUUID(),p_route:{name:'Acceso corregido 48 entregas',origin:points[0],destination:points[49],route_metadata:{mode:'truck',result}},p_stops:points.slice(1,-1)});assert.equal(saved.error,null);
+   const initial=await owner.client.rpc('route_delivery_progress',{p_route_id:saved.data});assert.equal(initial.error,null);const marked=await owner.client.rpc('route_delivery_progress',{p_route_id:saved.data,p_completed:[1,49],p_expected_revision:initial.data.revision,p_expected_snapshot:initial.data.snapshot});assert.equal(marked.error,null);
+   const corrected={...points[2],label:'Entrada de descarga corregida',lat:28.641234567};assert.equal((await owner.client.from('route_stops').update({location:corrected}).eq('route_id',saved.data).eq('sequence',2)).error,null);
+   const before=(await owner.client.rpc('route_delivery_progress',{p_route_id:saved.data})).data;const calculationCalls=[];page.on('request',r=>{if(r.url().endsWith('/v1/routes/plan'))calculationCalls.push(r);});
+   await nav(page).getByRole('button',{name:'Mis rutas',exact:true}).click();await page.getByRole('button',{name:'Cargar ruta',exact:true}).click();await page.getByRole('status').filter({hasText:'ya no coinciden con el cálculo anterior'}).waitFor();
+   assert.equal(await page.locator('.metrics').count(),0);assert.equal(await page.getByRole('button',{name:'Guardar esta ruta',exact:true}).count(),0);assert.equal(await page.locator('.navigation-segments a').count(),0);assert.equal(calculationCalls.length,0,'restoring cannot silently consume routing');
+   assert.equal(await page.locator('.stop-field').count(),48);assert.equal(await page.getByRole('combobox',{name:'PARADA 1',exact:true}).inputValue(),points[1].label);assert.equal(await page.getByRole('combobox',{name:'PARADA 2',exact:true}).inputValue(),corrected.label);assert.equal(await page.getByRole('combobox',{name:'PARADA 48',exact:true}).inputValue(),points[48].label);
+   assert.equal(await page.getByRole('checkbox',{name:'Evitar casetas de peaje',exact:true}).isChecked(),true);assert.equal(await page.getByRole('checkbox',{name:'Evitar autopistas',exact:true}).isChecked(),true);
+   await page.getByRole('button',{name:'Calcular ruta',exact:true}).click();await page.locator('.metrics').waitFor();assert.equal(calculationCalls.length,1);const body=calculationCalls[0].postDataJSON();assert.equal(body.stops.length,48);assert.deepEqual(body.stops[1],corrected);assert.equal(body.stops[0].lat,points[1].lat);assert.deepEqual(body.preferences,{avoidTolls:true,avoidHighways:true});
+   assert.equal(await page.getByRole('status').filter({hasText:'ya no coinciden con el cálculo anterior'}).count(),0);assert.ok(await page.getByRole('button',{name:'Guardar esta ruta',exact:true}).isVisible());assert.ok(await page.locator('.navigation-segments a').count()>0);
+   assert.deepEqual((await owner.client.from('saved_routes').select('route_metadata').eq('id',saved.data).single()).data.route_metadata.result,result);assert.deepEqual((await owner.client.rpc('route_delivery_progress',{p_route_id:saved.data})).data,before,'the old route and progress history remain untouched');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  }finally{await context.close();}
+ }
+});

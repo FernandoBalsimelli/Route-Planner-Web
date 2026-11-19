@@ -103,3 +103,17 @@ test('leaving saved routes discards pending stops instead of reopening the plann
  assert.equal(container.querySelector('.app-nav button[aria-current="page"]').textContent.includes('Vehículos'),true);
  await act(async()=>button('Planificar').click());assert.equal(input('Origen').value,'');assert.equal(input('Destino').value,'');assert.equal(container.querySelector('.metrics'),null);
 });
+
+test('loading changed saved points withdraws old metrics and navigation until a new calculation succeeds',async()=>{
+ setup();const corrected=point('Acceso corregido',28.650001234);tables.route_stops=[{route_id:stored.id,owner_id:alice.id,sequence:1,location:corrected}];
+ const before=JSON.stringify(tables);let requests=[];globalThis.fetch=async(url,options)=>{if(url.endsWith('/v1/routes/plan')){requests.push(JSON.parse(options.body));return Response.json({ok:true,route:{...result,waypoints:[result.waypoints[0],{...corrected,type:'stop'},result.waypoints[1]]}});}return Response.json({ok:true,suggestions:[]});};
+ await render();await account(alice);await act(async()=>button('Mis rutas').click());await act(async()=>button('Cargar ruta').click());
+ assert.equal(input('PARADA 1').value,corrected.label);assert.match(container.textContent,/ya no coinciden con el cálculo anterior/);assert.equal(container.querySelector('.metrics'),null);assert.equal(button('Guardar esta ruta'),undefined);assert.equal(container.querySelectorAll('.navigation-segments a').length,0);assert.equal(requests.length,0);
+ await act(async()=>button('Calcular ruta').click());assert.ok(container.querySelector('.metrics'));assert.doesNotMatch(container.textContent,/ya no coinciden con el cálculo anterior/);assert.ok(button('Guardar esta ruta'));assert.equal(requests[0].stops[0].lat,corrected.lat);assert.equal(JSON.stringify(tables),before,'restoring/recalculating does not overwrite the original route or progress');
+});
+
+test('an incomplete saved stop order leaves the existing planner draft untouched',async()=>{
+ setup();tables.route_stops=[{route_id:stored.id,owner_id:alice.id,sequence:2,location:point('No cargar parcialmente')}];
+ await render();await account(alice);await fill(input('Origen'),'Mi borrador');await act(async()=>button('Mis rutas').click());await act(async()=>button('Cargar ruta').click());assert.match(container.textContent,/orden de las paradas guardadas está incompleto/);
+ await act(async()=>button('Planificar').click());assert.equal(input('Origen').value,'Mi borrador');assert.equal(input('Destino').value,'');assert.equal(input('PARADA 1'),null);
+});
