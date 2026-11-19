@@ -8,6 +8,7 @@ import { parseSavedRouteTrace, SavedRouteTraceChangedError, type SavedRouteTrace
 import type { DeliveryProgress } from '@/lib/delivery-progress';
 import type { RoutePreferences } from '@/lib/route-preferences';
 import SavedTracePointList from '@/components/SavedTracePointList';
+import LocationReviewLinks from '@/components/LocationReviewLinks';
 import { deliveryPointLabel } from '@/lib/navigation-continuation';
 
 const RouteMap = dynamic(() => import('./RouteMap'), { ssr: false, loading: () => <p role="status">Preparando mapa del trazado guardado…</p> });
@@ -47,6 +48,13 @@ export default function SavedRouteTraceReview({ progress, truck, preferences, on
       <p className="hint">Incluye origen, todas las entregas y destino en su orden original. No es un cálculo actualizado desde tu posición ni un trazado recortado al elegir «Retomar desde». Compara los puntos de abajo antes de abrir Google.</p>
       <div ref={mapContainer}><RouteMap polyline={trace.polyline} waypoints={trace.waypoints} completedSequences={progress.completedSequences} focus={focus}/></div>
       {focus && <p role="status">Punto elegido en el mapa: {deliveryPointLabel(focus.sequence, trace.waypoints.length)}. Sólo cambia la vista; no el avance ni la navegación.</p>}
+      {focus && <aside className="saved-access-review" aria-label="Acceso del punto elegido">
+        <strong>Revisar acceso · {deliveryPointLabel(focus.sequence, trace.waypoints.length)}</strong>
+        <p>{trace.waypoints[focus.sequence].label}</p>
+        <small>{trace.waypoints[focus.sequence].lat.toFixed(6)}, {trace.waypoints[focus.sequence].lng.toFixed(6)}</small>
+        <LocationReviewLinks point={trace.waypoints[focus.sequence]} mapLabel="Ver punto en Google Maps"/>
+        <p className="hint">Si necesitas corregir el acceso, carga la ruta y revisa el punto antes de volver a calcular. Esta consulta conserva el punto guardado.</p>
+      </aside>}
       <SavedTracePointList points={trace.waypoints} completed={progress.completedSequences} focused={focus?.sequence ?? null} onFocus={locate} onShowAll={() => setFocus(null)}/>
       <p className="hint">Ubicar sólo cambia la vista del mapa. No selecciona «Retomar desde», no recalcula ni marca una entrega.</p>
       <p className="navigation-note">Las marcas corresponden al avance consultado; no certifican una entrega. Si cambia en otra sesión, vuelve a revisar. Google recalcula entre puntos y no recibe este trazado ni las restricciones HGV; esta vista tampoco acredita circulación segura o legal.</p>

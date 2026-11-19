@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { locateDevice } from '@/lib/geolocation';
 import { addressNumberNotice, businessLocationNotice, resolvePointLabel, type Coordinates, type LocationSelection } from '@/lib/locations';
 import LocationBookTools from './LocationBookTools';
+import LocationReviewLinks from './LocationReviewLinks';
 import { useLocationBook } from './LocationBookProvider';
 import { validLocation } from '@/lib/location-book';
 import { fetchLocationSuggestions, LocationSearchError } from '@/lib/location-search';
@@ -232,7 +233,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       {businessLocationNotice(pending) && <p className="address-number-notice" role="status">{businessLocationNotice(pending)}</p>}
       {addressNumberNotice(pending) && <p className="address-number-notice" role="status">{addressNumberNotice(pending)}</p>}
       {pending.numberMatch && pending.numberMatch !== 'matched' && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value.trim())}`} target="_blank" rel="noreferrer">Buscar la dirección escrita en Google Maps ↗</a>}
-      <a href={`https://www.google.com/maps/search/?api=1&query=${pending.lat},${pending.lng}`} target="_blank" rel="noreferrer">Ver mapa ↗</a>
+      <LocationReviewLinks point={pending}/>
       <button type="button" className="map-open-button" onClick={() => { setMapSeed(pending); setMapOpen(true); }}>Corroborar aquí en el mapa</button>
       <div className="location-confirm-actions"><button type="button" onClick={() => setPending(null)}>Elegir otro</button><button type="button" onClick={confirmPending}>Confirmar punto</button></div>
     </div>}
