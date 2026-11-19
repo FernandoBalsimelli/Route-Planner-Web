@@ -495,6 +495,7 @@ test('mobile branch confirmation preserves street and coordinates after showing 
   await page.goto(base);await page.getByRole('combobox',{name:'Destino',exact:true}).fill('Bodega Aurrera Express');await page.getByRole('option',{name:/Calle Cedro 101/}).click();
   await page.getByText(/Corrobora la sucursal y el acceso de descarga/).waitFor();assert.equal(await page.locator('.location-confirmed').count(),0);
   const link=page.getByRole('link',{name:'Ver mapa ↗',exact:true});assert.equal(new URL(await link.getAttribute('href')).searchParams.get('query'),'25.6801,-100.31');
+  const street=page.getByRole('link',{name:'Ver entorno en Street View ↗',exact:true});const streetParams=new URL(await street.getAttribute('href')).searchParams;assert.equal(streetParams.get('map_action'),'pano');assert.equal(streetParams.get('viewpoint'),'25.6801,-100.31');assert.equal(await street.getAttribute('target'),'_blank');await page.getByText(/imágenes antiguas o un punto cercano/).waitFor();assert.equal(await page.locator('.location-confirmed').count(),0);
   await page.getByRole('button',{name:'Confirmar punto',exact:true}).click();assert.equal(await page.getByRole('combobox',{name:'Destino',exact:true}).inputValue(),'Bodega Aurrera Express, Calle Cedro 101, Monterrey');assert.equal(await page.locator('.location-confirmed').count(),1);
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
  }finally{await context.close();}

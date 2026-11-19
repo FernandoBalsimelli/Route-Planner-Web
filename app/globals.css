@@ -98,6 +98,11 @@
 .saved-trace-points small { color: var(--muted); }
 .saved-trace-controls{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.8rem}
 .saved-trace-legend{font-size:.8rem;color:var(--muted);margin-block:.8rem}
+.location-review-links{display:grid;gap:.4rem;min-width:0;margin-block:.5rem}
+.location-review-links>div{display:flex;flex-wrap:wrap;gap:.5rem 1rem}
+.location-review-links small{font-size:.76rem;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}
+.saved-access-review{padding:1rem;border:1px solid var(--line);border-radius:12px;background:var(--surface);margin-block:1rem;overflow-wrap:anywhere}
+.saved-access-review>p{margin-block:.4rem}
 .saved-trace-points li{grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.7rem}
 .saved-trace-points li>div{display:grid;gap:.25rem;min-width:0}
 .saved-trace-points button[aria-pressed=true]{border-color:var(--primary);background:var(--primary-soft)}
