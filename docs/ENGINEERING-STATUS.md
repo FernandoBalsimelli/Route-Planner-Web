@@ -2,22 +2,22 @@
 
 Fecha de revisión: 2026-11-18. Alcance: exclusivamente Route Planner.
 
-Estado vigente: el trazado guardado distingue avance manual en el mapa y permite
-ubicar una visita concreta o la primera pendiente, conservando ocurrencias
-repetidas y números originales. Ver recorrido completo restaura la vista. Estas
-acciones no recalculan, escriben avance ni modifican enlaces Google; se mantiene
-el cierre de revisiones antiguas cuando cambia el recorrido o su avance.
-Web 341372f publicada; API 46b5ec1 incorpora el enlace histórico oficial de la
-Gaceta CDMX 15-12-2021 como evidencia pendiente, sin cambiar las cinco reglas.
-La descarga directa dio 503; el monitor de 2026-11-18T21:15:11.351Z informa
-NETWORK_OR_TIMEOUT y hash nulo. Reporte reciente no equivale a fuente disponible
-ni vigencia aprobada. Continúan 15 municipios parciales y cero completos.
-Se mantienen integridad Directions, vehículos, manifiestos/OCR, GPS, búsqueda
-cercana, coordenadas/Plus Codes y enlaces Google consecutivos sin perder entregas.
-Pruebas locales/CI y comprobaciones públicas se documentan al final. La sesión
-privada alojada, ORS real y Android físico siguen pendientes; Google no recibe
-HGV ni conserva obligatoriamente el trazado. Commits, despliegues y rollback en
-el último cierre. Las entradas anteriores son historial y el programa continúa.
+Estado vigente: antes de confirmar una ubicación y al enfocar una visita guardada
+se puede revisar el punto en Google Maps y su entorno en Street View mediante
+enlaces explícitos con las coordenadas exactas. No cambian confirmación, avance,
+orden o navegación y no se hacen consultas externas hasta pulsarlos. La imagen
+puede ser antigua, cercana o no existir; no verifica el acceso de un camión.
+Web 6fc43e3 publicada; API sigue 46b5ec1 y conserva integridad Directions y
+seguimiento de la Gaceta histórica CDMX. Se mantienen marcadores manuales,
+ocurrencias repetidas, GPS, vehículos, manifiestos/OCR, búsquedas cercanas,
+Plus Codes y enlaces Google consecutivos sin perder entregas.
+Se localizó la publicación estatal de Puebla 21/abr/2026 como pista de procedencia,
+separada de reglas municipales. Descargas directas 503 y lectura posterior 502;
+sin bytes nuevos ni cambios de reglas. Hay 15 municipios parciales y cero completos.
+Resultados locales/CI, comprobaciones públicas, commits, deployments, rollback
+y punto de reanudación al final. ORS real alojado, sesión privada de producción
+y Android físico siguen pendientes. Google no recibe HGV ni fija el trazado.
+Las entradas anteriores son historial; el programa maestro continúa abierto.
 
 ## Recursos verificados
 
@@ -4005,3 +4005,163 @@ reformas posteriores, excepciones, ámbito y permisos antes de cambiar reglas;
 continuar publicación/reformas y geometrías verificables de Puebla. Google no
 recibe HGV y los puntos guía no bloquean su trazado. El programa maestro sigue
 incompleto. La continuación existente se comprobó habilitada y se mantiene activa.
+
+
+## Cierre de ciclo · revisión del acceso de una entrega · 18-11-2026
+
+### Diagnóstico y cambio implementado
+
+Preflight fresco: Web main 0158d3fecc3adddf5ee19629bcf892ec4ee20a87,
+producción 341372febb9ed315c05d0e6ea071d3e315f52d35 /
+dpl_Dm7TAQzPrVv6hT8Zb2DEYvAyT2Q1. API main a60105162429e549868e94bb3a82b8cd2e54b9ac,
+producción 46b5ec160d777399bb8b3fc36ac1a778ef01d133 /
+dpl_3ddjor55pNbutkjyzDtpfNq66DCv. Se leyeron ambos informes de main y se
+preservaron todos los avances, incluido el reporte del bot. Sin AGENTS.md aplicable.
+No se reprodujo Failed to fetch en los probes públicos de esta sesión.
+
+La confirmación sólo ofrecía un mapa externo; la visita enfocada en el trazado
+guardado no ofrecía consultar su entorno. Se añade una revisión explícita del
+acceso para ayudar a distinguir la sucursal y su entrada de descarga. No se
+presenta el punto del negocio o una fotografía como entrada verificada.
+
+LocationReviewLinks se reutiliza en la confirmación de ubicaciones y en el panel
+de la ocurrencia elegida del trazado guardado. Ofrece Ver mapa / Ver punto en
+Google Maps y Ver entorno en Street View. Los enlaces reciben únicamente las
+coordenadas numéricas exactas del punto, sin buscar por nombre, redondearlas o
+enviar el resto del recorrido. Se rechazan valores no numéricos/no finitos/fuera
+de rango; cero y los extremos válidos se conservan. No se inventa una ubicación
+predeterminada cuando el punto no es válido.
+
+Los enlaces son anchors ordinarios externos con noopener/noreferrer. No hay SDK,
+embed, prefetch, clave Google ni servicio de pago. Sólo al pulsar se abre Google.
+El texto explica que Street View puede no tener cobertura y puede mostrar una
+fotografía antigua o de un punto cercano; se debe corroborar la entrada y la
+señalización actual. No acredita acceso o permiso para el camión. En confirmación
+se mantiene Confirmar punto como acción separada. En Mis rutas → Entregas →
+Revisar navegación → Ver trazado guardado → Ubicar en mapa, el panel muestra
+identidad, dirección y coordenadas de la visita elegida, incluidas repeticiones.
+Ver recorrido completo cierra ese panel. La retirada de una revisión obsoleta
+también lo elimina. No escribe avance, corrige puntos, recalcula o cambia los
+enlaces consecutivos de navegación. Para corregir un acceso hay que cargar la
+ruta y revisar el punto antes de volver a calcular.
+
+Documentación primaria consultada el 18-11-2026:
+https://developers.google.com/maps/documentation/urls/get-started
+Maps URLs no exige clave API; map_action=pano/viewpoint abre la imagen más cercana
+si existe. Eso no garantiza correspondencia exacta, fecha actual o cobertura.
+Se usa la sintaxis documentada y no servicios de metadatos/imagen facturables.
+
+Archivos de implementación: lib/location-review.ts, components/LocationReviewLinks.tsx,
+components/LocationInput.tsx, components/SavedRouteTraceReview.tsx, app/globals.css.
+Pruebas: test/location-review.test.mjs, test/geolocation.e2e.mjs,
+test/integration/authenticated.e2e.mjs. next-env.d.ts generado por build se excluye.
+Sin cambios API, esquema, dependencias, variables o secretos.
+
+### Verificación
+
+Web local: build, typecheck, 191 pruebas y auditoría de producción con cero
+vulnerabilidades. Cuatro casos nuevos comprueban precisión, cero/extremos,
+entradas inválidas, enlaces externos y ausencia de embed/confirmación automática.
+En la primera ejecución local, dos casos de render fallaron por el interop del
+import estático TSX del arnés Node. Se corrigió a import dinámico como los tests
+existentes; la repetición final pasó 191/191. Sin cambio de producto por ese fallo.
+[CI 44440935320](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/44440935320):
+job 135281302122 pasó typecheck/build, 191 pruebas, 38 casos de navegador y
+auditoría sin vulnerabilidades. Job 135281302416 pasó diez flujos autenticados
+con Auth/REST/PostgreSQL locales reales y la API fijada en 772a6b2. El caso de
+trazado en 390/1365 px comprobó el panel Entrega 2, dos URLs a sus coordenadas
+completas, target/rel, aviso de cobertura, cierre al restaurar el recorrido y
+permanencia de los 50 puntos, geometría, enlaces e historial. El caso móvil de
+Aurrera comprobó Street View antes de confirmar sin marcar aún el punto.
+
+API main sin cambios de código, comprobada de nuevo localmente: build/sintaxis, 82 pruebas y auditoría npm de producción con cero vulnerabilidades.
+No se presenta el CI de la liberación anterior como nueva ejecución. Supabase
+alojado sólo leído: 3 rutas, 10 paradas, 1 vehículo, cero eventos de avance y cero
+enlaces. Sin cuentas ni datos de prueba nuevos en producción; avisos previos de
+seguridad sin cambios. El intento de Chromium local no pudo arrancar porque falta
+chromium_headless_shell-1234; CI ejecuta sus propios navegadores.
+
+Probes: salud/proxy, coordenada 28.6353,-106.0889, Plus Code completo
+75XMRW22+22 y compuesto RW22+22 Chihuahua: 200, una sugerencia por formato;
+Bodega Aurrera Express cerca de Chihuahua: 200 y ocho resultados. Validación
+0/2/48 intermedias: 200; 49: 400. Plan sin sesión: 401. Reporte de fuentes
+observado 2026-11-18T21:15:11.351Z, stale=false. Un reporte reciente no aprueba
+los documentos inaccesibles. CORS directo: origen Web autorizado devuelve 204 con allow-origin; el ajeno
+example.invalid devuelve 404 sin allow-origin. Estos probes no son cálculos
+autenticados reales.
+Tras publicar se repitieron por el nuevo alias las cuatro búsquedas con los
+mismos resultados. La interfaz pública mostró ambos enlaces y su aviso en la
+confirmación de la coordenada. Al pulsar Street View se abrió Google en otra
+pestaña: panorama de 1781 Av. Mirador, Chihuahua, captura Jun 2024, con posición
+cercana a la solicitada. Al volver permanecía el punto pendiente; sólo Confirmar
+punto lo marcó y creó el marcador D. Capturas conservadas de la interfaz y del
+panorama. Se prueba esa apertura pública real, no una entrada de descarga o
+cobertura general. Logs de ambos proyectos Vercel, error/fatal agrupados por
+requestPath en 30 minutos: sin filas en la consulta puntual.
+
+Las pruebas privadas de sesión/rutas usan Auth, REST y PostgreSQL reales locales,
+con geometría y ORS sintéticos. No se convierten en prueba Android físico, cálculo
+alojado real o garantía de navegación en Google. La cobertura y antigüedad de las
+imágenes no se verifican por construir un enlace. La prueba pública de Google no sustituye esas comprobaciones pendientes.
+
+### Investigación normativa y límites reales
+
+Se encontró la publicación oficial del decreto estatal de Puebla de 21/abr/2026:
+https://periodicooficial.puebla.gob.mx/media/k2/attachments/T_EV_21042026.pdf
+El buscador devolvió el PDF como documento paginado de 20 páginas; se pudo leer
+el sumario y la relación de artículos modificados. Es reforma del Reglamento
+de la Ley de Transporte del Estado, distinta de los lineamientos municipales
+de maniobras. La página OJP también identifica publicación base 02/jun/2022 y
+última reforma 21/abr/2026. Esta localización mejora la cadena de procedencia,
+pero no acredita consolidación completa ni todas las reformas posteriores.
+
+Los intentos directos del 19-11-2026 01:59 UTC (18-11 en Chihuahua) al decreto,
+consolidado OJP y Aviso Carga y Descarga 15122021 de CDMX devolvieron HTTP 503;
+la consulta posterior del final del decreto mediante el buscador devolvió 502.
+No se obtuvieron bytes o hashes nuevos ni se completó revisión visual/íntegra o
+de transitorios. No se inventan resultados de descarga a partir del texto indexado.
+Fuentes de continuación:
+https://ojp.puebla.gob.mx/legislaciondelestado?catid=242&start=20
+https://ojp.puebla.gob.mx/media/k2/attachments/Reglamento_de_la_Ley_de_Transporte_del_Estado_de_Puebla_T5_11112024_1.pdf
+https://www.autoridadcentrohistorico.cdmx.gob.mx/storage/app/media/Aviso%20Carga%20y%20Descarga%2015122021.pdf
+La última referencia relaciona publicaciones históricas 20/sep/2019, 18/dic/2019
+y 15/dic/2021; tampoco se usa para resolver horarios contradictorios sin cotejo.
+No se altera el catálogo normativo ni su monitor por estas pistas. Siguen 15
+municipios parciales y cero con validación legal completa; no hay nueva geometría
+o restricción aplicada al motor. El ámbito estatal no se confunde con el municipal.
+
+### Publicación y recuperación
+
+Web PR [#38](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/38),
+candidato 8f721841e1023d1a9bbc75abb04a6a5ac1460257. Merge **6fc43e3f3bbf0fffd5019625c1a8c3ee0baccadb**, deployment
+**dpl_CFySMhiKGLJ6dPEh69XoGpyKSzUP**, READY/production. Alias
+https://route-planner-web-sand.vercel.app/ comprobado al mismo SHA.
+Los ocho archivos del candidato se contrastaron byte a byte con lo probado localmente.
+Rollback Web conservado: dpl_Dm7TAQzPrVv6hT8Zb2DEYvAyT2Q1 /341372f.
+API conserva 46b5ec160d777399bb8b3fc36ac1a778ef01d133,
+deployment dpl_3ddjor55pNbutkjyzDtpfNq66DCv READY; alias verificado inicialmente
+https://route-planner-api.vercel.app/. No requiere nuevo deploy. Su main a601051
+sólo añade reporte técnico respecto a producción, sin funcionalidad sin publicar.
+
+No se ejecutó rollback, borrado de datos o migración; recuperar el deployment
+Web anterior mantiene el historial y los datos. Ramas y candidatos conservados.
+Gestión y otros proyectos no se tocaron; ningún servicio de pago activado. El
+cierre [skip ci] sólo actualiza estos informes y no necesita redeploy funcional.
+
+### Punto de reanudación
+
+Completado: revisión externa explícita del punto seleccionado, límites de imágenes
+y protección de identidad/precisión sin editar navegación o avance. Parcial:
+corroboración documental mexicana. Bloqueados en este intento: recuperación íntegra
+de fuentes citadas por 503/502; no es un bloqueo global del programa. Pendientes:
+sesión alojada/ORS real y Android físico, corrección revisada de un acceso y
+cadena normativa/geometrías/permisos completos. Google no recibe HGV y los puntos
+guía no fijan su trazado.
+
+Próxima P0: prueba alojada con proveedor real cuando existan medios de prueba
+apropiados. Próxima P1: mantener identidad y avance al revisar/corregir el acceso
+de descarga de una entrega cargada, exigiendo recalcular/revisar antes de navegar.
+Normativa: recuperar decreto y consolidado estatal por separado de los lineamientos
+municipales de Puebla, verificar transitorios/reformas/ámbito; retomar las tres
+Gacetas históricas CDMX y sus actos posteriores antes de cambiar horarios. El
+programa completo sigue abierto y se conserva la continuación existente activa.

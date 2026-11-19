@@ -706,3 +706,38 @@ no equivalen a cobertura legal nacional. Tampoco el enfoque visual de entregas
 del Web PR #37 ni el avance manual validan circulación o transmiten HGV a Google.
 Los puntos guía orientan y Google puede recalcular. Resultados y rollback en el
 último cierre de ENGINEERING-STATUS.md.
+
+
+## Procedencia estatal de Puebla y revisión visual de puntos · 18-11-2026
+
+Se localizó la publicación oficial del decreto de 21/abr/2026 que modifica el
+Reglamento de la Ley de Transporte del Estado de Puebla:
+https://periodicooficial.puebla.gob.mx/media/k2/attachments/T_EV_21042026.pdf
+OJP identifica publicación base 02/jun/2022 y reforma 21/abr/2026:
+https://ojp.puebla.gob.mx/legislaciondelestado?catid=242&start=20
+El buscador permitió leer el sumario y relación de artículos del PDF paginado
+de 20 páginas. Es ámbito estatal; no sustituye lineamientos municipales de carga,
+reglas de estacionamiento o permisos de maniobras. Faltan revisión íntegra de
+transitorios, cotejo de consolidación y actos posteriores. No se incorporan reglas.
+
+El intento directo 19-11-2026 01:59 UTC (18-11 Chihuahua) al decreto, al consolidado
+OJP ya identificado y al aviso histórico CDMX devolvió 503. La lectura posterior
+del final del decreto por buscador devolvió 502. No se obtuvieron bytes, hashes
+nuevos ni revisión visual/íntegra; los textos indexados no se presentan como
+descargas verificadas. El aviso de CDMX relaciona Gacetas de 20/sep/2019,
+18/dic/2019 y 15/dic/2021, pendientes de recuperación y cotejo:
+https://www.autoridadcentrohistorico.cdmx.gob.mx/storage/app/media/Aviso%20Carga%20y%20Descarga%2015122021.pdf
+Los hallazgos no resuelven por sí solos las diferencias de horarios entre folletos.
+
+Web PR #38 ofrece enlaces explícitos para revisar el punto seleccionado en Google
+Maps/Street View antes de confirmar y desde el trazado guardado. Usan coordenadas
+exactas y no cambian identidad de visita, avance, orden o enlaces de navegación.
+La imagen puede ser antigua, cercana o no existir; no acredita un acceso de carga,
+restricción actual o permiso. Sin SDK, clave o servicio de pago; sólo abre Google
+al pulsar. Documentación primaria:
+https://developers.google.com/maps/documentation/urls/get-started
+
+Se conserva el catálogo y monitor anteriores: 15 municipios con referencias
+parciales, cero con validación legal completa y ninguna geometría legal nueva.
+Google no recibe dimensiones/peso HGV ni conserva obligatoriamente el trazado.
+Pruebas, producción y rollback en el último cierre de ENGINEERING-STATUS.md.
