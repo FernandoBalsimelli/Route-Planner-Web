@@ -1,3 +1,4 @@
+import { confirmLocation } from './helpers/confirm-location.mjs';
 import assert from 'node:assert/strict';
 import {test,after,afterEach} from 'node:test';
 import React,{act} from 'react';
@@ -40,7 +41,7 @@ async function account(next,event=next?'SIGNED_IN':'SIGNED_OUT'){authUser=next;a
 function button(text){return [...container.querySelectorAll('button')].find(node=>node.textContent.includes(text));}
 const input=title=>container.querySelector(`input[aria-label="${title}"]`);
 async function fill(node,text){await act(async()=>{Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(node,text);node.dispatchEvent(new window.Event('input',{bubbles:true}));});}
-async function planned(){await fill(input('Origen'),'Private origin');await fill(input('Destino'),'Private destination');await act(async()=>button('Calcular ruta').click());assert.ok(container.querySelector('.metrics'));}
+async function planned(){await confirmLocation(input('Origen'),'Private origin');await confirmLocation(input('Destino'),'Private destination');for(const stop of container.querySelectorAll('.stop-field [role="combobox"]'))await confirmLocation(stop,stop.value);await act(async()=>button('Calcular ruta').click());assert.ok(container.querySelector('.metrics'));}
 afterEach(async()=>{await act(async()=>root?.unmount());root=null;container?.remove();globalThis.fetch=original.fetch;supabase.from=original.from;supabase.rpc=original.rpc;supabase.auth.getUser=original.getUser;supabase.auth.getSession=original.getSession;supabase.auth.onAuthStateChange=original.onAuth;});
 after(async()=>{await supabase.auth.stopAutoRefresh();globalThis.BroadcastChannel=oldChannel;css.deregister();dom.window.close();});
 
@@ -54,7 +55,7 @@ test('guest input survives sign-in and token refresh, but signing out clears pri
 
 test('late plan cannot repopulate another account after sign-out even when provider ignores abort',async()=>{
  setup();let complete,signal;globalThis.fetch=async(url,options)=>url.endsWith('/v1/routes/plan')?new Promise(resolve=>{complete=resolve;signal=options.signal;}):Response.json({ok:true,suggestions:[]});
- await render();await account(alice);await fill(input('Origen'),'Old origin');await fill(input('Destino'),'Old destination');await act(async()=>button('Calcular ruta').click());assert.ok(complete);
+ await render();await account(alice);await confirmLocation(input('Origen'),'Old origin');await confirmLocation(input('Destino'),'Old destination');await act(async()=>button('Calcular ruta').click());assert.ok(complete);
  await account(null);await account(bob);await fill(input('Origen'),'Bob draft');await act(async()=>complete(Response.json({ok:true,route:result})));
  assert.equal(signal.aborted,true);assert.equal(input('Origen').value,'Bob draft');assert.equal(input('Destino').value,'');assert.equal(container.querySelector('.metrics'),null);assert.equal(container.querySelector('.error-box'),null);
 });

@@ -24,6 +24,7 @@ import LocationBookProvider from '@/components/LocationBookProvider';
 import RouteExports from '@/components/RouteExports';
 import { persistRoute, routeSaveData } from '@/lib/route-save';
 import { readSavedRoutePoints, savedCalculationMatchesPoints } from '@/lib/saved-route-restore';
+import { confirmedRouteInputs, routePointIssues } from '@/lib/confirmed-route-inputs';
 import AppIcon from '@/components/AppIcon';
 import ThemeToggle from '@/components/ThemeToggle';
 import TruckGuide from '@/components/TruckGuide';
@@ -136,12 +137,13 @@ export default function Home() {
     setLoading(false);
   }, [origin, destination, selectedOrigin, selectedDestination, stops, mode, vehicle, operating, optimizeStops, preferences, requestAlternatives]);
   useEffect(() => () => { planningRequest.current?.abort(); accountScope.current.version += 1; restoreGeneration.current += 1; }, []);
-  const canPlan = origin.trim().length > 2 && destination.trim().length > 2 && !loading;
+  const pointIssues = useMemo(() => routePointIssues({value:origin,selected:selectedOrigin},stops,{value:destination,selected:selectedDestination}),[origin,selectedOrigin,stops,destination,selectedDestination]);
+  const canPlan = pointIssues.length === 0 && !loading;
   const navigationPoints = useMemo(() => {
     return result?.waypoints?.length
       ? result.waypoints
-      : [selectedOrigin || origin, ...stops.map(s => s.selected || s.value), selectedDestination || destination];
-  }, [origin, destination, selectedOrigin, selectedDestination, stops, result]);
+      : pointIssues.length ? [] : [selectedOrigin!, ...stops.map(stop => stop.selected!), selectedDestination!];
+  }, [selectedOrigin, selectedDestination, stops, result, pointIssues]);
 
   useEffect(() => {
     let cancelled = false;
@@ -256,6 +258,7 @@ export default function Home() {
     planningRequest.current = controller;
     setLoading(true); setError(''); setResult(null); setMapSearch(null); setRouteChoices([]); setAlternativeNotice('');
     try {
+      const locations = confirmedRouteInputs({value:origin,selected:selectedOrigin},stops,{value:destination,selected:selectedDestination});
       const operatingParameters = mode === 'truck' ? operatingInput(operating) : {};
       let sessionData;
       try {
@@ -273,7 +276,7 @@ export default function Home() {
         response = await fetch(`${API_URL}/v1/routes/plan`, {
           signal: controller.signal,
           method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${sessionData.session.access_token}` },
-          body: JSON.stringify({ origin: selectedOrigin || origin.trim(), destination: selectedDestination || destination.trim(), stops: stops.filter(s => s.value.trim()).map(s => s.selected || s.value.trim()), mode, preferences, alternatives: requestAlternatives && stops.length === 0, optimize: optimizeStops && mode === 'delivery' && !hasRoadPreferences(preferences), vehicle: mode === 'truck' ? { heightM: Number(vehicle.height), widthM: Number(vehicle.width), lengthM: Number(vehicle.length), grossWeightT: Number(vehicle.grossWeight), axleWeightT: Number(vehicle.axleWeight), ...operatingParameters } : undefined }),
+          body: JSON.stringify({ ...locations, mode, preferences, alternatives: requestAlternatives && stops.length === 0, optimize: optimizeStops && mode === 'delivery' && !hasRoadPreferences(preferences), vehicle: mode === 'truck' ? { heightM: Number(vehicle.height), widthM: Number(vehicle.width), lengthM: Number(vehicle.length), grossWeightT: Number(vehicle.grossWeight), axleWeightT: Number(vehicle.axleWeight), ...operatingParameters } : undefined }),
         });
       } catch {
         throw new Error('No se pudo conectar con Route Planner API. La conexión fue interrumpida antes de recibir respuesta.');
@@ -351,6 +354,11 @@ export default function Home() {
           <label className="optimize-toggle"><input type="checkbox" checked={optimizeStops} onChange={e => { setOptimizeStops(e.target.checked); setStopOrderMessage(''); setResult(null); }} disabled={mode === 'truck' || hasRoadPreferences(preferences) || stops.filter(stop => stop.value.trim()).length < 2}/><span><b>Optimizar orden de paradas</b><small>{mode === 'truck' ? 'Camión: se conserva el orden y se envían tus medidas al proveedor.' : hasRoadPreferences(preferences) ? 'Orden actual: la optimización no aplica las preferencias de carretera.' : 'Con dos o más entregas, busca el orden con menor tiempo de viaje.'}</small></span></label>
           <label className="optimize-toggle alternative-toggle"><input type="checkbox" checked={requestAlternatives} disabled={stops.length > 0} onChange={event => { setRequestAlternatives(event.target.checked); setResult(null); setRouteChoices([]); setAlternativeNotice(''); }}/><span><b>Buscar rutas alternativas</b><small>{stops.length ? 'Para todas tus entregas se calcula un recorrido en el orden indicado. Las alternativas requieren sólo origen y destino.' : 'Hasta tres recorridos, si el proveedor encuentra opciones. Sin paradas intermedias; límite publicado de 100 km.'}</small></span></label>
           {mode === 'truck' && <details className="vehicle-panel" open><summary><AppIcon name="truck" size={18}/><span>Medidas del camión cargado</span></summary><div className="vehicle-fields">{([['height','Altura (m)','0.5','10'],['width','Ancho (m)','0.5','5'],['length','Largo (m)','1','30'],['grossWeight','Peso bruto (t)','0.1','100'],['axleWeight','Peso por eje (t)','0.1','30']] as const).map(([key,title,min,max]) => <label key={key}>{title}<input type="number" min={min} max={max} step="0.1" value={vehicle[key]} onChange={event => { setVehicle(values => ({...values,[key]:event.target.value})); setResult(null); }}/></label>)}</div><VehicleOperatingFields value={operating} onChange={value=>{setOperating(value);setResult(null);}}/><p className="hint">Los valores iniciales son un ejemplo. Usa los de tu unidad.</p><button type="button" className="text-button" onClick={() => openWorkspace('guide')}>Qué restricciones considera esta ruta ↗</button></details>}
+          {pointIssues.length > 0 && Boolean(origin.trim() || destination.trim() || stops.length) && <section className="route-point-review coverage-status" aria-label="Ubicaciones por confirmar" role="status">
+            <strong>{pointIssues.length} {pointIssues.length === 1 ? 'ubicación pendiente' : 'ubicaciones pendientes'} de confirmar</strong>
+            <p>{pointIssues[0].empty ? 'Escribe y confirma la ubicación, o elimina la parada si no corresponde a una entrega.' : 'Elige una sugerencia y confirma el punto, o selecciónalo en el mapa. Escribir una dirección no confirma la sucursal.'}</p>
+            <button type="button" className="text-button" onClick={() => { const field = document.querySelector<HTMLInputElement>(`input[aria-label="${pointIssues[0].label}"]`); field?.scrollIntoView?.({behavior:'smooth',block:'center'}); field?.focus(); }}>Revisar {pointIssues[0].label.toLowerCase()}</button>
+          </section>}
           <div className="plan-actions"><button type="button" className="primary-button" disabled={!canPlan} onClick={planRoute}>{loading ? 'Calculando ruta…' : 'Calcular ruta'}<AppIcon name="arrow"/></button>{!user && <small>Inicia sesión para calcular y guardar tus recorridos.</small>}</div>
           {error && <div className="error-box" role="alert"><strong>No se pudo calcular</strong><p>{error}</p>{providerStatus === 'missing' && <small>El servicio de rutas requiere configuración del administrador.</small>}</div>}
           {restoreNotice && <p className="coverage-status" role="status">{restoreNotice}</p>}

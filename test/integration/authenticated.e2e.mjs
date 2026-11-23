@@ -102,9 +102,14 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
       assert.ok(rejected.error, 'real REST must enforce configuration and capacity constraints');
     }
     assert.equal((await rows(first.client,'vehicles'))[0].payload_capacity_t,30.125);
-    await point(page, 'Origen', '28.632995, -106.0691');
+    const planAttempts=[];page.on('request',request=>{if(new URL(request.url()).pathname.endsWith('/v1/routes/plan'))planAttempts.push(request);});
+    await page.getByRole('combobox',{name:'Origen',exact:true}).fill('Bodega Aurrera Express');
     await point(page, 'Destino', '28.63958, -106.08325');
+    assert.ok(await page.getByRole('button',{name:'Calcular ruta',exact:true}).isDisabled());assert.equal(planAttempts.length,0);assert.equal(await page.locator('.navigation-segments a').count(),0);
+    await point(page, 'Origen', '28.632995, -106.0691');
     await page.getByRole('button', { name: 'Agregar parada' }).click();
+    assert.ok(await page.getByRole('button',{name:'Calcular ruta',exact:true}).isDisabled());await page.getByRole('button',{name:'Revisar parada 1',exact:true}).click();assert.ok(await page.getByRole('combobox',{name:'PARADA 1',exact:true}).evaluate(node=>node===document.activeElement));
+    await page.getByRole('combobox',{name:'PARADA 1',exact:true}).fill('Entrega escrita sin confirmar');assert.ok(await page.getByRole('button',{name:'Calcular ruta',exact:true}).isDisabled());assert.equal(planAttempts.length,0);
     await point(page, 'PARADA 1', '28.64, -106.07');
     await page.getByRole('button', { name: 'Agregar parada' }).click();
     await point(page, 'PARADA 2', '28.65, -106.08');
@@ -116,6 +121,7 @@ test('real local Auth, browser, proxy, API and RLS complete the vehicle and rout
     const response = await planResponse;
     assert.equal(response.status(), 200, 'real bearer session must pass proxy and API Auth validation');
     const planned = (await response.json()).route;
+    assert.equal(planAttempts.length,1);assert.equal(planAttempts[0].postDataJSON().stops.length,2);assert.ok(planAttempts[0].postDataJSON().stops.every(point=>typeof point.lat==='number'));
     assert.equal(planned.waypoints.length, 4);
     assert.equal(planned.vehicleContext.axleCount, 5);
     assert.equal(planned.vehicleContext.configuration, 'T3-S2');

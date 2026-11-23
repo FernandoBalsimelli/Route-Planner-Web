@@ -1,3 +1,4 @@
+import { confirmLocation } from './helpers/confirm-location.mjs';
 import assert from 'node:assert/strict';
 import { after, afterEach, test } from 'node:test';
 import { JSDOM } from 'jsdom';
@@ -35,6 +36,27 @@ async function fill(input, value) {
   });
 }
 
+test('planning and Google navigation require every confirmed occurrence and never skip an empty delivery',async()=>{
+ let calls=0,body;
+ globalThis.fetch=async(url,options)=>{
+  if(url.endsWith('/routes/plan')){calls++;body=JSON.parse(options.body);return Response.json({ok:true,route:{distanceMeters:1000,durationSeconds:100,sections:[],waypoints:[]}});}
+  const q=new URL(url,'https://example.test').searchParams.get('q');return Response.json({ok:true,suggestions:q?[{label:q,lat:28.635300123,lng:-106.088900456}]:[]});
+ };
+ container=document.createElement('div');document.body.append(container);root=createRoot(container);await act(async()=>root.render(React.createElement(Home)));
+ const origin=container.querySelector('[aria-label="Origen"]'),destination=container.querySelector('[aria-label="Destino"]');
+ await fill(origin,'Bodega Aurrera Express');await fill(destination,'75XMRW22+22');await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));
+ assert.equal(button('Calcular ruta').disabled,true);await act(async()=>button('Calcular ruta').click());assert.equal(calls,0);assert.equal(container.querySelector('.navigation-links'),null);
+ await act(async()=>button('Revisar origen').click());assert.equal(document.activeElement,origin);
+ for(const input of [origin,destination]){await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));const field=input.closest('.location-field');assert.ok(field.querySelector('[role="option"]'));await act(async()=>field.querySelector('[role="option"]').click());await act(async()=>[...field.querySelectorAll('button')].find(b=>b.textContent==='Confirmar punto').click());}
+ assert.equal(button('Calcular ruta').disabled,false);await act(async()=>button('Agregar parada').click());assert.equal(button('Calcular ruta').disabled,true);assert.equal(container.querySelector('.navigation-links'),null);
+ await act(async()=>button('Revisar parada 1').click());const stop=container.querySelector('[aria-label="PARADA 1"]');assert.equal(document.activeElement,stop);
+ await fill(stop,'Entrega propuesta');await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));const field=stop.closest('.location-field');await act(async()=>field.querySelector('[role="option"]').click());assert.equal(button('Calcular ruta').disabled,true);
+ await act(async()=>[...field.querySelectorAll('button')].find(b=>b.textContent==='Confirmar punto').click());assert.equal(button('Calcular ruta').disabled,false);
+ await act(async()=>button('Calcular ruta').click());assert.equal(calls,1);assert.equal(body.stops.length,1);assert.equal(body.stops[0].lat,28.635300123);assert.equal(body.origin.lng,-106.088900456);assert.equal(typeof body.destination,'object');
+ await fill(stop,'');assert.equal(button('Calcular ruta').disabled,true);assert.equal(container.querySelector('.metrics'),null);assert.equal(container.querySelector('.navigation-links'),null);assert.equal(container.querySelectorAll('.stop-field').length,1);
+ await act(async()=>container.querySelector('[aria-label="Eliminar parada 1"]').click());assert.equal(button('Calcular ruta').disabled,false);assert.ok(container.querySelector('.navigation-links'));
+});
+
 test('manual order disables optimization, reaches the API in order, and stale calculations are discarded', async () => {
   let complete, plannedBody, plannedSignal;
   globalThis.fetch = async (url, options) => {
@@ -51,14 +73,14 @@ test('manual order disables optimization, reaches the API in order, and stale ca
   await act(async () => button('Agregar parada').click());
   await act(async () => button('Agregar parada').click());
   const inputs = [...container.querySelectorAll('.route-form .field input')];
-  for (const [index, value] of ['Origen de prueba', 'Entrega uno', 'Entrega dos', 'Destino de prueba'].entries()) await fill(inputs[index], value);
+  for (const [index, value] of ['Origen de prueba', 'Entrega uno', 'Entrega dos', 'Destino de prueba'].entries()) await confirmLocation(inputs[index], value);
   const optimize = container.querySelector('.optimize-toggle input');
   await act(async () => optimize.click());
   assert.equal(optimize.checked, true);
   await act(async () => container.querySelector('[aria-label="Bajar parada 1"]').click());
   assert.equal(optimize.checked, false);
   await act(async () => button('Calcular ruta').click());
-  assert.deepEqual(plannedBody.stops, ['Entrega dos', 'Entrega uno']);
+  assert.deepEqual(plannedBody.stops.map(point=>point.label), ['Entrega dos', 'Entrega uno']);assert.ok(plannedBody.stops.every(point=>typeof point.lat==='number'));
   assert.equal(plannedBody.optimize, false);
   const destination = [...container.querySelectorAll('.route-form .field input')].at(-1);
   await fill(destination, 'Destino cambiado');
@@ -82,7 +104,7 @@ test('road preferences disable incompatible optimization and abort stale calcula
   container = document.createElement('div'); document.body.append(container); root = createRoot(container);
   await act(async () => root.render(React.createElement(Home)));
   for (let i = 0; i < 2; i++) await act(async () => button('Agregar parada').click());
-  for (const [index, input] of [...container.querySelectorAll('.route-form .field input')].entries()) await fill(input, `Punto de prueba ${index}`);
+  for (const [index, input] of [...container.querySelectorAll('.route-form .field input')].entries()) await confirmLocation(input, `Punto de prueba ${index}`);
   const optimize = container.querySelector('.optimize-toggle input');
   await act(async () => optimize.click());
   assert.equal(optimize.checked, true);
@@ -113,7 +135,7 @@ test('truck configuration fills axles, reaches the API, cancels stale calculatio
   container = document.createElement('div'); document.body.append(container); root = createRoot(container);
   await act(async () => root.render(React.createElement(Home)));
   await act(async () => button('Camión').click());
-  for (const [index, input] of [...container.querySelectorAll('.route-form .field input')].entries()) await fill(input, `Punto de prueba ${index}`);
+  for (const [index, input] of [...container.querySelectorAll('.route-form .field input')].entries()) await confirmLocation(input, `Punto de prueba ${index}`);
   const configuration = container.querySelector('[aria-label="Configuración vehicular"]');
   await act(async () => { configuration.value = 'T3-S2'; configuration.dispatchEvent(new window.Event('change', { bubbles: true })); });
   const [axes, capacity] = container.querySelectorAll('.vehicle-operating-fields input');
@@ -138,7 +160,7 @@ test('alternative selection replaces metrics and geometry without another API ca
  const alternative={...primary,distanceMeters:4500,durationSeconds:720};
  globalThis.fetch=async(url,options)=>{if(url.endsWith('/routes/plan')){calls++;body=JSON.parse(options.body);return Response.json({ok:true,route:primary,alternatives:[alternative]});}return Response.json({suggestions:[]});};
  container=document.createElement('div');document.body.append(container);root=createRoot(container);await act(async()=>root.render(React.createElement(Home)));
- const inputs=[...container.querySelectorAll('.route-form .field input')];await fill(inputs[0],'Origen de prueba');await fill(inputs[1],'Destino de prueba');
+ const inputs=[...container.querySelectorAll('.route-form .field input')];await confirmLocation(inputs[0],'Origen de prueba');await confirmLocation(inputs[1],'Destino de prueba');
  const toggle=container.querySelector('.alternative-toggle input');await act(async()=>toggle.click());await act(async()=>button('Calcular ruta').click());
  assert.equal(body.alternatives,true);assert.match(container.querySelector('.metrics').textContent,/3.0 km/);
  await act(async()=>container.querySelectorAll('.route-alternatives button')[1].click());assert.match(container.querySelector('.metrics').textContent,/4.5 km/);assert.equal(calls,1);assert.equal(container.querySelectorAll('.route-alternatives button')[1].getAttribute('aria-pressed'),'true');
@@ -147,6 +169,6 @@ test('alternative selection replaces metrics and geometry without another API ca
 test('a single alternative result is explained without fabricating more choices',async()=>{
  globalThis.fetch=async(url)=>url.endsWith('/routes/plan')?Response.json({ok:true,route:{distanceMeters:1000,durationSeconds:100,sections:[],waypoints:[]},alternatives:[],alternativeSummary:{omittedRoutes:2}}):Response.json({suggestions:[]});
  container=document.createElement('div');document.body.append(container);root=createRoot(container);await act(async()=>root.render(React.createElement(Home)));
- for(const [i,input]of[...container.querySelectorAll('.route-form .field input')].entries())await fill(input,`Punto de prueba ${i}`);
+ for(const [i,input]of[...container.querySelectorAll('.route-form .field input')].entries())await confirmLocation(input,`Punto de prueba ${i}`);
  await act(async()=>container.querySelector('.alternative-toggle input').click());await act(async()=>button('Calcular ruta').click());assert.match(container.querySelector('.route-alternatives').textContent,/un solo recorrido/);assert.equal(container.querySelectorAll('.route-alternatives button').length,0);assert.match(container.querySelector('.route-alternatives').textContent,/Se omitieron opciones incompletas/);
 });
