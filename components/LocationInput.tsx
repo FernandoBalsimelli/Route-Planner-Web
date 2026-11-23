@@ -9,6 +9,7 @@ import LocationReviewLinks from './LocationReviewLinks';
 import { useLocationBook } from './LocationBookProvider';
 import { validLocation } from '@/lib/location-book';
 import { fetchLocationSuggestions, LocationSearchError } from '@/lib/location-search';
+import { mapsLocationPaste } from '@/lib/maps-location-paste';
 
 export type { LocationSelection } from '@/lib/locations';
 const MapLocationPicker = dynamic(() => import('./MapLocationPicker'), { ssr: false, loading: () => <p role="status">Cargando mapa…</p> });
@@ -50,6 +51,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
   const [searchAttempt, setSearchAttempt] = useState(0);
   const [preferNearby, setPreferNearby] = useState(true);
   const [searchNotice, setSearchNotice] = useState('');
+  const [pasteNotice, setPasteNotice] = useState('');
   const [geoStatus, setGeoStatus] = useState('');
   const [geoBusy, setGeoBusy] = useState(false);
   const geoRequest = useRef(0);
@@ -108,6 +110,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       setSuggestions([]);
       setPending(null);
       setSearchError('');
+      setPasteNotice('');
       setLoading(false);
       return;
     }
@@ -179,8 +182,18 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
         onBlur={() => { focused.current = false; }}
         maxLength={180}
         value={value}
-        onChange={event => { cancelLocation(); setMapOpen(false); onChange(event.target.value); setPending(null); }}
+        onChange={event => { cancelLocation(); setPasteNotice(''); setMapOpen(false); onChange(event.target.value); setPending(null); }}
+        onPaste={event => {
+          const imported = mapsLocationPaste(event.clipboardData.getData('text'));
+          if (!imported) return;
+          event.preventDefault(); cancelLocation();
+          if (imported.type === 'unsupported') { setPasteNotice(imported.message); return; }
+          setMapOpen(false); setBookOpen(false); setPending(null); setActiveIndex(-1);
+          onChange(imported.query);
+          setPasteNotice('Búsqueda extraída del enlace de Google Maps. Elige una sugerencia y corrobora el punto antes de confirmarlo; el enlace no acredita la sucursal ni el acceso.');
+        }}
         placeholder={placeholder}
+        title="Dirección, Plus Code, coordenadas o enlace de búsqueda de Google Maps"
         autoComplete="off"
         aria-autocomplete="list"
         aria-expanded={!pending && visibleSuggestions.length > 0}
@@ -197,6 +210,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
         }}
       />
     </label>
+    {pasteNotice && <p className="location-search-status" role="status">{pasteNotice}</p>}
     <LocationBookTools title={title} value={value} selected={selected} open={bookOpen} onToggle={() => { cancelLocation(); setMapOpen(false); setBookOpen(current => !current); }} onPick={point => { cancelLocation(); setMapOpen(false); setBookOpen(false); setPending(null); onChange(point.label); onConfirm(point); book?.remember(point); }}/>
     {mapReference && !selected && <label className="nearby-toggle"><input type="checkbox" checked={preferNearby} onChange={event => setPreferNearby(event.target.checked)}/> Priorizar lugares cerca del origen <small>Para otra ciudad: escribe «lugar, ciudad».</small></label>}
     <button type="button" ref={mapButton} className="map-open-button" aria-label={`Elegir ${title.toLowerCase()} en el mapa`} aria-expanded={mapOpen} onClick={() => {
