@@ -798,3 +798,23 @@ CI Web 45091715876: 199 pruebas, 38 casos de navegador y 11 flujos autenticados;
 API CI 44477838300: 84 pruebas y SQL desechable. ORS sintético en esos flujos;
 Android físico y ORS autenticado alojado siguen pendientes. Resultados, archivos,
 deployments, rollback y continuación concreta en el último cierre de ingeniería.
+
+## Búsquedas sin cobertura cercana · ciclo iniciado 22-11-2026
+
+Web PR #41/dd11771 retira por defecto las coincidencias con NO_NEARBY_MATCHES
+del mapa y del teclado; el selector conserva el origen, salvo elección explícita.
+Mostrar/ocultar candidatos lejanos no recalcula rutas ni modifica lugares guardados.
+La búsqueda pública Express con foco Chihuahua sigue devolviendo ocho lejanos;
+se comprobó el aviso real y selector en 28.635300,-106.088900. Esto evita elegir
+una sucursal remota por omisión, sin ampliar ni certificar la cobertura comercial.
+
+No se incorporó normativa, geometría, horario o permiso. Siguen 15 municipios
+con referencias parciales y cero con validación legal completa. Reporte leído
+2026-11-22T19:54:36.677Z: stale=false/overdue=true al consultar; el intervalo
+previsto está superado. No se atribuye causa ni se infiere vigencia jurídica;
+no se alteró el reporte para presentarlo reciente. Se mantienen los avisos de
+cambios/no disponibilidad y Google no recibe restricciones HGV ni fija el trazado.
+
+CI final 45121562794: 201 pruebas, 39 casos de navegador y 11 flujos Auth locales
+con ORS sintético. Verificación pública del despliegue real, archivos, límites,
+fuentes investigadas, recuperación y próxima prioridad en el cierre de ingeniería.

@@ -2,22 +2,21 @@
 
 Fecha de revisión: 2026-11-22. Alcance: exclusivamente Route Planner.
 
-Estado vigente: Web b0d5d54 incluye la reparación P0 de restauración de
-ubicaciones guardadas (PR #39) y el aviso de comprobaciones fuera del intervalo
-previsto (PR #40). API 6cb81f3 publica overdue por reporte/fuente, separado de
-stale y de disponibilidad/cambios técnicos. Ambos están READY en producción;
-los SHA de los alias y archivos publicados se comprobaron. Reporte consultado:
-2026-11-22T19:54:36.677Z, stale=false/overdue=false.
+Estado vigente: Web dd11771 corrige búsquedas sin coincidencias cercanas:
+los resultados fuera de 50 km requieren abrir «Ver coincidencias lejanas» y el
+selector conserva el origen salvo selección explícita. Verificado con búsqueda
+pública real desde Chihuahua, mapa y ocho resultados lejanos. CI: 201 pruebas,
+39 casos de navegador y 11 flujos Auth; local build/typecheck y auditoría aprobados.
+Las pruebas Auth usan servicios locales desechables y ORS sintético; no son ORS
+alojado ni navegación física Android. API permanece en 6cb81f3 sin cambios.
 
-Build/typecheck, 199 pruebas Web, 84 API, 38 casos de navegador y 11 flujos Auth
-aprobados con los alcances indicados al final; ORS sintético en integración.
-Se mantienen todas las entregas, visitas repetidas, GPS, perfiles, OCR,
-coordenadas/Plus Codes, mapa y enlaces Google consecutivos. Búsqueda local con
-NO_NEARBY_MATCHES sigue pendiente de mayor cobertura/corroboración.
-Siguen 15 municipios parciales y cero completos. Sesión/ORS alojados reales y
-Android físico pendientes; Google no recibe HGV ni fija el trazado. El programa
-continúa y conserva rollback. El último cierre sustituye el pendiente de PR #40
-del checkpoint histórico anterior.
+La cobertura local de Express sigue incompleta; no se sustituyen tiendas normales
+ni se inventan accesos. Reporte normativo consultado: 2026-11-22T19:54:36.677Z,
+stale=false/overdue=true. No se actualizaron artificialmente fecha o evidencia.
+Siguen 15 municipios parciales y cero con validación legal completa. Google no
+recibe HGV ni fija trazado. Resultados, publicación, límites y rollback al final;
+el programa general continúa. Se mantienen GPS, perfiles, OCR, todas las entregas,
+coordenadas/Plus Codes, mapa principal y enlaces Google consecutivos.
 
 ## Recursos verificados
 
@@ -4394,3 +4393,112 @@ sucursales cercanas cuando el proveedor devuelve NO_NEARBY_MATCHES, manteniendo
 corroboración explícita de acceso. En paralelo queda revisar íntegramente fuentes
 Puebla/CDMX y geometrías, reformas y jurisdicciones antes de aplicar restricciones.
 El programa maestro no está finalizado. La continuación periódica permanece activa.
+
+## Ciclo · coincidencias lejanas y centro del selector · 22-11-2026
+
+### Diagnóstico y cambio
+
+Se reconciliaron main Web 4e78526/API 6cb81f3 y los alias de producción antes
+de editar. Se leyeron ambos informes de main; sin avances externos que sustituir.
+La consulta real Bodega Aurrera Express con foco Chihuahua devuelve ocho puntos
+lejanos y NO_NEARBY_MATCHES. A pesar de la advertencia, LocationInput publicaba
+esos puntos en el mapa principal y usaba suggestions[0] como semilla del selector
+antes que el origen. Así podía abrir el mapa en Monterrey a más de 650 km del
+área solicitada. Enter también podía elegir el primer candidato lejano.
+
+Ahora las coincidencias con ese aviso quedan cerradas bajo «Ver coincidencias
+lejanas (N)». No se envían al mapa compartido ni se eligen con Enter antes de
+mostrarlas. Al abrir el selector se conserva el origen, salvo que se haya elegido
+un punto explícitamente. Mostrar/ocultar sólo cambia estado local; no genera
+consultas al proveedor. Cada búsqueda nueva reinicia la elección. Los resultados
+de otra ciudad especificada explícitamente se muestran con su confirmación normal.
+Se preservan coordenadas y confirmación deliberada de cualquier candidato lejano.
+El aviso ofrece dirección completa, coordenadas, Plus Code y selección en mapa.
+
+Archivos de código: components/LocationInput.tsx, test/location-input.test.mjs y
+test/geolocation.e2e.mjs. Documentación: este informe y MEXICO-COVERAGE.md.
+Sin cambios API, SQL, dependencias, cuotas, variables, cron o políticas RLS.
+No se amplió un índice de tiendas ni se sustituyó Express por Aurrera regular.
+
+### Pruebas
+
+Local: build/typecheck, 201 pruebas y auditoría de producción cero vulnerabilidades.
+El intento local de navegador no pasó: Chromium abortó antes de abrir por
+socket() failed: Operation not permitted; no se presenta como fallo funcional
+ni se debilitó el entorno para eludirlo. La verificación de navegador queda en CI.
+
+CI final [45121562794](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/45121562794), jobs 137516276107/137516275780: build/typecheck, 201 pruebas, 39 casos de navegador y 11 flujos Auth aprobados; auditoría cero vulnerabilidades. Se leyeron los logs completos. Auth/REST/Postgres son reales locales desechables (API fijada por el workflow a 772a6b2); ORS y geometrías son sintéticos. No son cálculos autenticados alojados ni navegación Android real.
+
+El primer CI 45121028639 pasó 201 pruebas y 11 flujos Auth, pero el caso nuevo
+de navegador contó las opciones de todos los selectores de la página (tres),
+en lugar de sólo las sugerencias del destino. Se corrigió el alcance del selector
+en commit 3e7bd14; no se cambió el código de aplicación para ocultar ese fallo.
+El resultado final indicado arriba corresponde al candidato corregido.
+
+La prueba nueva de navegador usa 390×844 y 1365×900: origen GPS simulado Chihuahua,
+sin S1 lejano ni elección con Enter, selector centrado en el origen comprobado
+mediante coordenadas enviadas al reverse, selección lejana sólo después de mostrar
+y confirmar, destino Google exacto y ausencia de desbordamiento horizontal.
+Dos pruebas de componente cubren publicación al mapa, foco/teclado, mostrar/ocultar,
+confirmación, reinicio al cambiar texto y ciudad explícita. Datos de estos casos
+son controlados; no equivalen a sucursales reales, GPS real ni Android físico.
+
+Después de publicar: salud/proxy 200; coordenadas 28.6353,-106.0889, Plus Code
+completo 75XMRW22+22 y compuesto RW22+22 Chihuahua: 200/una sugerencia cada uno.
+Bodega Aurrera Express con foco Chihuahua: 200/ocho lejanos y NO_NEARBY_MATCHES.
+Validación de 0/2/48 intermedias: 200; 49: 400 (50 puntos totales del motor),
+plan sin sesión: 401. No se hicieron cálculos autenticados con ORS alojado.
+CORS directo: origen autorizado 204 con cabecera correcta; origen ajeno 404.
+Logs Vercel error/fatal de ambos proyectos, ventana 30 minutos: sin grupos;
+no equivale a ausencia histórica de errores o a una auditoría completa de tráfico.
+
+Navegador público real: antes de publicar, ocho coincidencias lejanas visibles
+y S1 a 655.6 km en Monterrey. Después, aviso y «Ver coincidencias lejanas (8)»
+sin lista ni S1 remoto; mapa principal en Chihuahua. Selector: elegir centro
+mostró 28.635300,-106.088900 y SN Avenida Mirador, Chihuahua. Mostrar/ocultar
+restituyó y retiró los ocho puntos sin confirmar destino. Capturas reales del
+selector y estado cerrado; sin fixture en esta comprobación pública. No se
+inició sesión ni se escribieron rutas/datos en Supabase alojado. Móvil físico
+no disponible; los tamaños móvil/escritorio se verificaron en CI.
+
+### Publicación y rollback
+
+PR [#41](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/41),
+commits 94ca288 (implementación) y 3e7bd14e18c4c1985169837ea5dc9128353569bf
+(candidato final). Merge **dd1177169ff7b3768f6e0b9593de3989551ff6c5**;
+deployment **dpl_4s4JaR1zaMjXxDs1UyXckevMiNe7**, READY/production. Se comprobó
+el alias https://route-planner-web-sand.vercel.app/ al mismo SHA. Los tres archivos
+publicados se compararon byte a byte con el código local probado: coincidencia.
+La rama codex/nearby-search-boundary-20261122 y los commits se conservan;
+next-env.d.ts generado no se incluyó. El cierre documental no modifica ese código.
+
+La API permanece en 6cb81f3d78c4b2c9278d9441e1e66a96e31d6d42,
+dpl_DJMs3PfpE2EQRmfswdaJQb4xeJ1k. No se redesplegó sin cambios.
+Rollback Web conservado: b0d5d5497fabb17b0553d4943beabbc9a5a22a54,
+dpl_DnEo1RhBgTeiTQwPvAurQ6Z1jHis. No se ejecutó rollback ni se borró historial.
+
+### Cobertura y siguiente trabajo
+
+Las tres consultas puntuales al Photon acotado a 50 km de Chihuahua (Express,
+Bodega Aurrera, Aurrera) devolvieron los mismos tres negocios sin identificación
+Express. No prueban que no existan más tiendas; sólo muestran lo recuperado por
+ese índice. Se mantiene el filtro de formato y no se importaron coordenadas dudosas.
+Photon documenta límites de uso razonable sin garantía de disponibilidad:
+https://github.com/komoot/photon y https://github.com/komoot/photon/blob/master/docs/api-v1.md.
+No se añadieron reintentos masivos, scraping o servicios de pago.
+
+Se revisó como candidato el directorio primario
+https://www.walmartmexico.com/conocenos/directorio-de-tiendas. El enlace «Ver la
+lista de tiendas» dirige a directorio-consultorios-141122.pdf (ocho páginas,
+formatos/días de servicio/direcciones). No es prueba de cobertura actual completa
+de Express ni de accesos de descarga; se descartó importarlo automáticamente.
+Siguiente P1: fuente primaria utilizable para identificar formato/sucursal y
+corroborar acceso, con fecha, procedencia y política de uso, sin inferir coordenadas.
+
+Siguen 15 municipios con referencias parciales y cero con validación legal
+completa. Sin nuevas normas, horarios, permisos o geometrías legales. El reporte
+consultado 2026-11-22T19:54:36.677Z tenía stale=false/overdue=true: se superaron seis
+horas, sin demostrar causa del retraso o vigencia de documentos. No se cambió ni
+se rejuveneció ese reporte. Google no recibe HGV ni fija una ruta exacta de camión.
+Pendientes ORS autenticado alojado y navegación en Android físico. No se tocaron
+Gestión, otros proyectos o datos alojados. El programa maestro sigue abierto.
