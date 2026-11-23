@@ -347,6 +347,43 @@ test('real local saved-route search is literal, paginated and recoverable on mob
  }
 });
 
+test('real local favorite search finds older branches by literal name or address and preserves account isolation on mobile and desktop',{timeout:180000},async()=>{
+ const {favoriteSearchFilter}=await import('../../lib/favorite-search.ts');
+ for(const width of [390,1280]){
+  const context=await browser.newContext({viewport:{width,height:844},isMobile:width<768,hasTouch:width<768});
+  await context.route('https://tile.openstreetmap.org/**',route=>route.abort());
+  const page=await context.newPage();
+  try{
+   const username='favorite-search-'+width;await page.goto(base);await createAccount(page,username);const owner=await session(username),other=await createLocalAccount(username+'-other');
+   const names=['Express 50%_* (A)','Calle [12]+?','Literal \\d^${x}.|','Coma, "Express"','Bodega Aurrerá · Peña'];
+   const record=(name,i,created_at='2026-11-16T12:00:00Z')=>({owner_id:owner.uid,name,address_label:i===100?'Calle Cedro 123':'Dirección sintética '+i,lat:28.635300123+i*.00001,lng:-106.088900456,created_at});
+   const seeds=[...Array.from({length:55},(_,i)=>record('Sucursal normal '+String(i).padStart(2,'0'),i)),...names.map((name,i)=>record(name,100+i,'2020-01-01T00:00:00Z')),record('Express 50XXX cualquier A',200),{...record(names[0],201),archived:true}];
+   const inserted=await owner.client.from('favorite_locations').insert(seeds).select('id,name,lat,lng');assert.equal(inserted.error,null);assert.equal(inserted.data.length,62);
+   const foreign=await other.client.from('favorite_locations').insert({...record(names[0],300),owner_id:other.uid}).select('id').single();assert.equal(foreign.error,null);
+   const hidden=await owner.client.from('favorite_locations').select('id').eq('id',foreign.data.id).or(favoriteSearchFilter(names[0]));assert.equal(hidden.error,null);assert.deepEqual(hidden.data,[]);
+   await page.reload();await page.getByRole('combobox',{name:'Destino',exact:true}).fill('Borrador que no debe cambiar');
+   const field=page.locator('.location-field').filter({has:page.getByRole('combobox',{name:'Destino',exact:true})});
+   await field.getByRole('button',{name:'☆ Recientes y favoritos',exact:true}).click();
+   const region=page.getByRole('region',{name:'Ubicaciones guardadas para Destino',exact:true});
+   await region.getByRole('button',{name:'Cargar más favoritos',exact:true}).waitFor();assert.equal(await region.getByRole('button',{name:/^★ /}).count(),50);
+   assert.equal(await region.getByRole('button',{name:new RegExp('^★ Express 50%')}).count(),0);
+   const search=region.getByRole('searchbox',{name:'Buscar favoritos para Destino',exact:true});
+   for(const name of names){
+    const term=name.normalize('NFD').replace(/\p{M}/gu,'').toLowerCase();const responsePromise=page.waitForResponse(response=>{const u=new URL(response.url());return u.pathname.endsWith('/rest/v1/favorite_locations')&&u.searchParams.get('or')==='('+favoriteSearchFilter(term)+')';});
+    await search.fill(term);const response=await responsePromise;assert.equal(response.status(),200);const found=await response.json();assert.equal(found.length,1);assert.equal(found[0].name,name);
+    const url=new URL(response.url());assert.equal(url.searchParams.get('owner_id'),'eq.'+owner.uid);assert.equal(url.searchParams.get('archived'),'eq.false');assert.equal(url.searchParams.get('limit'),'51');
+    await region.getByRole('button',{name:/^★ /}).filter({hasText:name}).waitFor();assert.equal(await region.getByRole('button',{name:/^★ /}).count(),1);assert.equal(await page.getByRole('combobox',{name:'Destino',exact:true}).inputValue(),'Borrador que no debe cambiar');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+   }
+   await search.fill('cedro 123');const selected=region.getByRole('button',{name:/^★ Express 50%/});await selected.waitFor();await selected.click();
+   assert.equal(await page.getByRole('combobox',{name:'Destino',exact:true}).inputValue(),'Calle Cedro 123');await field.getByText('✓ Punto confirmado',{exact:false}).waitFor();
+   const target=inserted.data.find(row=>row.name===names[0]);const map=field.getByRole('button',{name:'★ Quitar de favoritos',exact:true});await map.waitFor();
+   await field.getByRole('button',{name:'☆ Recientes y favoritos',exact:true}).click();await region.getByRole('button',{name:'Limpiar búsqueda de favoritos',exact:true}).click();await region.getByRole('button',{name:'Cargar más favoritos',exact:true}).waitFor();
+   assert.equal(await field.getByRole('button',{name:'★ Quitar de favoritos',exact:true}).count(),1,'searching another page must not forget the selected favorite');
+   const stored=await owner.client.from('favorite_locations').select('id,name,lat,lng').eq('id',target.id).single();assert.equal(stored.error,null);assert.equal(stored.data.name,names[0]);assert.equal(stored.data.lat,target.lat);
+  }finally{await context.close();}
+ }
+});
+
 test('real local bearer sharing preserves 48 deliveries, requires review, isolates owners and honors revoke/archive', {timeout:120000}, async()=>{
  const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
  const recipients=[];await context.route('https://tile.openstreetmap.org/**',route=>route.abort());

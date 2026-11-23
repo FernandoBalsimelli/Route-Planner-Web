@@ -10,7 +10,7 @@ export default function LocationBookTools({ title, value, selected, open, onTogg
   const [message, setMessage] = useState('');
   useEffect(() => { setName(selected?.label.slice(0, 120) || ''); setAdding(false); setMessage(''); }, [selected?.lat, selected?.lng, selected?.label]);
   if (!book) return null;
-  const favorite = selected && book.favorites.find(item => sameLocation(item, selected));
+  const favorite = selected && book.knownFavorites.find(item => sameLocation(item, selected));
   const normalized = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es');
   const matches = (text: string) => normalized(text).includes(normalized(selected ? '' : value.trim()));
   async function toggleFavorite() {
@@ -29,8 +29,15 @@ export default function LocationBookTools({ title, value, selected, open, onTogg
     {message && <p role="status" className="location-search-status">{message}</p>}
     {open && <div className="location-book-list" role="region" aria-label={`Ubicaciones guardadas para ${title}`}>
       <strong>Mis sucursales favoritas</strong>
-      {book.error && <p role="alert">{book.error}</p>}
-      {!book.signedIn ? <p>Inicia sesión para consultar tus favoritos desde cualquier dispositivo.</p> : <>{book.favorites.filter(item => matches(item.name + ' ' + item.address_label)).map(item => <button type="button" key={item.id} onClick={() => onPick(favoritePoint(item))}><b>★ {item.name}</b><small>{item.address_label}</small></button>)}{!book.favorites.length && <p>Confirma una sucursal y guárdala para encontrarla aquí.</p>}{book.hasMore && <button type="button" onClick={book.loadMore}>Cargar más favoritos</button>}</>}
+      {!book.signedIn ? <p>Inicia sesión para consultar tus favoritos desde cualquier dispositivo.</p> : <>
+        <label className="favorite-name">Buscar en todos mis favoritos<input type="search" aria-label={`Buscar favoritos para ${title}`} placeholder="Sucursal, número de tienda o dirección" maxLength={120} value={book.search} onChange={event => book.searchFavorites(event.target.value)}/></label>
+        <p>Busca por el nombre que guardaste o por la dirección. No cambia el punto hasta que elijas una sucursal.</p>
+        {book.search && <button type="button" className="text-button" onClick={() => book.searchFavorites('')}>Limpiar búsqueda de favoritos</button>}
+        {book.loading && <p role="status">Buscando tus sucursales guardadas…</p>}
+        {book.error && <div role="alert"><p>{book.error}</p><button type="button" onClick={book.retryFavorites}>Reintentar favoritos</button></div>}
+        {!book.loading && !book.error && <>{book.favorites.map(item => <button type="button" key={item.id} onClick={() => onPick(favoritePoint(item))}><b>★ {item.name}</b><small>{item.address_label}</small></button>)}{!book.favorites.length && <p>{book.search.trim() ? 'No hay favoritos que coincidan. Prueba con otra parte del nombre o de la dirección.' : 'Confirma una sucursal y guárdala para encontrarla aquí.'}</p>}</>}
+        {book.hasMore && <button type="button" disabled={book.loading} onClick={book.loadMore}>Cargar más favoritos</button>}
+      </>}
       <strong>Recientes en este dispositivo</strong>
       {book.recent.filter(item => matches(item.label)).map((item, index) => <button type="button" key={`${item.lat}-${item.lng}-${index}`} onClick={() => onPick(item)}><b>{item.label}</b><small>{item.plusCode || `${item.lat}, ${item.lng}`}</small></button>)}
       {!book.recent.length && <p>Aquí aparecerán los últimos 12 puntos que confirmes.</p>}
