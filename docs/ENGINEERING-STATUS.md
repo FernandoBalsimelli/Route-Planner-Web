@@ -1,23 +1,20 @@
 # Route Planner — estado de ingeniería
 
-Fecha de revisión: 2026-11-18. Alcance: exclusivamente Route Planner.
+Fecha de revisión: 2026-11-22. Alcance: exclusivamente Route Planner.
 
-Estado vigente: antes de confirmar una ubicación y al enfocar una visita guardada
-se puede revisar el punto en Google Maps y su entorno en Street View mediante
-enlaces explícitos con las coordenadas exactas. No cambian confirmación, avance,
-orden o navegación y no se hacen consultas externas hasta pulsarlos. La imagen
-puede ser antigua, cercana o no existir; no verifica el acceso de un camión.
-Web 6fc43e3 publicada; API sigue 46b5ec1 y conserva integridad Directions y
-seguimiento de la Gaceta histórica CDMX. Se mantienen marcadores manuales,
-ocurrencias repetidas, GPS, vehículos, manifiestos/OCR, búsquedas cercanas,
-Plus Codes y enlaces Google consecutivos sin perder entregas.
-Se localizó la publicación estatal de Puebla 21/abr/2026 como pista de procedencia,
-separada de reglas municipales. Descargas directas 503 y lectura posterior 502;
-sin bytes nuevos ni cambios de reglas. Hay 15 municipios parciales y cero completos.
-Resultados locales/CI, comprobaciones públicas, commits, deployments, rollback
-y punto de reanudación al final. ORS real alojado, sesión privada de producción
-y Android físico siguen pendientes. Google no recibe HGV ni fija el trazado.
-Las entradas anteriores son historial; el programa maestro continúa abierto.
+Estado vigente: Web 0f9722f retira el cálculo guardado cuando sus puntos no
+coinciden con las ubicaciones actuales cargadas. Conserva todas las entregas,
+repeticiones y precisión; exige revisar/recalcular antes de guardar o navegar.
+Un orden guardado incompleto no reemplaza parcialmente el borrador. Se mantienen
+revisión del acceso en Maps/Street View, GPS, vehículos, manifiestos/OCR,
+coordenadas/Plus Codes y enlaces Google consecutivos.
+API 6cb81f3 separa comprobaciones fuera del intervalo previsto (overdue, seis
+horas) del reporte obsoleto (stale, dieciocho horas), sin cambiar evidencia o
+normas. Su alerta visual está en PR #40 hasta pasar CI; no se declara publicada.
+Reporte actual 2026-11-22T19:54:36.677Z, dentro del intervalo al consultar.
+Resultados, límites y rollback al final. Siguen 15 municipios parciales y cero
+completos. ORS real alojado, sesión privada de producción y Android físico
+siguen pendientes; Google no recibe HGV ni fija el trazado. El programa continúa.
 
 ## Recursos verificados
 
@@ -4165,3 +4162,123 @@ Normativa: recuperar decreto y consolidado estatal por separado de los lineamien
 municipales de Puebla, verificar transitorios/reformas/ámbito; retomar las tres
 Gacetas históricas CDMX y sus actos posteriores antes de cambiar horarios. El
 programa completo sigue abierto y se conserva la continuación existente activa.
+
+
+## Cierre de ciclo · integridad al cargar accesos corregidos · 22-11-2026
+
+### Diagnóstico y preservación de avances
+
+Reconciliación GitHub/producción fresca del 22-11: Web main
+56cef09c3a895a6126ac586a8b3f54b4a2a75be5, producción
+6fc43e3f3bbf0fffd5019625c1a8c3ee0baccadb /dpl_CFySMhiKGLJ6dPEh69XoGpyKSzUP;
+API main faf1a9d69cd85d1bf295e956047e75caa7309ca8, producción
+46b5ec160d777399bb8b3fc36ac1a778ef01d133 /dpl_3ddjor55pNbutkjyzDtpfNq66DCv.
+Ambos informes se leyeron desde main. API avanzó sólo data/mx/source-status.json
+respecto a a601051; el reporte del bot se preservó. Sin AGENTS.md aplicable.
+Se retomaron PR #39 y API #30 pendientes, comprobando sus resultados reales.
+
+Defecto P0 reproducible: restoreSavedRoute obtenía las paradas actuales y
+restauraba route_metadata.result sin contrastar sus puntos. Una corrección de
+acceso, etiqueta, orden o lista podía mostrar formularios actuales junto a un
+trazado, métricas y enlaces antiguos. Es un defecto observado en código y
+reproducido con datos controlados; no se afirma un incidente real de un usuario.
+
+### Implementación P0 y pruebas
+
+readSavedRoutePoints lee primero todos los puntos sin alterar el planificador;
+rechaza ubicación vacía, orden incompleto/duplicado/fuera de orden, lista ausente
+o mayor que 48 intermedias. Conserva las 50 ocurrencias máximas, duplicados y
+precisión numérica. Se aceptan secuencias históricas contiguas desde 0 o 1.
+Direcciones antiguas sin coordenadas válidas permanecen editables/sin confirmar.
+No se convierten strings numéricos en coordenadas verificadas.
+
+savedCalculationMatchesPoints contrasta origen, destino y cada ocurrencia por
+cantidad, orden, coordenadas exactas, etiqueta y tipo. Si coinciden conserva la
+restauración previa; si difieren carga todos los puntos actuales pero retira el
+cálculo, métricas, guardado y navegación hasta un cálculo nuevo exitoso. Muestra
+un aviso específico de revisión/recalcular. No llama al proveedor por cargar ni
+escribe el registro original, avance o historial. Un fallo de lectura deja el
+borrador anterior intacto. Se mantienen las barreras de sesión y respuestas tardías.
+Esto comprueba identidad de puntos, no actualidad/validez geométrica o legal.
+
+Archivos: app/page.tsx, lib/saved-route-restore.ts,
+test/saved-route-restore.test.mjs, test/session-isolation.test.mjs y
+test/integration/authenticated.e2e.mjs. Sin API/SQL/dependencias/secretos nuevos.
+next-env.d.ts generado por build se excluye de la publicación.
+
+Verificación del candidato 9a2efcd24f3de14f407525eb30f25c607507eafa:
+build, typecheck, 197 pruebas y auditoría de producción sin vulnerabilidades.
+Cuatro casos de parser/comparación y dos de componente cubren acceso, precisión,
+repeticiones, orden y recuperación al recalcular. CI
+[44477198672](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/44477198672),
+jobs 135400504466 y 135400504710, finalizó el 19-11 y se verificó al publicar el
+22-11: 197 pruebas, 38 casos de navegador y once flujos autenticados locales.
+El nuevo caso en 390/1365 px guarda 48 entregas vía REST real local, corrige sólo
+la ocurrencia 2 de una dirección repetida, carga sus 48 entradas sin el resultado
+viejo, calcula explícitamente una vez por la API local y comprueba coordenadas,
+orden, preferencias y permanencia del cálculo original e historial. Auth/REST/SQL
+son reales locales; el proveedor y geometría son sintéticos. No se equipara a ORS
+real alojado, sesión privada de producción o Android físico; siguen pendientes.
+
+### Publicaciones estables y recuperación
+
+Web PR [#39](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/39),
+merge **0f9722f83824e24dd6fd23da9f98e56fa7a14ce4**, deployment
+**dpl_GPTZkhubmaP8esvp6khKLr9a1MiU**, READY/production; alias
+https://route-planner-web-sand.vercel.app/ comprobado al mismo SHA.
+Rollback conservado: **dpl_CFySMhiKGLJ6dPEh69XoGpyKSzUP** /6fc43e3.
+
+API PR [#30](https://github.com/FernandoBalsimelli/Route-Planner-API/pull/30)
+añade overdue al agregado y cada fuente al superar el intervalo previsto de
+seis horas; stale conserva dieciocho horas. Se usa reloj servidor; una fuente
+antigua no queda oculta por un agregado reciente y un intento fallido reciente
+puede estar a tiempo pero no disponible. Datos ausentes/incorrectos/futuros se
+consideran pendientes. No se infiere causa del retraso ni vigencia. No cambian
+reportes, hashes, disponibilidad, última descarga, normas, frecuencia o TTL.
+Archivos API: lib/source-monitor.js y test/source-monitor.test.js.
+
+API CI [44477838300](https://github.com/FernandoBalsimelli/Route-Planner-API/actions/runs/44477838300),
+job 135402581022: 84 pruebas, build, migraciones/SQL/RLS/compartición/avance
+desechables y auditoría aprobados el 19-11. Build, 84 pruebas y auditoría cero
+vulnerabilidades se repitieron localmente el 22-11. Candidato
+3024cbd9880e21ad6d41f3b2c0dbcac06dad9913; merge
+**6cb81f3d78c4b2c9278d9441e1e66a96e31d6d42**, deployment
+**dpl_DJMs3PfpE2EQRmfswdaJQb4xeJ1k**, READY/production; alias
+https://route-planner-api.vercel.app/ al mismo SHA.
+Rollback **dpl_3ddjor55pNbutkjyzDtpfNq66DCv** /46b5ec1.
+El merge conservó el reporte faf1a9d de main; no se reemplazó por la copia anterior.
+
+### Comprobaciones públicas y estado normativo
+
+Después de publicar: salud/proxy, coordenadas 28.6353,-106.0889, Plus Code
+completo 75XMRW22+22 y compuesto RW22+22 Chihuahua: 200/una sugerencia;
+Aurrera Express con foco Chihuahua: 200/ocho. Validación 0/2/48 intermedias: 200;
+49: 400; plan sin sesión: 401. No son cálculos autenticados reales. Supabase
+alojado sólo leído: 3 rutas, 10 paradas, 1 vehículo, cero eventos y cero enlaces;
+sin cuentas de prueba ni escrituras. Gestión y otros proyectos no se tocaron.
+Sin servicios de pago, borrados o migraciones. Historial y ramas conservados.
+
+Reporte público actual: checkedAt **2026-11-22T19:54:36.677Z**, stale=false,
+overdue=false en la consulta. Se distingue de la observación del 19-11, cuando
+se veía 2026-11-18T21:15:11.351Z y no se observó ejecución posterior entre los
+últimos runs. La actualización posterior existe; no se afirma un scheduler roto
+ni que esta mejora lo reparase. GitHub documenta retrasos/omisiones posibles:
+https://docs.github.com/en/actions/how-tos/troubleshoot-workflows
+Es una posibilidad general, no la causa demostrada de este caso.
+
+La aplicación aún no recibe ni verifica toda la normativa nacional. Siguen 15
+municipios parciales y cero completos. Puebla continúa con cambio técnico,
+Juárez y CDMX con comprobaciones no disponibles en el reporte; ninguno de esos
+estados acredita una reforma, vigencia o ruta autorizada. No se agregan geometrías,
+horarios ni permisos. Google no recibe HGV ni conserva obligatoriamente el trazado.
+
+### Continuación concreta
+
+P0 completado y publicado: retirada de cálculos que no corresponden a los puntos
+cargados. API de intervalos publicada; interfaz de alertas en PR #40, candidato
+fd30a64a802898101930e69947fe9887c39a73a7, con 199 pruebas/build/typecheck y
+auditoría local aprobados, pendiente de CI de navegador/Auth antes de publicación.
+La rama codex/source-interval-warning-20261122 conserva ese avance recuperable.
+El programa maestro sigue abierto. Próximos: terminar esa verificación/publicación,
+corroboración de acceso en Android y sesión/ORS reales con medios de prueba
+apropiados; revisión íntegra de fuentes Puebla/CDMX, sus reformas y geometrías.

@@ -1,6 +1,6 @@
 # Cobertura municipal mexicana y navegación
 
-Revisión: 2026-11-18. Exclusivamente Route Planner. El programa general sigue abierto.
+Revisión: 2026-11-22. Exclusivamente Route Planner. El programa general sigue abierto.
 
 ## Qué existe realmente
 
@@ -741,3 +741,30 @@ Se conserva el catálogo y monitor anteriores: 15 municipios con referencias
 parciales, cero con validación legal completa y ninguna geometría legal nueva.
 Google no recibe dimensiones/peso HGV ni conserva obligatoriamente el trazado.
 Pruebas, producción y rollback en el último cierre de ENGINEERING-STATUS.md.
+
+
+## Integridad de puntos y seguimiento fuera de plazo · 22-11-2026
+
+Web PR #39 impide restituir un cálculo cuando los puntos guardados actuales
+difieren de su snapshot. Mantiene todas las ocurrencias, incluidos duplicados,
+y exige recalcular antes de guardar/navegar; no sobrescribe ruta o avance.
+Comprobación de identidad de puntos, no validación geométrica o legal. Flujos
+Auth/REST/SQL locales reales con ORS sintético; no son Android o proveedor alojado real.
+
+API PR #30 añade overdue a intentos fuera del intervalo de seis horas, separado
+del stale de dieciocho horas. Las marcas son técnicas por agregado/fuente, no
+demuestran causa del retraso, cambios jurídicos o vigencia. La UI correspondiente
+está en PR #40 hasta terminar sus pruebas de navegador/Auth. No se alteran reglas,
+fuentes, frecuencia, límites, caché o políticas del monitor.
+
+Se conserva la actualización de main faf1a9d y el reporte público de
+2026-11-22T19:54:36.677Z, stale=false/overdue=false al consultar. El intervalo
+previsto no garantiza puntualidad; GitHub contempla demoras u omisiones:
+https://docs.github.com/en/actions/how-tos/troubleshoot-workflows
+No se atribuye a esa posibilidad el retraso observado sin evidencia adicional.
+Puebla permanece con cambio técnico y Juárez/CDMX con comprobaciones no disponibles.
+Ni un reporte reciente ni una disponibilidad correcta acreditan autorización.
+
+**Siguen 15 municipios parciales y cero con validación legal completa**. Sin
+horarios, tramos o geometrías legales nuevos; Google no recibe restricciones HGV.
+Publicaciones, pruebas, rollback y continuación en el último cierre de ingeniería.
