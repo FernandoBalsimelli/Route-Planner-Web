@@ -768,3 +768,33 @@ Ni un reporte reciente ni una disponibilidad correcta acreditan autorización.
 **Siguen 15 municipios parciales y cero con validación legal completa**. Sin
 horarios, tramos o geometrías legales nuevos; Google no recibe restricciones HGV.
 Publicaciones, pruebas, rollback y continuación en el último cierre de ingeniería.
+
+## Cierre de seguimiento por intervalo · 22-11-2026
+
+La UI que constaba pendiente en el checkpoint 05c3cef ya está publicada: Web
+b0d5d5497fabb17b0553d4943beabbc9a5a22a54, PR #40, junto con API
+6cb81f3d78c4b2c9278d9441e1e66a96e31d6d42, PR #30. El aviso opcional overdue
+se muestra fuera del detalle cerrado al superar seis horas; stale conserva
+dieciocho horas y prioridad. Disponibilidad, cambios detectados y retraso se
+mantienen como dimensiones distintas. Una fuente antigua no queda oculta por
+un agregado reciente. No se cambian cron, evidencia, hashes o reglas legales.
+
+Comprobación pública final: reporte 2026-11-22T19:54:36.677Z, stale=false,
+overdue=false; la página de producción muestra las fechas y avisos de cambio
+detectado/no disponibilidad. La rama positiva de retraso se probó en CI con
+respuestas controladas y en API con reloj fijo; no se afirma haberla activado
+en producción. Un intento reciente fallido puede estar a tiempo y seguir sin
+comprobar el documento. No se demuestra la causa de un retraso ni puntualidad
+garantizada del programador.
+
+**15 municipios con referencia parcial, cero con validación legal completa**.
+Ninguna nueva norma, geometría, horario, excepción o permiso en este ciclo.
+Puebla continúa con cambio técnico, Juárez/CDMX con comprobaciones no disponibles.
+No se presentan esos estados como vigencia, reforma o autorización de circulación.
+La restauración de puntos de PR #39 tampoco verifica geometría o legalidad.
+Google no recibe dimensiones/peso HGV ni garantiza conservar el trazado.
+
+CI Web 45091715876: 199 pruebas, 38 casos de navegador y 11 flujos autenticados;
+API CI 44477838300: 84 pruebas y SQL desechable. ORS sintético en esos flujos;
+Android físico y ORS autenticado alojado siguen pendientes. Resultados, archivos,
+deployments, rollback y continuación concreta en el último cierre de ingeniería.

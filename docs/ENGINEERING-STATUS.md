@@ -2,19 +2,22 @@
 
 Fecha de revisión: 2026-11-22. Alcance: exclusivamente Route Planner.
 
-Estado vigente: Web 0f9722f retira el cálculo guardado cuando sus puntos no
-coinciden con las ubicaciones actuales cargadas. Conserva todas las entregas,
-repeticiones y precisión; exige revisar/recalcular antes de guardar o navegar.
-Un orden guardado incompleto no reemplaza parcialmente el borrador. Se mantienen
-revisión del acceso en Maps/Street View, GPS, vehículos, manifiestos/OCR,
-coordenadas/Plus Codes y enlaces Google consecutivos.
-API 6cb81f3 separa comprobaciones fuera del intervalo previsto (overdue, seis
-horas) del reporte obsoleto (stale, dieciocho horas), sin cambiar evidencia o
-normas. Su alerta visual está en PR #40 hasta pasar CI; no se declara publicada.
-Reporte actual 2026-11-22T19:54:36.677Z, dentro del intervalo al consultar.
-Resultados, límites y rollback al final. Siguen 15 municipios parciales y cero
-completos. ORS real alojado, sesión privada de producción y Android físico
-siguen pendientes; Google no recibe HGV ni fija el trazado. El programa continúa.
+Estado vigente: Web b0d5d54 incluye la reparación P0 de restauración de
+ubicaciones guardadas (PR #39) y el aviso de comprobaciones fuera del intervalo
+previsto (PR #40). API 6cb81f3 publica overdue por reporte/fuente, separado de
+stale y de disponibilidad/cambios técnicos. Ambos están READY en producción;
+los SHA de los alias y archivos publicados se comprobaron. Reporte consultado:
+2026-11-22T19:54:36.677Z, stale=false/overdue=false.
+
+Build/typecheck, 199 pruebas Web, 84 API, 38 casos de navegador y 11 flujos Auth
+aprobados con los alcances indicados al final; ORS sintético en integración.
+Se mantienen todas las entregas, visitas repetidas, GPS, perfiles, OCR,
+coordenadas/Plus Codes, mapa y enlaces Google consecutivos. Búsqueda local con
+NO_NEARBY_MATCHES sigue pendiente de mayor cobertura/corroboración.
+Siguen 15 municipios parciales y cero completos. Sesión/ORS alojados reales y
+Android físico pendientes; Google no recibe HGV ni fija el trazado. El programa
+continúa y conserva rollback. El último cierre sustituye el pendiente de PR #40
+del checkpoint histórico anterior.
 
 ## Recursos verificados
 
@@ -4282,3 +4285,112 @@ La rama codex/source-interval-warning-20261122 conserva ese avance recuperable.
 El programa maestro sigue abierto. Próximos: terminar esa verificación/publicación,
 corroboración de acceso en Android y sesión/ORS reales con medios de prueba
 apropiados; revisión íntegra de fuentes Puebla/CDMX, sus reformas y geometrías.
+
+## Cierre de ciclo · aviso de comprobación fuera del intervalo · 22-11-2026
+
+Este cierre completa la continuación de PR #40 que figuraba pendiente en el
+checkpoint 05c3cef. La reparación P0 de carga de puntos (PR #39) y la marca del
+servidor (API PR #30) siguen publicadas; no se reemplazaron avances de main.
+
+### Problema, causa y comportamiento publicado
+
+El intervalo programado es seis horas, pero la marca stale existente esperaba
+dieciocho. Un intento fuera del intervalo podía aparecer sin aviso de retraso
+durante ese período. API 6cb81f3 agrega overdue calculado con reloj servidor,
+por reporte y fuente; no altera la evidencia ni atribuye una causa al retraso.
+Web ahora consume esa marca opcional y muestra el aviso antes de desplegar el
+detalle. Una fuente seleccionada antigua no queda escondida por un agregado
+reciente. El aviso stale tiene prioridad; cambios detectados y errores de
+disponibilidad siguen mostrando alertas independientes. Las respuestas antiguas
+sin overdue conservan su comportamiento. No hay nuevas consultas periódicas,
+dependencias, credenciales, cuotas, cambios de caché ni modificaciones del cron.
+
+Archivos de este cierre Web: components/OfficialSourceMonitor.tsx,
+test/official-source-monitor.test.mjs y test/geolocation.e2e.mjs. Informes
+actualizados: docs/ENGINEERING-STATUS.md y docs/MEXICO-COVERAGE.md.
+Los cinco archivos de la reparación de restauración y los dos archivos API
+constan en el cierre anterior. Los ocho archivos Web y dos API de ambos ciclos
+se compararon byte a byte con sus commits publicados: coincidencia completa.
+next-env.d.ts generado durante el build se excluyó de los cambios.
+
+### Pruebas y alcance de la evidencia
+
+- Web local del 22-11: build, typecheck, 199 pruebas y auditoría con cero
+  vulnerabilidades aprobados. API local: build/sintaxis, 84 pruebas y auditoría
+  con cero vulnerabilidades aprobados. No hubo cambios de dependencias.
+- CI Web [45091715876](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/45091715876),
+  jobs 137422529214 y 137422528980, aprobado el 22-11 en Chihuahua (23-11 UTC):
+  199 pruebas, build/typecheck, 38 casos de navegador y 11 flujos autenticados.
+  Incluye alerta con detalle cerrado en pantalla móvil y coexistencia de cambio
+  detectado y retraso, con respuestas controladas. Incluye restauración a 390 y
+  1365 px con 48 paradas, visitas repetidas y un único acceso corregido.
+  Auth/REST/Postgres son reales locales desechables; ORS es sintético.
+- La evidencia API del CI 44477838300/135402581022 corresponde al 19-11 y se
+  releyó el 22-11: 84 pruebas, build y migraciones/RLS/compartición/avance SQL
+  desechables aprobados. No se presenta ese run histórico como ejecutado hoy.
+- El lanzamiento local de Chromium no se pudo ejecutar por faltar el binario
+  chromium_headless_shell-1234. Los casos de navegador anteriores sí se ejecutaron
+  en CI; no se afirma que el intento local haya pasado.
+- Smoke público después del último despliegue: proxy/salud 200; coordenadas
+  28.6353,-106.0889, Plus Code completo 75XMRW22+22 y compuesto RW22+22 Chihuahua,
+  200 con una sugerencia cada uno. Validación de 0/2/48 intermedias 200; 49 devuelve
+  400, límite real de 50 puntos totales del cálculo actual. Plan sin sesión 401.
+  La validación de entradas no equivale a cálculo real con ORS.
+- CORS directo: OPTIONS desde el origen Web autorizado 204 con cabecera de
+  origen correcta; desde https://untrusted.example 404 sin autorización CORS.
+- Bodega Aurrera Express con foco explícito Chihuahua devolvió 200/ocho
+  sugerencias, pero la primera estaba a 655570 m y devolvió NO_NEARBY_MATCHES.
+  Es respuesta de búsqueda con advertencia, no evidencia de sucursales cercanas
+  precisas. Ampliar cobertura local/corroboración sigue siendo P1 pendiente.
+- Navegador público del deployment final: consulta municipal y seguimiento de
+  fuentes abiertos correctamente, 15 municipios parciales/cero completos,
+  fechas y avisos de cambios/no disponibilidad visibles. Reporte vigente al
+  comprobar: 2026-11-22T19:54:36.677Z, stale=false y overdue=false. Por ello el
+  aviso positivo de retraso se comprobó con reloj/fixtures en pruebas, no se
+  simula haberlo observado activado en producción. La captura muestra el estado
+  público real. No se inició sesión privada ni se escribió en Supabase alojado.
+- Vercel: consulta de logs de producción de ambos proyectos, error/fatal y
+  ventana de 30 minutos, sin grupos devueltos. Es una observación limitada a esa
+  ventana/filtros; no prueba ausencia histórica de todos los errores.
+
+### Publicación y recuperación
+
+| Componente | Commit publicado | Deployment de producción |
+| --- | --- | --- |
+| Web, PR #39 y #40 | b0d5d5497fabb17b0553d4943beabbc9a5a22a54 | dpl_DnEo1RhBgTeiTQwPvAurQ6Z1jHis |
+| API, PR #30 | 6cb81f3d78c4b2c9278d9441e1e66a96e31d6d42 | dpl_DJMs3PfpE2EQRmfswdaJQb4xeJ1k |
+
+Ambos READY/production; los alias se consultaron y apuntaban a esos mismos SHA:
+https://route-planner-web-sand.vercel.app/ y https://route-planner-api.vercel.app/.
+PR Web [#40](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/40),
+candidato fd30a64a802898101930e69947fe9887c39a73a7. Se fusionó sobre el checkpoint
+documental más reciente con sus fuentes de aplicación verificadas en CI.
+
+Rollback del segundo ciclo Web: dpl_GPTZkhubmaP8esvp6khKLr9a1MiU /0f9722f,
+conserva la reparación P0. Rollback de ambos cambios Web: dpl_CFySMhiKGLJ6dPEh69XoGpyKSzUP
+/6fc43e3. API: dpl_3ddjor55pNbutkjyzDtpfNq66DCv /46b5ec1. Son puntos
+conservados, no rollbacks ejecutados. Ramas, commits y PR permanecen recuperables.
+El cierre documental posterior no cambia el código de esos deployments.
+
+### Estado y próxima prioridad
+
+Completados y publicados: P0 de restauración coherente y seguimiento técnico
+fuera del intervalo. Se mantuvieron GPS, vehículos, OCR con corroboración,
+coordenadas/Plus Codes, mapa y enlaces Google consecutivos; sin límite artificial
+de ocho entregas. No se tocaron Gestión, otros proyectos, políticas RLS, esquemas,
+datos alojados, servicios de pago o variables de entorno. Supabase sólo se leyó:
+3 rutas, 10 paradas, 1 vehículo, cero eventos y cero enlaces compartidos.
+
+Parcial: búsqueda local de establecimientos y cobertura normativa. Permanecen
+15 municipios con referencias parciales y cero con validación legal completa;
+no se añadieron horarios, permisos, calles ni geometrías jurídicas en este ciclo.
+El reporte conserva Puebla con cambio técnico y Juárez/CDMX no disponibles, sin
+inferir reformas ni vigencia. Google no recibe restricciones HGV ni fija una ruta
+exacta para camiones. El monitor comprueba documentos, no habilita vías legalmente.
+
+Pendiente de medios adecuados: cálculo autenticado con ORS alojado y navegación
+en Android físico. Próxima implementación P1: mejorar evidencia/cobertura de
+sucursales cercanas cuando el proveedor devuelve NO_NEARBY_MATCHES, manteniendo
+corroboración explícita de acceso. En paralelo queda revisar íntegramente fuentes
+Puebla/CDMX y geometrías, reformas y jurisdicciones antes de aplicar restricciones.
+El programa maestro no está finalizado. La continuación periódica permanece activa.
