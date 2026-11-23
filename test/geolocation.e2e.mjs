@@ -63,6 +63,28 @@ test('mobile GPS button resolves an address, retains coordinates and shows accur
   } finally { await context.close(); }
 });
 
+test('Maps search links paste as unconfirmed coordinates while short links and viewports preserve the draft',async()=>{
+ for(const viewport of [{width:390,height:844},{width:1365,height:900}]){
+  const {context,page}=await setup(()=>{},viewport);const queries=[];let external=0;
+  try{
+   await context.grantPermissions(['clipboard-read','clipboard-write']);
+   await page.route('https://www.google.com/**',route=>{external++;return route.abort();});
+   await page.route('**/api/route-planner/**',route=>{
+    const q=new URL(route.request().url()).searchParams.get('q');if(q)queries.push(q);
+    return route.fulfill({json:{ok:true,suggestions:[{label:'Acceso corroborado, Chihuahua',lat:28.635300123,lng:-106.088900456}]}});
+   });
+   await page.goto(base);await page.getByRole('button',{name:'Usar mi ubicación actual',exact:true}).waitFor();
+   const input=page.getByRole('combobox',{name:'Destino',exact:true});await input.fill('Borrador anterior');
+   const paste=async text=>{await page.evaluate(value=>navigator.clipboard.writeText(value),text);await input.focus();await input.press('Control+V');};
+   await paste('https://maps.app.goo.gl/Example');await page.getByText(/El centro de la vista/).waitFor();assert.equal(await input.inputValue(),'Borrador anterior');assert.equal(queries.some(q=>q.includes('maps.app')),false);
+   await paste('https://www.google.com/maps/search/?api=1&query=28.635300123%2C-106.088900456&center=25,-100');await page.getByText(/Búsqueda extraída/).waitFor();assert.equal(await input.inputValue(),'28.635300123,-106.088900456');
+   assert.equal(await page.locator('.location-confirmed').count(),0);await page.getByRole('option',{name:/Acceso corroborado/}).click();await page.getByRole('button',{name:'Confirmar punto',exact:true}).click();assert.equal(await input.inputValue(),'Acceso corroborado, Chihuahua');
+   await paste('https://www.google.com/maps/@25,-100,15z');await page.getByText(/El centro de la vista/).waitFor();assert.equal(await input.inputValue(),'Acceso corroborado, Chihuahua');assert.equal(await page.locator('.location-confirmed').count(),1);assert.equal(external,0);
+   assert.ok(queries.includes('28.635300123,-106.088900456'));assert.ok(queries.every(q=>!q.startsWith('http')));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+  }finally{await context.close();}
+ }
+});
+
 test('mobile map confirms the chosen nearby branch into the correct field', async () => {
   const { context, page } = await setup(() => {});
   try {

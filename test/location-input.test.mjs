@@ -36,6 +36,10 @@ async function render(position) {
 }
 const button = text => [...container.querySelectorAll('button')].find(node => node.textContent.includes(text));
 const success = { getCurrentPosition(ok) { ok({ coords: { latitude: 28.662926123, longitude: -106.099908456, accuracy: 16.4 } }); } };
+async function paste(text) {
+ const event=new window.Event('paste',{bubbles:true,cancelable:true});Object.defineProperty(event,'clipboardData',{value:{getData:()=>text}});
+ await act(async()=>container.querySelector('[role="combobox"]').dispatchEvent(event));return event;
+}
 afterEach(async () => { await act(async () => root?.unmount()); container?.remove(); globalThis.fetch = savedFetch; });
 after(() => dom.window.close());
 
@@ -47,6 +51,23 @@ test('GPS click confirms the precise point, resolved address and accuracy', asyn
   assert.match(container.textContent, /±17 m/);
   assert.match(container.textContent, /Punto confirmado/);
   assert.equal(new URL(reverseCalls[0], window.location.href).searchParams.get('lat'), '28.662926123');
+});
+
+test('pasting a Maps coordinate search extracts the full query, never confirms automatically and never fetches the link',async()=>{
+ await render(success);const requests=[],point={label:'Acceso propuesto, Chihuahua',lat:28.635300123,lng:-106.088900456};
+ globalThis.fetch=async url=>{requests.push(url);return Response.json({ok:true,suggestions:[point]});};
+ const event=await paste('https://www.google.com/maps/search/?api=1&query=28.635300123%2C-106.088900456&center=25,-100');
+ assert.equal(event.defaultPrevented,true);assert.equal(container.querySelector('[role="combobox"]').value,'28.635300123,-106.088900456');assert.equal(container.querySelector('.location-confirmed'),null);assert.match(container.textContent,/Búsqueda extraída/);
+ await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));assert.equal(requests.length,1);assert.equal(new URL(requests[0],'https://example.test').searchParams.get('q'),'28.635300123,-106.088900456');assert.ok(requests[0].startsWith('/api/route-planner/'));
+ await act(async()=>container.querySelector('[role="option"]').click());assert.equal(container.querySelector('.location-confirmed'),null);await act(async()=>button('Confirmar punto').click());assert.equal(container.querySelector('input').value,point.label);
+});
+
+test('an unsupported Maps paste preserves the confirmed point and never sends the link to geocoding',async()=>{
+ await render(success);await act(async()=>button('Usar mi ubicación').click());let calls=0;globalThis.fetch=async()=>{calls++;return Response.json({suggestions:[]});};
+ for(const url of ['https://maps.app.goo.gl/Example','https://www.google.com/maps/@25,-100,15z','https://www.google.com/maps/dir/?api=1&origin=25,-100&destination=28,-106']){
+  const event=await paste(url);assert.equal(event.defaultPrevented,true);assert.equal(container.querySelector('[role="combobox"]').value,'Dirección de prueba');assert.match(container.textContent,/Punto confirmado/);assert.match(container.textContent,/centro de la vista/);
+ }
+ await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));assert.equal(calls,0);
 });
 
 test('permission denial preserves the old origin and permits retrying', async () => {
