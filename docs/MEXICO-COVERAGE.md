@@ -869,3 +869,33 @@ Siguen 15 municipios con referencia parcial y cero con validación legal
 automática completa. El catálogo y la disponibilidad de fuentes no amplían
 por sí solos esa cobertura. Publicación Web, pruebas, limitaciones y rollback
 constan en el último ciclo de ENGINEERING-STATUS.md.
+
+## Reforma estatal posterior y búsqueda privada · 23-11-2026
+
+Se localizó y descargó el decreto LXVIII/RFLEY/0596/2026 I P.O., anexo al POE 93,
+21-11-2026, posterior a la consolidación de agosto. En la ficha 08019 el artículo
+66 antiguo queda histórico y la reforma se muestra por separado, con páginas
+3–4/32/42 y entrada el 22-11-2026 según el transitorio. Revisión seleccionada,
+no integral de la ley ni de actos posteriores. No se importan horas, permisos,
+dimensiones, excepciones, sentidos o geometrías como reglas ejecutables.
+Evidencia y huella:
+https://github.com/FernandoBalsimelli/Route-Planner-API/blob/main/docs/CHIHUAHUA-CAPITAL-REFERENCE.md
+
+API PR #31/c136592, deployment dpl_BjNpUf7dcutUMSPu2AiJ8aGuyTM4, verificados en
+API/proxy y guía pública. El PDF anterior mantiene su huella; vigilarlo sin
+cambios no bastaba para descubrir una publicación posterior. El decreto nuevo se
+agrega como URL independiente al monitor existente, sin cambiar cron o cuotas.
+Chequeo manual 2026-11-23T21:11:05.053Z: siete grupos, 26 documentos. Reporte
+posterior automático 23770b7/21:14:35.108Z: decreto unreviewed con la misma huella,
+stale=false/overdue=false al consultar. No equivale a validación legal continua.
+
+La mejora Web PR #44/ac96bf6 busca sucursales guardadas en toda la cuenta antes de
+paginar y conserva sus coordenadas. Un favorito no acredita identidad comercial
+actual, acceso de carga ni permiso para circular. No amplía el índice público
+Express o su cobertura geográfica. Se mantienen todas las ocurrencias de entrega
+y los límites reales de los enlaces Google; no fijan trazado ni transmiten HGV.
+
+Siguen 15 municipios con referencia parcial y cero con validación legal
+automática completa; no se extiende cobertura a otros municipios por incorporar
+un decreto estatal. Detalles de pruebas, publicaciones y rollback en el último
+ciclo de ENGINEERING-STATUS.md. El programa completo sigue abierto.

@@ -2,25 +2,30 @@
 
 Fecha de revisión: 2026-11-23. Alcance: exclusivamente Route Planner.
 
-Estado vigente: Web dd13715 exige puntos confirmados para origen, cada entrega
-y destino. No envía texto alternativo ni omite paradas vacías; ofrece «Revisar»
-para llegar al siguiente campo pendiente. Los enlaces Google requieren el
-itinerario confirmado y conservan orden, visitas repetidas y precisión.
-Se mantienen GPS, mapa, perfiles, OCR, favoritos, enlaces de búsqueda como
-propuestas y 48 intermedias/50 puntos totales del proveedor; no vuelve el límite de ocho.
-Local build/typecheck, 211 pruebas Web y 84 API; CI final con 40 casos de navegador
-y 11 flujos Auth locales aprobados. Auditorías de producción: cero vulnerabilidades.
-Flujo de confirmación y bloqueo verificado en navegador real de producción.
+Estado vigente: Web ac96bf6 permite buscar todos los favoritos privados por nombre
+de sucursal o dirección antes de paginar; conserva búsqueda sin acentos habituales,
+puntuación literal, coordenadas e identidad del favorito seleccionado.
+Debounce, cancelación, límites de espera, reintento y aislamiento por cuenta.
+Se mantiene la confirmación obligatoria de todos los puntos, GPS, mapa, OCR,
+perfiles, visitas repetidas, 48 intermedias y enlaces Google consecutivos.
 
-API runtime permanece 6cb81f3. Main bea2b36 sólo actualiza el reporte técnico
-mediante comprobación manual real: 2026-11-23T16:25:13.904Z, siete grupos,
-25 documentos; API y proxy lo sirven con stale=false/overdue=false al consultar.
-Se recuperó acceso a las cinco URLs de Juárez; CDMX falla con 503 y Puebla
-conserva disponibilidad parcial. No se infiere revisión jurídica de las descargas.
-Siguen 15 municipios parciales y cero con validación legal automática completa.
-Cobertura Express incompleta; pendientes ORS autenticado alojado y Android físico.
-Google no recibe HGV ni fija trazado. El programa general sigue abierto;
-publicación, resultados, límites y rollback en el último cierre.
+API c136592 separa el artículo 66 histórico de Chihuahua de la reforma estatal
+publicada el 21-11-2026, cotejada con artículo único y transitorio. Conserva las
+fuentes anteriores y vigila el decreto independientemente. No añade horarios,
+permisos, geometrías o exclusiones automáticas. Main 23770b7 sólo actualiza el
+reporte técnico después del merge; la API lo sirve sin otro despliegue.
+
+Local y CI: build/TypeScript, 217 pruebas Web, 85 API, 40 casos de navegador,
+12 flujos Auth locales y SQL/RLS en Postgres desechable; auditorías cero
+vulnerabilidades. Guía pública contrastada en navegador. Los flujos Auth usan
+servicios reales locales y ORS sintético; no se presentan como cuenta alojada,
+ruteo real del proveedor o Android físico.
+
+La cobertura comercial pública Express sigue incompleta. Son 15 municipios con
+referencias parciales y cero con validación legal automática completa.
+Pendientes reglamento/actos posteriores y geometrías, ORS autenticado alojado y
+Android físico. Google no recibe HGV ni fija trazado exacto. Programa general abierto;
+commits, deployments, límites y rollback constan en el último ciclo.
 
 ## Recursos verificados
 
@@ -4758,3 +4763,152 @@ actos recuperados de Juárez y actos posteriores de las obras, CDMX/Puebla,
 permisos/sentidos/geometrías verificadas. Próxima prioridad P1: identificar
 sucursal y acceso de entrega con evidencia precisa sin escoger la primera
 coincidencia; conservar la protección P0 recién publicada. El programa sigue abierto.
+
+## Ciclo: buscar sucursales guardadas y separar reforma estatal posterior · 23-11-2026
+
+### Reconciliación y problemas reales
+
+Antes de editar se consultaron GitHub main y ambos alias. Web main 251f5c7
+contenía sólo documentación sobre runtime dd13715; API main bea2b36 contenía el
+reporte técnico sobre runtime 6cb81f3. Se leyeron los dos informes de main y se
+usaron worktrees aislados. No se sobrescribieron avances externos.
+
+P1: favoritos se cargaba en bloques de 50 y se filtraba únicamente en el cliente.
+Una sucursal antigua, aunque guardada en la cuenta, podía no aparecer al buscarla.
+Ahora «Recientes y favoritos» ofrece una búsqueda explícita por nombre guardado
+(número de tienda incluido si fue guardado en el nombre) o dirección, filtrada
+en Postgres antes del límite. Conserva coincidencia sin mayúsculas/acentos
+habituales del español; comodines, puntuación, comillas y sintaxis regex se
+escapan como texto. La gramática OR de PostgREST se cita por separado y conserva
+owner_id/archived=false. Referencia técnica:
+https://docs.postgrest.org/en/latest/references/api/url_grammar.html#reserved-characters.
+
+La búsqueda tiene debounce de 300 ms, cancela consultas obsoletas y descarta
+respuestas tardías, al cambiar de cuenta o vencer 30 s. Hay carga, vacío real,
+error específico y reintento; el campo sigue editable. La paginación conserva
+orden estable por created_at/id y solicita 51 filas inicialmente para detectar
+si hay más; no descarga todos los favoritos a la vez. Una caché en memoria por
+cuenta conserva la identidad del favorito elegido al buscar otra página, para
+no sobrescribir su alias. Buscar no cambia el borrador; elegir reutiliza
+exactamente las coordenadas guardadas, sin nueva geocodificación.
+No acredita identidad comercial actual, acceso de descarga ni permiso HGV.
+No se amplía el índice público de Express ni se promete coincidencia cercana
+donde el proveedor carece de datos.
+
+Web: components/LocationBookProvider.tsx, components/LocationBookTools.tsx,
+lib/favorite-search.ts, test/favorite-search.test.mjs y
+test/integration/authenticated.e2e.mjs. Se excluye next-env.d.ts generado.
+Sin dependencias, esquema, índice, migración o cambios en el contrato REST.
+
+### Reforma localizada y comprobada
+
+La búsqueda oficial encontró el decreto LXVIII/RFLEY/0596/2026 I P.O., POE 93,
+21-11-2026, posterior al PDF consolidado de agosto que seguía con la misma huella.
+Se descargó el PDF de 44 páginas: HTTP 200, 2,801,294 bytes, SHA-256
+b3deb0d1531ccb5d0e922103d120e41dc77a5cf19f6b2fdcaa5796cb0631cbda.
+Se cotejaron portada/artículo único (pp. 3–4), artículo 66 (p. 32) y transitorio
+(p. 42), con revisión visual de las dos últimas páginas seleccionadas.
+La reforma cambia la remisión de horarios de carga al reglamento de la
+Subsecretaría y deroga el segundo párrafo anterior. Su transitorio da entrada
+al día siguiente de publicar: 22-11-2026. Es una revisión seleccionada, no
+integral de la ley o de todos los actos posteriores.
+
+Se conserva la consolidación de agosto, su huella y la propuesta MO-4.4; el
+artículo antiguo queda explícitamente histórico y la reforma como referencia
+separada. No se inventan horas, calles, sentidos, dimensiones, excepciones,
+permisos o geometrías. No se aplica ninguna exclusión nueva a Directions ni
+aumenta cobertura territorial. Quedan 15 municipios parciales y cero completos.
+
+Fuente oficial:
+https://chihuahua.gob.mx/sites/default/atach2/periodico-oficial/anexos/2026-11/ANEXO%2093-2026%20DECRETO%20N%C2%BA%20LXVIII-RFLEY-0596-2026%20I%20P.O.pdf
+El nuevo URL se vigila de forma independiente. El chequeo manual real
+2026-11-23T21:11:05.053Z incluyó siete grupos/26 documentos. La ejecución existente
+activada por el registro publicó después 23770b7 y el reporte
+2026-11-23T21:14:35.108Z, servido por producción con el nuevo documento unreviewed
+y la huella concordante, stale=false/overdue=false al consultar. Una descarga
+correcta no se convierte en aprobación legal. El monitor vigila URLs registradas:
+no descubre automáticamente todas las reformas nuevas; esta publicación se
+localizó mediante investigación adicional. No cambió su cron ni cuota.
+
+API: data/mx/national-references.json, data/mx/source-status.json,
+docs/CHIHUAHUA-CAPITAL-REFERENCE.md y test/municipal-regulations.test.js.
+
+### Validación, publicación y recuperación
+
+Local Web: build, TypeScript, 217 pruebas y auditoría de producción cero
+vulnerabilidades. API: build, 85 pruebas (repetidas tras el reporte) y auditoría
+cero. CI API 45267393945 aprobó build, 85 pruebas, migraciones y SQL de RLS,
+enlaces compartidos y progreso de entregas en Postgres desechable, más auditoría.
+No son migraciones o escrituras en Supabase alojado.
+
+La primera CI Web 45266629618 pasó 217/40 y 11/12 Auth; el caso nuevo no pudo
+importar un módulo TypeScript con dependencia sin extensión en Node nativo.
+Se dejó el filtro autocontenido y se comprobó la importación directamente.
+La ejecución 45268300294 se canceló al reforzar el fixture para esperar la
+sesión restaurada después de recargar. La CI 45268419880 detectó que el lote de fixtures mezclaba
+archived=true con filas sin ese campo y PostgREST enviaba null; se fijó false
+explícito en todas las filas activas. Ninguno de esos candidatos se publicó.
+
+CI final [45269219556](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/45269219556),
+jobs 138024378965/138024378327: build, TypeScript, 217 pruebas, 40 casos de navegador,
+12 flujos Auth y auditoría aprobados. Se leyeron los logs completos. El caso nuevo
+verifica, en 390 y 1280 px, 62 favoritos sintéticos del propietario (incluido uno
+archivado), un registro ajeno, búsqueda antes de paginar, nombres con puntuación,
+barras/comillas/regex, acentos, dirección, borrador intacto, coordenadas originales
+y alias conservado al buscar otra página. La API REST/RLS real oculta el registro
+ajeno. Candidato final 5d5cee7986207780b69f795d6d84866cb568818a; se conserva su historia
+desde 7004e9f, corrección nativa 3b8fb78 y espera de sesión 075ac12.
+
+La integración usa Auth/REST/Postgres reales locales y API fijada a 772a6b2 por
+el workflow; ORS y geometrías son sintéticos. No acredita ruteo autenticado
+alojado, sensores o navegación Android físico, ni una sucursal Express real.
+
+Web PR [#44](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/44), merge
+ac96bf681da35f0a213b18cad0c5eec5cbaff4c6, deployment
+dpl_74RUdGHLvd9dnhHubsoasWo3QEwK, READY/production. Alias
+https://route-planner-web-sand.vercel.app/ confirmado al mismo commit/deployment.
+Los cinco archivos coinciden byte a byte con los probados. La nueva versión del
+proxy devuelve salud y referencia 08019 con HTTP 200. Este cierre documental
+sólo modifica los dos informes; no altera el código publicado.
+
+API PR #31, candidato ad50fdc841f82152e305e32fc2514c4194111466, merge
+c1365927f3d03fbe9454a5c7ac1d0beb4a3bed69, deployment
+dpl_BjNpUf7dcutUMSPu2AiJ8aGuyTM4, READY/production. Alias
+https://route-planner-api.vercel.app/ al mismo commit. Los cuatro archivos del
+merge coinciden byte a byte con los probados. Main 23770b7 difiere sólo en el
+reporte generado posteriormente; no requiere otro despliegue de runtime.
+
+API y proxy públicos devuelven 08019 con texto histórico, propuesta y reforma
+independientes, página 32 y routingEnforced=false. Salud/proxy y coordenadas
+28.635300123,-106.088900456: 200, precisión exacta. Plus Code completo
+75XMRW22+22 y compuesto RW22+22 Chihuahua: 200. Validación de 0/2/48 paradas
+intermedias: 200; 49: 400 específico. Esto valida entradas, no calcula ORS real.
+
+Navegador público, sin sesión: Guía camión → Chihuahua → Chihuahua mostró el
+aviso de reforma posterior, artículo histórico y enlaces independientes a
+páginas 25/32, con cobertura parcial. Captura real conservada. La búsqueda
+autenticada de favoritos se prueba en el entorno local real de CI, no se presenta
+como prueba de una cuenta alojada. No hubo inicio de sesión ni escritura alojada.
+
+Se revisaron el build Vercel Web (24 s) y los agregados error/fatal de ambos
+proyectos durante 30 minutos: sin grupos retornados. Es una ventana limitada,
+no garantía de ausencia permanente de errores. Cálculo sin sesión 401; CORS
+autorizado 204 con origen Web; ajeno 404 sin autorización.
+
+Rollback Web: dd137159deaa65716e1673a0d0d94d959df9206e /
+dpl_HMWumbRQtjJQboH1wcgFbXKzQMfm. API: 6cb81f3d78c4b2c9278d9441e1e66a96e31d6d42 /
+dpl_DJMs3PfpE2EQRmfswdaJQb4xeJ1k. Se conservan ramas
+codex/favorite-search-20261123 y codex/chihuahua-amendment-20261123, historial y
+datos. No se ejecutó rollback, no se afectó Gestión u otros proyectos, ni se
+activaron servicios de pago o cambios de permisos, claves o variables.
+
+Completados: búsqueda de favoritos y referencia separada del decreto.
+Parciales: catálogo comercial Express y normativa municipal. Pendientes:
+verificar reglamento/actos posteriores, permisos, horarios y geometrías de
+Chihuahua; cobertura nacional; índice de sucursales con procedencia, formato y
+acceso; ORS autenticado alojado y Android físico. DENUE es una fuente candidata
+a evaluar, aún sin dataset incorporado, licencia/integración o cobertura
+comercial acreditadas en esta ejecución. Mantener confirmación explícita de
+todos los puntos, repeticiones y orden, 48 intermedias del proveedor y tramos
+Google completos. Google no transmite HGV ni fija el trazado exacto.
+El programa general continúa.
