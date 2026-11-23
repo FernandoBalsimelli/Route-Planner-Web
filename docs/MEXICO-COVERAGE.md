@@ -1,6 +1,6 @@
 # Cobertura municipal mexicana y navegación
 
-Revisión: 2026-11-22. Exclusivamente Route Planner. El programa general sigue abierto.
+Revisión: 2026-11-23. Exclusivamente Route Planner. El programa general sigue abierto.
 
 ## Qué existe realmente
 
@@ -818,3 +818,24 @@ cambios/no disponibilidad y Google no recibe restricciones HGV ni fija el trazad
 CI final 45121562794: 201 pruebas, 39 casos de navegador y 11 flujos Auth locales
 con ORS sintético. Verificación pública del despliegue real, archivos, límites,
 fuentes investigadas, recuperación y próxima prioridad en el cierre de ingeniería.
+
+## Corroboración mediante búsquedas pegadas · 23-11-2026
+
+Web PR #42/8de78c1 extrae query/q de enlaces de búsqueda compatibles de Maps
+como texto no confirmado. No descarga el enlace, importa un Place ID o utiliza
+center/@/viewpoint como acceso. Enlaces cortos, fichas /place y rutas se conservan
+como tarea de corroboración: copiar coordenadas, Plus Code o dirección completa.
+Un pegado no acredita identidad comercial, entrada de descarga o permiso HGV.
+
+Se conservaron main API 17c9e01 (sólo reporte) y runtime 6cb81f3. API/proxy/raw
+sirvieron checkedAt 2026-11-23T07:59:29.933Z, stale=false/overdue=false. Esto verifica
+entrega del reporte técnico, no vigencia jurídica. No hubo cambio de cron o caché.
+El 23-11 se reintentaron Gaceta CDMX 15-12-2021, aviso ACH y decreto Puebla
+21-04-2026: los tres directos devolvieron 503; al abrir Gaceta/decreto por buscador,
+502. No hay PDF recuperado, huella nueva, cotejo visual o geometría legal añadida.
+
+**15 municipios parciales y cero con validación legal completa**. Sin nuevas
+normas, horarios o permisos. Google sigue sin recibir HGV o fijar trazado exacto.
+CI 45161989326: 207 pruebas, 40 casos de navegador y 11 flujos Auth locales con
+ORS sintético; pegado público real verificado aparte. Android físico y ORS
+alojado autenticado siguen pendientes. Detalles, fuentes y rollback en ingeniería.

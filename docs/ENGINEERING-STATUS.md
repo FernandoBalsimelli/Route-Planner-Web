@@ -1,22 +1,24 @@
 # Route Planner — estado de ingeniería
 
-Fecha de revisión: 2026-11-22. Alcance: exclusivamente Route Planner.
+Fecha de revisión: 2026-11-23. Alcance: exclusivamente Route Planner.
 
-Estado vigente: Web dd11771 corrige búsquedas sin coincidencias cercanas:
-los resultados fuera de 50 km requieren abrir «Ver coincidencias lejanas» y el
-selector conserva el origen salvo selección explícita. Verificado con búsqueda
-pública real desde Chihuahua, mapa y ocho resultados lejanos. CI: 201 pruebas,
-39 casos de navegador y 11 flujos Auth; local build/typecheck y auditoría aprobados.
-Las pruebas Auth usan servicios locales desechables y ORS sintético; no son ORS
-alojado ni navegación física Android. API permanece en 6cb81f3 sin cambios.
+Estado vigente: Web 8de78c1 permite pegar enlaces de búsqueda compatibles de
+Google Maps como propuestas de ubicación en origen, destino y paradas. Conserva
+precisión y confirmación explícita; enlaces cortos, vistas/rutas o Place IDs
+ambiguos no sustituyen el borrador. Sin descargar URLs ni nuevas dependencias.
+Local build/typecheck, 207 pruebas, auditoría cero vulnerabilidades; CI pasó
+40 casos de navegador y 11 flujos Auth locales con ORS sintético. Pegado y
+preservación de punto comprobados en el navegador real de producción.
 
-La cobertura local de Express sigue incompleta; no se sustituyen tiendas normales
-ni se inventan accesos. Reporte normativo consultado: 2026-11-22T19:54:36.677Z,
-stale=false/overdue=true. No se actualizaron artificialmente fecha o evidencia.
-Siguen 15 municipios parciales y cero con validación legal completa. Google no
-recibe HGV ni fija trazado. Resultados, publicación, límites y rollback al final;
-el programa general continúa. Se mantienen GPS, perfiles, OCR, todas las entregas,
-coordenadas/Plus Codes, mapa principal y enlaces Google consecutivos.
+API runtime permanece en 6cb81f3. Main 17c9e01 sólo actualiza el reporte técnico;
+API, proxy y GitHub sirven 2026-11-23T07:59:29.933Z, stale=false/overdue=false al
+consultar, sin redespliegue o alteración de evidencia. La recuperación íntegra
+CDMX/Puebla sigue bloqueada por 503 directo y 502 al abrir por buscador. No se
+incorporaron reglas por inferencia: 15 municipios parciales y cero completos.
+Cobertura Express incompleta; pendientes ORS autenticado alojado y Android físico.
+Se mantienen mapa principal, GPS, perfiles, OCR, todas las entregas y enlaces
+Google consecutivos. Google no recibe HGV ni fija trazado. Programa general abierto;
+publicación, límites y rollback en el último cierre.
 
 ## Recursos verificados
 
@@ -4502,3 +4504,125 @@ horas, sin demostrar causa del retraso o vigencia de documentos. No se cambió n
 se rejuveneció ese reporte. Google no recibe HGV ni fija una ruta exacta de camión.
 Pendientes ORS autenticado alojado y navegación en Android físico. No se tocaron
 Gestión, otros proyectos o datos alojados. El programa maestro sigue abierto.
+
+## Ciclo · pegar búsquedas de Google Maps sin confirmar puntos · 23-11-2026
+
+### Estado reconciliado y diagnóstico
+
+Se consultaron GitHub, ambos alias y los dos informes de main antes de editar.
+Web main d798612/prod dd11771, API main 17c9e0137775438e32f60284674a1d081ddf868b
+/prod 6cb81f3. El cambio API externo sólo actualiza data/mx/source-status.json;
+se conserva íntegro. No se atribuyó el desfase de commits a un fallo de publicación:
+la API ya consulta el reporte remoto con caché. API directa, proxy y GitHub raw
+devolvieron 2026-11-23T07:59:29.933Z, stale=false/overdue=false al consultar.
+No se redesplegó API ni se cambió su monitor, cron, TTL, reporte o evidencia.
+
+Un enlace de Maps se pegaba como texto de búsqueda y podía truncarse a 180
+caracteres. Extraer cualquier coordenada visible tampoco sería correcto: center,
+@ y viewpoint describen una vista, y un Place ID puede prevalecer sobre query.
+
+### Implementación
+
+El evento de pegado de LocationInput reconoce enlaces de búsqueda compatibles
+de Google Maps (hosts .com/.com.mx declarados). Extrae una query/q única con
+coordenadas, Plus Code o dirección y utiliza la búsqueda normal de sugerencias.
+Las coordenadas conservan los decimales del texto; un código con + codificado
+no pierde el signo. No importa Place IDs ni afirma identidad de sucursal.
+Los enlaces query requieren api=1; se admite q de enlaces de búsqueda heredados.
+Los cinco archivos de código se limitan a components/LocationInput.tsx,
+lib/maps-location-paste.ts, test/maps-location-paste.test.mjs,
+test/location-input.test.mjs y test/geolocation.e2e.mjs.
+
+El enlace no se abre ni se descarga; sólo se procesa el texto pegado por el
+operador. No hay SDK, secreto, permiso de lectura pasiva del portapapeles,
+servicio de pago, dependencia ni solicitudes extra para resolver el enlace. Se consulta la API de
+direcciones existente con el texto extraído. El resultado sigue sin confirmar
+hasta que se elige y corrobora explícitamente. También funciona en las paradas
+que reutilizan LocationInput; no modifica el OCR de manifiestos.
+
+Los enlaces cortos maps.app.goo.gl/goo.gl/maps, rutas con varias ubicaciones,
+Street View, vistas sin punto, URLs de ficha /place, identificadores que
+prevalecen sobre query, múltiples query/q, coordenadas fuera de rango, credenciales,
+puertos, controles o búsquedas mayores de 180 caracteres no se convierten en
+puntos. Se ofrece copiar coordenadas, Plus Code o dirección completa desde Maps;
+se conserva el borrador o punto confirmado anterior. Los demás textos conservan
+su pegado normal. No se siguen redirecciones ni se interpreta una cámara como pin.
+
+### Verificación y publicación
+
+Local: build/typecheck y 207 pruebas aprobados; auditoría de producción cero
+vulnerabilidades. Se repitieron build y pruebas tras el ajuste final del aviso;
+next-env.d.ts generado queda excluido. Los tests de parser cubren precisión,
+Plus Codes compuestos/completos, texto, dominios falsos, ambigüedad y casos
+rechazados. Dos pruebas de componente verifican búsqueda y confirmación separadas,
+preservación del punto anterior y ausencia de solicitudes a las URLs pegadas.
+
+CI final [45161989326](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/45161989326), jobs 137649428934/137649428692: 207 pruebas, 40 casos de navegador y 11 flujos Auth aprobados; build/typecheck y auditoría cero vulnerabilidades. Se leyeron los logs completos. Auth/REST/Postgres son reales locales desechables y la API de integración está fijada por el workflow a 772a6b2; ORS/geometrías son sintéticos. No se presenta esa evidencia como cálculo real alojado o navegación Android.
+
+El nuevo caso de navegador usa portapapeles real del Chromium desechable en
+390×844 y 1365×900. Comprueba enlace corto que no borra el borrador, query precisa
+que no confirma automáticamente, elección/confirmación y vista @ que conserva el
+punto ya confirmado, sin peticiones a Google ni desbordamiento horizontal. Sus
+respuestas de direcciones son controladas; no prueban una sucursal real ni Android.
+
+Después del despliegue, salud/proxy: 200. Coordenadas 28.635300123,-106.088900456:
+200/una sugerencia con lat/lng exactamente iguales; Plus Code completo 75XMRW22+22
+y compuesto RW22+22 Chihuahua: 200/una. Express con foco Chihuahua: 200/ocho
+lejanos/NO_NEARBY_MATCHES; se mantiene la protección del ciclo anterior. Validación
+0/2/48 intermedias 200; 49 devuelve 400 (50 puntos totales del motor), sin restaurar
+el límite de ocho. Plan sin sesión 401: no se presenta validación como cálculo real.
+CORS directo autorizado 204 con origen correcto; ajeno 404 sin autorización.
+Consulta Vercel error/fatal de ambos proyectos, ventana 30 minutos, sin grupos
+retornados. Es una observación limitada a esa ventana y filtros.
+
+Navegador público real del alias publicado: se pegó mediante el portapapeles un
+enlace search con query 28.635300123,-106.088900456 y center=25,-100. El campo
+conservó los nueve decimales de query, mostró la búsqueda extraída y quedó sin
+confirmar; apareció SN Avenida Mirador, Chihuahua. La ficha de revisión enlazó
+esas mismas coordenadas exactas. Sólo tras elegir y confirmar cambió a punto
+confirmado. Al pegar maps.app.goo.gl/Example conservó la dirección confirmada
+y mostró instrucciones, sin sustituirla por el centro del mapa. Captura real
+del estado previo a confirmar. No se inició sesión ni se guardó ruta o dato en
+Supabase alojado. Esta comprobación no valida una sucursal Express o entrada de carga.
+
+PR [#42](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/42),
+candidato 25282511a6fe82f66f9ae0c12dbc5393fc6d860c; merge
+**8de78c1b2a5d3b798e353f9faf7601ed07c28491**. Deployment
+**dpl_488q2LTnwqC7bL71sLQj74TSmZ8Y**, READY/production. Alias
+https://route-planner-web-sand.vercel.app/ verificado al mismo SHA. Los cinco
+archivos publicados coinciden byte a byte con los locales probados. Se conserva
+la rama codex/maps-location-paste-20261123. El cierre documental no cambia el
+código de ese despliegue; no hay cambios incompletos de aplicación publicados.
+
+Rollback conservado: Web dd1177169ff7b3768f6e0b9593de3989551ff6c5,
+dpl_4s4JaR1zaMjXxDs1UyXckevMiNe7. No se ejecutó rollback ni se borraron ramas,
+historial o datos. API sigue en dpl_DJMs3PfpE2EQRmfswdaJQb4xeJ1k/6cb81f3.
+Ninguna operación sobre Gestión u otros proyectos; sin escrituras alojadas,
+migraciones, nuevas cuentas o cambios de autenticación.
+
+### Fuentes, normativa y siguientes prioridades
+
+La documentación primaria de Maps separa query de center y viewpoint y describe
+el efecto de Place IDs. Se utiliza como referencia de compatibilidad:
+https://developers.google.com/maps/documentation/urls/get-started.
+No se garantiza compatibilidad con todas las URLs de Google ni navegación exacta HGV.
+
+Se reintentaron directamente el 23-11-2026 la Gaceta CDMX 15-12-2021, el aviso
+de la Autoridad del Centro Histórico y el decreto estatal Puebla 21-04-2026:
+https://data.consejeria.cdmx.gob.mx/portal_old/uploads/gacetas/0830deebda0a6b9e7fb44d6d2cef2ab0.pdf
+https://www.autoridadcentrohistorico.cdmx.gob.mx/storage/app/media/Aviso%20Carga%20y%20Descarga%2015122021.pdf
+https://periodicooficial.puebla.gob.mx/media/k2/attachments/T_EV_21042026.pdf
+Los tres intentos directos devolvieron HTTP 503; el buscador al abrir Gaceta y
+decreto devolvió 502. No se obtuvieron bytes PDF, huellas nuevas ni cotejo visual.
+Se conserva la investigación anterior y no se importan horarios por lectura
+indexada o por la fecha de un intento. No se declara vigencia, reforma completa
+o permiso de camión a partir de esas respuestas.
+
+Siguen 15 municipios con referencias parciales y cero con validación legal
+completa; ninguna geometría legal nueva. El reporte técnico reciente mantiene
+Puebla con cambio y Juárez/CDMX no disponibles, no equivale a vigencia jurídica.
+La cobertura comercial Express sigue incompleta: el pegado facilita corroborar
+puntos por otro medio, no añade sucursales al índice. Próximo P1: fuente primaria
+utilizable para identificar formato/sucursal y acceso con procedencia y fecha.
+Pendientes de medios adecuados ORS autenticado alojado y navegación Android físico;
+Google no recibe restricciones HGV ni fija una ruta exacta. El programa continúa.
