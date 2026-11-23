@@ -96,8 +96,8 @@ test('missing nearby branches keep the picker at the origin and reveal distant m
     return route.fulfill({json:{ok:true,nearby:true,warning:'NO_NEARBY_MATCHES',suggestions:[{label:'Bodega Aurrera Express, Monterrey',lat:25.721274,lng:-100.325989,distanceMeters:655570,kind:'venue'}]}});
    });
    await page.goto(base);await page.getByRole('button',{name:'Usar mi ubicación actual',exact:true}).click();await page.getByText('Ubicación actual establecida como origen.').waitFor();
-   const destination=page.getByRole('combobox',{name:'Destino',exact:true});await destination.fill('Bodega Aurrera Express');
-   await page.getByRole('button',{name:'Ver coincidencias lejanas (1)',exact:true}).waitFor();assert.equal(await page.getByRole('option').count(),0);assert.equal(await page.getByRole('button',{name:'S1',exact:true}).count(),0);
+   const destination=page.getByRole('combobox',{name:'Destino',exact:true}),field=page.locator('.location-field').filter({has:destination});await destination.fill('Bodega Aurrera Express');
+   await page.getByRole('button',{name:'Ver coincidencias lejanas (1)',exact:true}).waitFor();assert.equal(await field.getByRole('option').count(),0);assert.equal(await page.getByRole('button',{name:'S1',exact:true}).count(),0);
    await destination.press('Enter');assert.equal(await page.locator('.location-confirm-card').count(),0);
    await page.getByRole('button',{name:'Elegir destino en el mapa',exact:true}).click();await page.getByRole('button',{name:'Elegir el centro del mapa',exact:true}).click();await page.getByRole('button',{name:'Confirmar punto del mapa',exact:true}).waitFor({state:'visible'});
    await page.getByText('Comprueba la dirección y confirma el punto.').waitFor();assert.equal(reverses.length,2);assert.ok(Math.abs(reverses[1].lat-28.662926123)<.00001);assert.ok(Math.abs(reverses[1].lng+106.099908456)<.00001);
