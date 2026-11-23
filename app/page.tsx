@@ -23,6 +23,7 @@ import type { RouteResult } from '@/lib/routes';
 import LocationBookProvider from '@/components/LocationBookProvider';
 import RouteExports from '@/components/RouteExports';
 import { persistRoute, routeSaveData } from '@/lib/route-save';
+import { readSavedRoutePoints, savedCalculationMatchesPoints } from '@/lib/saved-route-restore';
 import AppIcon from '@/components/AppIcon';
 import ThemeToggle from '@/components/ThemeToggle';
 import TruckGuide from '@/components/TruckGuide';
@@ -81,6 +82,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<RouteResult | null>(null);
+  const [restoreNotice, setRestoreNotice] = useState('');
   const [navigationPosition, setNavigationPosition] = useState<{lat:number;lng:number}|null>(null);
   const [navigationFollow, setNavigationFollow] = useState(false);
   useEffect(()=>{setNavigationPosition(null);setNavigationFollow(false);},[result]);
@@ -111,7 +113,7 @@ export default function Home() {
       // leaving an identified account, including A -> signed out -> A.
       if (previous.ownerId) {
         setOrigin(''); setDestination(''); setSelectedOrigin(null); setSelectedDestination(null); setStops([]);
-        setResult(null); setRouteChoices([]); setAlternativeNotice(''); setError(''); setRouteName('');
+        setResult(null); setRestoreNotice(''); setRouteChoices([]); setAlternativeNotice(''); setError(''); setRouteName('');
         setMode('delivery'); setPreferences(DEFAULT_ROUTE_PREFERENCES); setOptimizeStops(false); setRequestAlternatives(false);
         setOperating(EMPTY_OPERATING_FORM); setVehicle({ height: '4.0', width: '2.5', length: '18', grossWeight: '40', axleWeight: '10' });
         setSearchArea(null); setMapSearch(null); setManifestMapSelection(undefined); setMunicipalReview(undefined); setStopOrderMessage('');
@@ -200,7 +202,7 @@ export default function Home() {
 
   function useSharedPoints(draft: SharedRouteDraft) {
     planningRequest.current?.abort(); restoreGeneration.current++;
-    setLoading(false); setResult(null); setRouteChoices([]); setAlternativeNotice(''); setMapSearch(null);
+    setLoading(false); setResult(null); setRestoreNotice(''); setRouteChoices([]); setAlternativeNotice(''); setMapSearch(null);
     setOrigin(draft.origin.label); setSelectedOrigin(draft.origin); setSearchArea(draft.origin);
     setDestination(draft.destination.label); setSelectedDestination(draft.destination);
     setStops(draft.stops.map(point => ({ id: crypto.randomUUID(), value: point.label, selected: point })));
@@ -223,27 +225,24 @@ export default function Home() {
       .order('sequence', { ascending: true });
     if (accountScope.current.version !== version || restoreGeneration.current !== generation) return;
     if (error) throw new Error('No se pudieron cargar las paradas: ' + error.message);
-    const label = (point: SavedRoute['origin']) => point?.label || (point?.lat != null && point?.lng != null ? `${point.lat}, ${point.lng}` : '');
-    setOrigin(label(route.origin));
-    setDestination(label(route.destination));
-    setSelectedOrigin(route.origin?.lat != null && route.origin?.lng != null ? { label: label(route.origin), lat: route.origin.lat, lng: route.origin.lng } : null);
-    setSelectedDestination(route.destination?.lat != null && route.destination?.lng != null ? { label: label(route.destination), lat: route.destination.lat, lng: route.destination.lng } : null);
-    setStops((data || []).map((row: { sequence: number; location: { label?: string; lat?: number; lng?: number } }) => ({
-      id: crypto.randomUUID(),
-      value: row.location?.label || (row.location?.lat != null && row.location?.lng != null ? `${row.location.lat}, ${row.location.lng}` : ''),
-      selected: row.location?.lat != null && row.location?.lng != null ? { label: row.location.label || `${row.location.lat}, ${row.location.lng}`, lat: row.location.lat, lng: row.location.lng } : null,
-    })));
+    const points = readSavedRoutePoints(route.origin, route.destination, data);
+    const calculation = savedCalculationMatchesPoints(route.route_metadata?.result, points) ? route.route_metadata!.result! : null;
+    planningRequest.current?.abort(); setLoading(false);
+    setOrigin(points.origin.value); setDestination(points.destination.value);
+    setSelectedOrigin(points.origin.selected); setSelectedDestination(points.destination.selected);
+    setStops(points.stops.map(point => ({ id: crypto.randomUUID(), value: point.value, selected: point.selected })));
     setMode(route.route_metadata?.mode || (route.name.startsWith('Camión') ? 'truck' : 'delivery'));
     const savedVehicle = route.route_metadata?.vehicle;
     setOperating(operatingForm(savedVehicle));
     if (savedVehicle) setVehicle({ height: String(savedVehicle.heightM ?? 4), width: String(savedVehicle.widthM ?? 2.5), length: String(savedVehicle.lengthM ?? 18), grossWeight: String(savedVehicle.grossWeightT ?? 40), axleWeight: String(savedVehicle.axleWeightT ?? 10) });
     setSelectedVehicleProfileId(route.vehicle_id || '');
     setRouteName(route.name);
-    if (route.origin?.lat != null && route.origin?.lng != null) setSearchArea({ label: label(route.origin), lat: route.origin.lat, lng: route.origin.lng });
+    setSearchArea(points.origin.selected);
     setPreferences(readRoutePreferences(route.route_metadata?.result?.preferences));
     setRequestAlternatives(false); setRouteChoices([]); setAlternativeNotice('');
-    setResult(route.route_metadata?.result || null);
-    setOptimizeStops(Boolean(route.route_metadata?.result?.optimized));
+    setResult(calculation);
+    setOptimizeStops(Boolean(calculation?.optimized));
+    setRestoreNotice(route.route_metadata?.result && !calculation ? 'Los puntos guardados ya no coinciden con el cálculo anterior. Se conservaron todas las ubicaciones actuales. Revisa los accesos y vuelve a calcular antes de guardar o abrir la navegación.' : '');
     setError('');
     setSaveMessage(`Se cargó "${route.name}". Puedes continuar o volver a calcular la ruta.`);
     openWorkspace('planner');
@@ -282,7 +281,7 @@ export default function Home() {
       const payload = await response.json().catch(() => ({}));
       if (controller.signal.aborted || accountScope.current.version !== version) return;
       if (!response.ok) { if (payload.code === 'ORS_API_KEY_MISSING') setProviderStatus('missing'); throw new Error(payload.message || 'No se pudo calcular la ruta.'); }
-      setResult(payload.route); setProviderStatus('ready');
+      setResult(payload.route); setRestoreNotice(''); setProviderStatus('ready');
       if (requestAlternatives) {
         const choices = [payload.route, ...(Array.isArray(payload.alternatives) ? payload.alternatives.slice(0, 2) : [])];
         setRouteChoices(choices);
@@ -354,7 +353,8 @@ export default function Home() {
           {mode === 'truck' && <details className="vehicle-panel" open><summary><AppIcon name="truck" size={18}/><span>Medidas del camión cargado</span></summary><div className="vehicle-fields">{([['height','Altura (m)','0.5','10'],['width','Ancho (m)','0.5','5'],['length','Largo (m)','1','30'],['grossWeight','Peso bruto (t)','0.1','100'],['axleWeight','Peso por eje (t)','0.1','30']] as const).map(([key,title,min,max]) => <label key={key}>{title}<input type="number" min={min} max={max} step="0.1" value={vehicle[key]} onChange={event => { setVehicle(values => ({...values,[key]:event.target.value})); setResult(null); }}/></label>)}</div><VehicleOperatingFields value={operating} onChange={value=>{setOperating(value);setResult(null);}}/><p className="hint">Los valores iniciales son un ejemplo. Usa los de tu unidad.</p><button type="button" className="text-button" onClick={() => openWorkspace('guide')}>Qué restricciones considera esta ruta ↗</button></details>}
           <div className="plan-actions"><button type="button" className="primary-button" disabled={!canPlan} onClick={planRoute}>{loading ? 'Calculando ruta…' : 'Calcular ruta'}<AppIcon name="arrow"/></button>{!user && <small>Inicia sesión para calcular y guardar tus recorridos.</small>}</div>
           {error && <div className="error-box" role="alert"><strong>No se pudo calcular</strong><p>{error}</p>{providerStatus === 'missing' && <small>El servicio de rutas requiere configuración del administrador.</small>}</div>}
-          {!result && <NavigationLinks points={navigationPoints} route={result} preferences={preferences} truck={mode === 'truck'}/>}
+          {restoreNotice && <p className="coverage-status" role="status">{restoreNotice}</p>}
+          {!result && !restoreNotice && <NavigationLinks points={navigationPoints} route={result} preferences={preferences} truck={mode === 'truck'}/>}
         </div>
         <aside id="mapa-planificacion" className={`result-panel ${result ? 'has-result' : 'is-planning'}`} aria-label="Mapa y resultado de la ruta">
           {result && alternativeNotice && <section className="route-alternatives" aria-label="Opciones de recorrido"><h2>Compara recorridos</h2><p>{alternativeNotice}</p>{routeChoices.length > 1 && <div role="group" aria-label="Elegir recorrido">{routeChoices.map((choice, index) => <button type="button" key={index} disabled={saving} aria-pressed={choice === result} onClick={() => { setResult(choice); setSaveMessage(''); }}><strong>Ruta {index + 1}</strong><span>{formatDistance(choice.distanceMeters)} · {formatDuration(choice.durationSeconds)}</span>{choice === result && <small>Seleccionada</small>}</button>)}</div>}</section>}
