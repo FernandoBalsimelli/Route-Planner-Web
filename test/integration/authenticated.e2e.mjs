@@ -356,7 +356,7 @@ test('real local favorite search finds older branches by literal name or address
   try{
    const username='favorite-search-'+width;await page.goto(base);await createAccount(page,username);const owner=await session(username),other=await createLocalAccount(username+'-other');
    const names=['Express 50%_* (A)','Calle [12]+?','Literal \\d^${x}.|','Coma, "Express"','Bodega Aurrerá · Peña'];
-   const record=(name,i,created_at='2026-11-16T12:00:00Z')=>({owner_id:owner.uid,name,address_label:i===100?'Calle Cedro 123':'Dirección sintética '+i,lat:28.635300123+i*.00001,lng:-106.088900456,created_at});
+   const record=(name,i,created_at='2026-11-16T12:00:00Z')=>({owner_id:owner.uid,name,address_label:i===100?'Calle Cedro 123':'Dirección sintética '+i,lat:28.635300123+i*.00001,lng:-106.088900456,archived:false,created_at});
    const seeds=[...Array.from({length:55},(_,i)=>record('Sucursal normal '+String(i).padStart(2,'0'),i)),...names.map((name,i)=>record(name,100+i,'2020-01-01T00:00:00Z')),record('Express 50XXX cualquier A',200),{...record(names[0],201),archived:true}];
    const inserted=await owner.client.from('favorite_locations').insert(seeds).select('id,name,lat,lng');assert.equal(inserted.error,null);assert.equal(inserted.data.length,62);
    const foreign=await other.client.from('favorite_locations').insert({...record(names[0],300),owner_id:other.uid}).select('id').single();assert.equal(foreign.error,null);
