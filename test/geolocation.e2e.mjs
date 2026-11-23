@@ -497,16 +497,17 @@ test('municipal directory distinguishes source records from missing legal covera
 test('mobile creates twelve deliveries and sends every point to Google in consecutive maximum-size links', async () => {
   const { context, page } = await setup(() => {});
   try {
-    await page.route('**/api/route-planner/**', route => route.fulfill({json:{ok:true,suggestions:[]}}));
+    const locations=[{label:'Origen de prueba',lat:28.63,lng:-106.06},...Array.from({length:12},(_,i)=>({label:`Entrega ${i+1}`,lat:28.63+(i+1)*.0001,lng:-106.06})),{label:'Destino de prueba',lat:28.64,lng:-106.07}];
+    await page.route('**/api/route-planner/**', route => {const q=new URL(route.request().url()).searchParams.get('q'),point=locations.find(point=>point.label===q);return route.fulfill({json:{ok:true,suggestions:point?[point]:[]}});});
     await page.goto(base);
-    await page.getByRole('combobox',{name:'Origen',exact:true}).fill('Origen de prueba');
-    await page.getByRole('combobox',{name:'Destino',exact:true}).fill('Destino de prueba');
+    await confirmPlannerPoint(page,'Origen','Origen de prueba');
+    await confirmPlannerPoint(page,'Destino','Destino de prueba');
     for(let i=1;i<=12;i++){
       await page.getByRole('button',{name:'Agregar parada'}).click();
-      await page.getByRole('combobox',{name:`PARADA ${i}`,exact:true}).fill(`Entrega ${i}`);
+      await confirmPlannerPoint(page,`PARADA ${i}`,`Entrega ${i}`);
     }
     assert.equal(await page.getByRole('combobox',{name:'PARADA 12',exact:true}).inputValue(),'Entrega 12');
-    const expected=['Origen de prueba',...Array.from({length:12},(_,i)=>`Entrega ${i+1}`),'Destino de prueba'];
+    const expected=locations.map(point=>`${point.lat}, ${point.lng}`);
     async function verify(limit,count){
       const links=await page.getByRole('link',{name:/^Abrir tramo/}).all();
       assert.equal(links.length,count);
@@ -555,13 +556,13 @@ test('mobile branch confirmation preserves street and coordinates after showing 
 test('mobile road preferences reach all Google links and preserve delivery order', async () => {
   const { context, page } = await setup(() => {});
   try {
-    await page.route('**/api/route-planner/**', route => route.fulfill({ json: { ok: true, suggestions: [] } }));
+    await page.route('**/api/route-planner/**', route => {const q=new URL(route.request().url()).searchParams.get('q'),[lat,lng]=(q||'').split(',').map(Number);return route.fulfill({ json: { ok: true, suggestions: q?[{label:q,lat,lng}]:[] } });});
     await page.goto(base);
-    await page.getByRole('combobox', { name: 'Origen', exact: true }).fill('28.63, -106.06');
-    await page.getByRole('combobox', { name: 'Destino', exact: true }).fill('28.64, -106.07');
+    await confirmPlannerPoint(page,'Origen','28.63, -106.06');
+    await confirmPlannerPoint(page,'Destino','28.64, -106.07');
     for (let i = 1; i <= 12; i++) {
       await page.getByRole('button', { name: 'Agregar parada' }).click();
-      await page.getByRole('combobox', { name: `PARADA ${i}`, exact: true }).fill(`28.63${i}, -106.06`);
+      await confirmPlannerPoint(page,`PARADA ${i}`,`28.63${i}, -106.06`);
     }
     const optimization = page.getByRole('checkbox', { name: /Optimizar orden de paradas/ });
     await optimization.check();
@@ -581,9 +582,7 @@ test('mobile road preferences reach all Google links and preserve delivery order
       if (index) assert.equal(part[0], visited.at(-1));
       visited.push(...part.slice(index ? 1 : 0));
     }
-    assert.equal(visited.length, 14);
-    assert.equal(visited[0], '28.63, -106.06');
-    assert.equal(visited.at(-1), '28.64, -106.07');
+    assert.deepEqual(visited,['28.63, -106.06',...Array.from({length:12},(_,i)=>`${Number(`28.63${i+1}`)}, -106.06`),'28.64, -106.07']);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
   } finally { await context.close(); }
 });
