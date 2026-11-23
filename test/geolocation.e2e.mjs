@@ -35,6 +35,11 @@ async function setup(mockPosition, viewport = { width: 390, height: 844 }) {
 const success = () => Object.defineProperty(navigator, 'geolocation', { configurable: true, value: {
   getCurrentPosition(ok) { ok({ coords: { latitude: 28.662926123, longitude: -106.099908456, accuracy: 16.4 } }); },
 } });
+async function confirmPlannerPoint(page,title,value){
+ await page.getByRole('combobox',{name:title,exact:true}).fill(value);
+ await page.getByRole('listbox',{name:`Sugerencias para ${title}`,exact:true}).getByRole('option').first().click();
+ await page.getByRole('button',{name:'Confirmar punto',exact:true}).click();
+}
 
 test('mobile GPS button resolves an address, retains coordinates and shows accuracy', async () => {
   const { context, page } = await setup(success);
@@ -417,12 +422,13 @@ async function navigationSetup(timeoutMs){
  let calculations=0;
  await page.route('**/api/route-planner/**',route=>{
   if(new URL(route.request().url()).pathname.endsWith('/routes/plan')){calculations++;return route.fulfill({json:{ok:true,route:navigationRoute}});}
-  return route.fulfill({json:{ok:true,suggestions:[]}});
+  const q=new URL(route.request().url()).searchParams.get('q');
+  return route.fulfill({json:{ok:true,suggestions:q?[{label:q,lat:25.68,lng:-100.31}]:[]}});
  });
  await page.goto(base);
  await page.getByRole('button',{name:'Camión',exact:true}).click();
- await page.getByRole('combobox',{name:'Origen',exact:true}).fill('Origen de prueba');
- await page.getByRole('combobox',{name:'Destino',exact:true}).fill('Destino de prueba');
+ await confirmPlannerPoint(page,'Origen','Origen de prueba');
+ await confirmPlannerPoint(page,'Destino','Destino de prueba');
  await page.getByRole('button',{name:'Calcular ruta',exact:true}).click();
  await page.getByRole('heading',{name:'Navegar esta ruta'}).waitFor();
   await page.getByRole('heading',{name:'Jurisdicciones del recorrido'}).waitFor();
@@ -862,13 +868,16 @@ test('mobile stalled search stops loading at the client deadline and can be retr
 for(const width of [390,1280])test(`Google links block an incomplete delivery instead of silently skipping it at width ${width}`,async()=>{
  const {context,page}=await setup(()=>{},{width,height:844});
  try{
-  await page.route('**/api/route-planner/**',route=>route.fulfill({json:{ok:true,suggestions:[]}}));await page.goto(base);
+  await page.route('**/api/route-planner/**',route=>{const q=new URL(route.request().url()).searchParams.get('q');return route.fulfill({json:{ok:true,suggestions:q?[{label:q,lat:28.635300123,lng:-106.088900456}]:[]}});});await page.goto(base);
   await page.getByRole('combobox',{name:'Origen',exact:true}).fill('Origen público de prueba');await page.getByRole('combobox',{name:'Destino',exact:true}).fill('Destino público de prueba');
+  assert.ok(await page.getByRole('button',{name:'Calcular ruta',exact:true}).isDisabled());assert.equal(await page.locator('.navigation-segments a').count(),0);
+  await confirmPlannerPoint(page,'Origen','Origen público de prueba');await confirmPlannerPoint(page,'Destino','Destino público de prueba');
   await page.getByRole('link',{name:'Abrir puntos en Google Maps ↗',exact:true}).waitFor();
-  await page.getByRole('button',{name:/Agregar parada/}).click();await page.getByRole('alert').filter({hasText:'Revisa el punto 2'}).waitFor();assert.equal(await page.locator('.navigation-segments a').count(),0);
-  await page.getByRole('combobox',{name:'PARADA 1',exact:true}).fill('Sucursal | otra parada');await page.getByRole('alert').filter({hasText:'Revisa el punto 2'}).waitFor();assert.equal(await page.locator('.navigation-segments a').count(),0);
-  await page.getByRole('combobox',{name:'PARADA 1',exact:true}).fill('Sucursal pública de prueba');const link=page.getByRole('link',{name:'Abrir puntos en Google Maps ↗',exact:true});await link.waitFor();
-  assert.equal(new URL(await link.getAttribute('href')).searchParams.get('waypoints'),'Sucursal pública de prueba');
+  await page.getByRole('button',{name:/Agregar parada/}).click();await page.locator('.route-point-review').waitFor();assert.equal(await page.locator('.navigation-segments a').count(),0);assert.ok(await page.getByRole('button',{name:'Calcular ruta',exact:true}).isDisabled());
+  await page.getByRole('button',{name:'Revisar parada 1',exact:true}).click();assert.ok(await page.getByRole('combobox',{name:'PARADA 1',exact:true}).evaluate(node=>node===document.activeElement));
+  await page.getByRole('combobox',{name:'PARADA 1',exact:true}).fill('Sucursal | otra parada');assert.equal(await page.locator('.navigation-segments a').count(),0);
+  await confirmPlannerPoint(page,'PARADA 1','Sucursal pública de prueba');const link=page.getByRole('link',{name:'Abrir puntos en Google Maps ↗',exact:true});await link.waitFor();
+  assert.equal(new URL(await link.getAttribute('href')).searchParams.get('waypoints'),'28.635300123, -106.088900456');assert.ok(await page.getByRole('button',{name:'Calcular ruta',exact:true}).isEnabled());
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  }finally{await context.close();}
 });

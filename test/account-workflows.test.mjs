@@ -1,3 +1,4 @@
+import { confirmLocation } from './helpers/confirm-location.mjs';
 import assert from 'node:assert/strict';
 import { after, afterEach, test } from 'node:test';
 import { JSDOM } from 'jsdom';
@@ -210,7 +211,7 @@ test('planner retries a failed save with the same key and sends route and stops 
   t.after(()=>{hooks.deregister();supabase.auth.getUser=oldUser;supabase.auth.getSession=oldSession;supabase.auth.onAuthStateChange=oldAuthState;supabase.rpc=oldRpc;});
   globalThis.fetch=async(url)=>Response.json(url.endsWith('/v1/routes/plan')?{ok:true,route:{distanceMeters:1000,durationSeconds:180,sections:[],waypoints:[{type:'origin',label:'Origen',lat:28.66,lng:-106.09},{type:'stop',label:'Sucursal uno',lat:28.67,lng:-106.10},{type:'destination',label:'Destino',lat:28.68,lng:-106.11}]}}:{suggestions:[]});
   const {default:Home}=await import('../app/page.tsx');await render(React.createElement(Home));
-  await fill(container.querySelectorAll('.route-form .field input')[0],'Origen de prueba');await fill(container.querySelectorAll('.route-form .field input')[1],'Destino de prueba');
+  await confirmLocation(container.querySelectorAll('.route-form .field input')[0],'Origen de prueba');await confirmLocation(container.querySelectorAll('.route-form .field input')[1],'Destino de prueba');
   await act(async()=>button('Calcular ruta').click());
   await fill(container.querySelector('.route-save-name input'),'Express · ruta de prueba');
   await act(async()=>button('Guardar esta ruta').click());assert.match(container.textContent,/Connection interrupted/);
