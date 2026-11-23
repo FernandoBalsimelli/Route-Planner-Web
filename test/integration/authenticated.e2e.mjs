@@ -361,7 +361,7 @@ test('real local favorite search finds older branches by literal name or address
    const inserted=await owner.client.from('favorite_locations').insert(seeds).select('id,name,lat,lng');assert.equal(inserted.error,null);assert.equal(inserted.data.length,62);
    const foreign=await other.client.from('favorite_locations').insert({...record(names[0],300),owner_id:other.uid}).select('id').single();assert.equal(foreign.error,null);
    const hidden=await owner.client.from('favorite_locations').select('id').eq('id',foreign.data.id).or(favoriteSearchFilter(names[0]));assert.equal(hidden.error,null);assert.deepEqual(hidden.data,[]);
-   await page.reload();await page.getByRole('combobox',{name:'Destino',exact:true}).fill('Borrador que no debe cambiar');
+   await page.reload();await page.locator('.account-button').filter({hasText:username}).waitFor();await page.getByRole('combobox',{name:'Destino',exact:true}).fill('Borrador que no debe cambiar');
    const field=page.locator('.location-field').filter({has:page.getByRole('combobox',{name:'Destino',exact:true})});
    await field.getByRole('button',{name:'☆ Recientes y favoritos',exact:true}).click();
    const region=page.getByRole('region',{name:'Ubicaciones guardadas para Destino',exact:true});
