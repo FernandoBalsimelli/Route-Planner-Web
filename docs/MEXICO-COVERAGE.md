@@ -839,3 +839,33 @@ normas, horarios o permisos. Google sigue sin recibir HGV o fijar trazado exacto
 CI 45161989326: 207 pruebas, 40 casos de navegador y 11 flujos Auth locales con
 ORS sintético; pegado público real verificado aparte. Android físico y ORS
 alojado autenticado siguen pendientes. Detalles, fuentes y rollback en ingeniería.
+
+## Confirmación y comprobación técnica · 23-11-2026
+
+La planificación y los enlaces Google requieren ahora todos los puntos
+confirmados, incluidos origen, destino y cada ocurrencia de entrega. Las paradas
+vacías se completan o se eliminan explícitamente. Las coordenadas de los enlaces
+siguen sin enviar dimensiones/pesos HGV ni fijar el trazado o acreditar legalidad.
+
+Se ejecutó el checker existente de fuentes: 2026-11-23T16:25:13.904Z
+(10:25 Chihuahua), siete grupos y 25 documentos; 21 descargas correctas y
+cuatro fallos. Las cinco URLs de Juárez vuelven a responder: principal sin
+revisión legal, Gaceta con cambio técnico y tres avisos operativos con primeras
+huellas en el monitor. No se convierte enero en fecha automática de reapertura
+ni el acceso a un patio en desvío general para camiones. CDMX continúa con
+tres HTTP_503; Puebla conserva sus evidencias pero tiene disponibilidad parcial
+por HTTP_503 en OJP. Cambios en páginas HTML no acreditan reformas normativas.
+
+Sólo se publica data/mx/source-status.json en API
+bea2b36c8be6ec4c652efa89d951ff16e7d57892; no se altera registro, cron ni reglas.
+API y proxy sirven la nueva comprobación con stale=false/overdue=false y
+legalRulesAutomaticallyUpdated=false. La programación solicitada sigue cada seis
+horas; no equivale a entrega puntual garantizada ni actualización jurídica.
+El reporte anterior 17c9e01 permanece en historial como punto de recuperación.
+
+Se reabrió la fuente primaria del Congreso de Chihuahua (117.pdf). Descarga directa HTTP 200, 802146 bytes, SHA-256 d7ff847e53a398668d4b906d892af3313f214fc97bc0868abf4cdf9690d5d3bf, igual al documento ya referenciado. La portada sigue indicando última reforma POE 08-08-2026/63; el artículo 66 está en página PDF 25 y remite la fijación de horas a la autoridad. La consulta no aporta acuerdos municipales de implementación, horarios, excepciones ni geometrías nuevas. El registro municipal de normatividad respondió, pero su lectura no entregó filas de documentos ejecutables. No se añaden reglas a partir de snippets o inferencias.
+
+Siguen 15 municipios con referencia parcial y cero con validación legal
+automática completa. El catálogo y la disponibilidad de fuentes no amplían
+por sí solos esa cobertura. Publicación Web, pruebas, limitaciones y rollback
+constan en el último ciclo de ENGINEERING-STATUS.md.

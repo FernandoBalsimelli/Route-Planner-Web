@@ -2,23 +2,25 @@
 
 Fecha de revisión: 2026-11-23. Alcance: exclusivamente Route Planner.
 
-Estado vigente: Web 8de78c1 permite pegar enlaces de búsqueda compatibles de
-Google Maps como propuestas de ubicación en origen, destino y paradas. Conserva
-precisión y confirmación explícita; enlaces cortos, vistas/rutas o Place IDs
-ambiguos no sustituyen el borrador. Sin descargar URLs ni nuevas dependencias.
-Local build/typecheck, 207 pruebas, auditoría cero vulnerabilidades; CI pasó
-40 casos de navegador y 11 flujos Auth locales con ORS sintético. Pegado y
-preservación de punto comprobados en el navegador real de producción.
+Estado vigente: Web dd13715 exige puntos confirmados para origen, cada entrega
+y destino. No envía texto alternativo ni omite paradas vacías; ofrece «Revisar»
+para llegar al siguiente campo pendiente. Los enlaces Google requieren el
+itinerario confirmado y conservan orden, visitas repetidas y precisión.
+Se mantienen GPS, mapa, perfiles, OCR, favoritos, enlaces de búsqueda como
+propuestas y 48 intermedias/50 puntos totales del proveedor; no vuelve el límite de ocho.
+Local build/typecheck, 211 pruebas Web y 84 API; CI final con 40 casos de navegador
+y 11 flujos Auth locales aprobados. Auditorías de producción: cero vulnerabilidades.
+Flujo de confirmación y bloqueo verificado en navegador real de producción.
 
-API runtime permanece en 6cb81f3. Main 17c9e01 sólo actualiza el reporte técnico;
-API, proxy y GitHub sirven 2026-11-23T07:59:29.933Z, stale=false/overdue=false al
-consultar, sin redespliegue o alteración de evidencia. La recuperación íntegra
-CDMX/Puebla sigue bloqueada por 503 directo y 502 al abrir por buscador. No se
-incorporaron reglas por inferencia: 15 municipios parciales y cero completos.
+API runtime permanece 6cb81f3. Main bea2b36 sólo actualiza el reporte técnico
+mediante comprobación manual real: 2026-11-23T16:25:13.904Z, siete grupos,
+25 documentos; API y proxy lo sirven con stale=false/overdue=false al consultar.
+Se recuperó acceso a las cinco URLs de Juárez; CDMX falla con 503 y Puebla
+conserva disponibilidad parcial. No se infiere revisión jurídica de las descargas.
+Siguen 15 municipios parciales y cero con validación legal automática completa.
 Cobertura Express incompleta; pendientes ORS autenticado alojado y Android físico.
-Se mantienen mapa principal, GPS, perfiles, OCR, todas las entregas y enlaces
-Google consecutivos. Google no recibe HGV ni fija trazado. Programa general abierto;
-publicación, límites y rollback en el último cierre.
+Google no recibe HGV ni fija trazado. El programa general sigue abierto;
+publicación, resultados, límites y rollback en el último cierre.
 
 ## Recursos verificados
 
@@ -4626,3 +4628,133 @@ puntos por otro medio, no añade sucursales al índice. Próximo P1: fuente prim
 utilizable para identificar formato/sucursal y acceso con procedencia y fecha.
 Pendientes de medios adecuados ORS autenticado alojado y navegación Android físico;
 Google no recibe restricciones HGV ni fija una ruta exacta. El programa continúa.
+
+## Ciclo: cálculo sólo con ubicaciones confirmadas y fuentes revisadas · 23-11-2026
+
+### Problema y corrección
+
+Se reconciliaron main y los alias antes de editar: Web cb2b10a (documentación sobre
+8de78c1 en producción), API main 17c9e01 (reporte sobre runtime 6cb81f3). No se
+sobrescribieron avances externos.
+
+El planificador habilitaba el cálculo con texto escrito y enviaba al backend
+`selected || texto`; además, `filter` eliminaba las paradas vacías del payload.
+La navegación previa al cálculo también admitía ese texto. Se reprodujo en el
+navegador público: un nombre de sucursal y un Plus Code sin confirmar habilitaban
+el botón y un enlace Google textual. Podía seleccionarse una coincidencia
+ambigua y perderse una entrega vacía sin eliminación expresa.
+
+Ahora se validan etiqueta vigente, coordenadas finitas y rango de cada ocurrencia.
+Origen, todas las paradas y destino deben estar confirmados; se envían objetos
+con las coordenadas originales, nunca texto alternativo. No se filtran slots:
+deben completarse o eliminarse expresamente. El aviso cuenta pendientes y
+«Revisar» desplaza el formulario y enfoca el primer campo pendiente. Elegir una
+sugerencia sin confirmar sigue bloqueando. Editar un punto invalida métricas,
+cálculo pendiente y enlaces. GPS, mapa, favoritos y puntos guardados mantienen
+sus flujos explícitos; no se altera el contrato de texto para clientes externos
+de la API. Se conservan orden, repeticiones, precisión, 48 intermedias/50 puntos
+totales por cálculo y enlaces Google consecutivos con su límite real.
+
+Archivos Web: app/page.tsx, lib/confirmed-route-inputs.ts,
+test/confirmed-route-inputs.test.mjs, test/helpers/confirm-location.mjs,
+test/planner.test.mjs, test/session-isolation.test.mjs,
+test/account-workflows.test.mjs, test/geolocation.e2e.mjs y
+test/integration/authenticated.e2e.mjs. next-env.d.ts generado queda excluido.
+
+### Pruebas y publicación
+
+Local: Web build y TypeScript, 211 pruebas; API en 17c9e01, 84 pruebas y
+node --check. Auditorías npm de producción de ambas: cero vulnerabilidades.
+Tras regenerar el reporte se repitieron las 84 pruebas API: aprobadas.
+El CI inicial 45213436505 pasó Auth 11/11 y detectó dos tests Google que todavía
+esperaban navegación con texto sin confirmar (38/40). Se corrigieron sus
+precondiciones: ahora confirman las 12 entregas y contrastan todas las coordenadas
+en enlaces consecutivos de 9 y 3 intermedias y con preferencias.
+
+CI final [45216209584](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/45216209584), jobs 137837924736/137837923972: build, TypeScript, 211 pruebas Web, 40 casos de navegador y 11 flujos Auth aprobados. Auditoría de producción: cero vulnerabilidades. Se leyeron los logs completos; los recorridos de doce entregas confirman y preservan todos los puntos en ambos tamaños de enlace. Candidato final ab3f562c17d2477b4b173b90c3a7989fb9d63026, sobre el primer commit 90691bd2dd8c1ee01a132dee89fd3464d4348f24.
+
+La integración usa Auth/REST/Postgres reales locales desechables y API fijada a
+772a6b2 por el workflow; ORS/geometrías son sintéticos. No equivale a cálculo ORS
+autenticado alojado ni sensores/navegación en Android físico.
+
+Comprobaciones públicas: salud/proxy 200; sugerencia de
+28.635300123,-106.088900456 conserva exactamente los nueve decimales; Plus Code
+completo 75XMRW22+22 y compuesto RW22+22 Chihuahua responden 200.
+Express con foco Chihuahua devuelve ocho lejanos, NO_NEARBY_MATCHES y primer
+resultado a 655570 m; no se afirma sucursal local ni acceso de descarga validado.
+Validación de 0/2/48 intermedias: 200; 49: 400 específico. Plan sin sesión: 401.
+La primera petición de auditoría sin etiqueta devolvió 400 como exige el contrato;
+al incluir etiquetas válidas se obtuvieron los resultados anteriores.
+CORS autorizado 204 con el origen Web; origen ajeno 404 sin autorización.
+
+Navegador público real sobre el alias nuevo: el nombre Bodega Aurrera Express y
+75XMRW22+22 escritos dejan dos pendientes, cálculo deshabilitado y cero enlaces
+de itinerario. «Revisar origen» enfoca su campo; elegir una sugerencia todavía
+no habilita el cálculo. Tras confirmar origen 28.635300123,-106.088900456 y destino
+28.640300123,-106.078900456 se habilita y Google recibe esos números exactos.
+Añadir una entrega vacía deshabilita y retira los enlaces; «Revisar parada 1»
+enfoca esa entrega. Escribir sin confirmar mantiene el bloqueo; eliminarla
+explícitamente restaura la preparación. Añadir y confirmar
+28.637300123,-106.083900456 produce tres puntos y un enlace con esa parada,
+conservando los nueve decimales y sin desbordamiento horizontal. Captura real
+del estado vacío bloqueado. No se pulsó calcular, no se abrió navegación Google
+ni se inició sesión o escribió en Supabase alojado.
+
+Se revisó el log de build Vercel (completado en 33 s) y los agregados error/fatal
+de ambos proyectos durante 30 minutos después del despliegue: sin grupos
+retornados. Esa ventana y esos filtros no prueban ausencia permanente de errores.
+El proxy publicado volvió a resolver el Plus Code compuesto con HTTP 200.
+
+PR [#43](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/43), merge
+**dd137159deaa65716e1673a0d0d94d959df9206e**. Deployment
+**dpl_HMWumbRQtjJQboH1wcgFbXKzQMfm**, READY/production. Alias
+https://route-planner-web-sand.vercel.app/ verificado al mismo commit y deployment.
+Los nueve archivos de código/pruebas coinciden byte a byte con los locales
+probados. Rama de recuperación: codex/confirmed-planning-20261123.
+Este cierre sólo añade documentación; no cambia el código del despliegue.
+
+Rollback Web conservado: 8de78c1b2a5d3b798e353f9faf7601ed07c28491,
+dpl_488q2LTnwqC7bL71sLQj74TSmZ8Y. API runtime sigue 6cb81f3/
+dpl_DJMs3PfpE2EQRmfswdaJQb4xeJ1k. No se ejecutó rollback ni se borraron datos,
+ramas o historial. Sin cambios de dependencias, variables, dominios, esquema,
+autenticación, permisos, servicios de pago o escrituras en Supabase alojado.
+Ninguna operación sobre Gestión u otros proyectos.
+
+### Fuentes y alcance real
+
+Al iniciar, el reporte 2026-11-23T07:59:29.933Z declaraba stale=false pero
+overdue=true: el intervalo previsto de seis horas estaba superado. No se atribuye
+causa sin evidencia. Se ejecutó manualmente el checker existente, con sus mismos
+hosts, límites y dos workers: 2026-11-23T16:25:13.904Z (10:25 Chihuahua),
+7 grupos y 25 documentos; 21 respuestas correctas y 4 fallos. Las cinco URLs
+de Juárez respondieron y recuperaron evidencia; su principal queda unreviewed,
+la Gaceta changed y las tres noticias unreviewed. CDMX: tres HTTP_503.
+Puebla: disponibilidad parcial, enlace OJP HTTP_503; sus otras diez URLs
+respondieron, con cambios HTML y documentos sin revisión que no se interpretan
+como reformas. Monterrey y Guachochi sin cambios; Jalisco y Chihuahua conservan
+sus documentos pendientes de revisión integral. Se retienen huellas iniciales
+y últimos éxitos cuando falla una descarga; no se altera ninguna regla.
+
+Único archivo API modificado: data/mx/source-status.json. Commit
+bea2b36c8be6ec4c652efa89d951ff16e7d57892, publicado con lease sobre 17c9e01.
+La API y el proxy públicos ya sirven exactamente esa fecha de comprobación,
+stale=false/overdue=false y legalRulesAutomaticallyUpdated=false, sin
+redesplegar runtime. El cron existente permanece a las 00:30/06:30/12:30/18:30
+UTC, sujeto al funcionamiento y retrasos de GitHub; no se afirma ejecución
+garantizada cada seis horas. Rollback de datos: restaurar sólo ese JSON desde
+17c9e01 mediante un commit nuevo, sin borrar historial.
+
+Se reabrió la fuente primaria del Congreso de Chihuahua (117.pdf). Descarga directa HTTP 200, 802146 bytes, SHA-256 d7ff847e53a398668d4b906d892af3313f214fc97bc0868abf4cdf9690d5d3bf, igual al documento ya referenciado. La portada sigue indicando última reforma POE 08-08-2026/63; el artículo 66 está en página PDF 25 y remite la fijación de horas a la autoridad. La consulta no aporta acuerdos municipales de implementación, horarios, excepciones ni geometrías nuevas. El registro municipal de normatividad respondió, pero su lectura no entregó filas de documentos ejecutables. No se añaden reglas a partir de snippets o inferencias.
+
+No se añaden calles, geometrías, horarios, umbrales, permisos ni exclusiones
+legales. Continúan 15 municipios parciales y cero con validación automática
+completa. Los puntos guía no fijan el trazado de Google ni transmiten HGV.
+
+Completado en este ciclo: guard de confirmación y recuperación técnica del
+reporte. Parcial: cobertura comercial Express y normativa municipal. Bloqueado
+por medios no disponibles: ORS autenticado alojado/Android físico. Pendientes:
+índice de sucursales con formato y procedencia utilizables; revisión íntegra de
+actos recuperados de Juárez y actos posteriores de las obras, CDMX/Puebla,
+permisos/sentidos/geometrías verificadas. Próxima prioridad P1: identificar
+sucursal y acceso de entrega con evidencia precisa sin escoger la primera
+coincidencia; conservar la protección P0 recién publicada. El programa sigue abierto.
