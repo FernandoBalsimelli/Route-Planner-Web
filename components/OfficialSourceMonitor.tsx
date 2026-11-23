@@ -1,8 +1,8 @@
 'use client';
 import React,{useEffect,useState} from 'react';
 type DocumentEvidence={url:string|null;kind:'primary'|'related'|'script';status:string;changeDetected?:boolean;stale?:boolean;checkedAt:string|null;lastSuccessAt:string|null;error:string|null};
-type Source={id:string;title:string;url:string;scope:string;reviewedAt:string;legalReview:string;status:string;checkedAt:string|null;lastSuccessAt:string|null;error:string|null;stale?:boolean;availability?:string;changeDetected?:boolean;relatedSetChanged?:boolean;documents?:DocumentEvidence[];documentBreakdownAvailable?:boolean};
-type Report={checkedAt:string|null;stale:boolean;intervalHours:number;notice:string;sources:Source[]};
+type Source={id:string;title:string;url:string;scope:string;reviewedAt:string;legalReview:string;status:string;checkedAt:string|null;lastSuccessAt:string|null;error:string|null;stale?:boolean;overdue?:boolean;availability?:string;changeDetected?:boolean;relatedSetChanged?:boolean;documents?:DocumentEvidence[];documentBreakdownAvailable?:boolean};
+type Report={checkedAt:string|null;stale:boolean;overdue?:boolean;intervalHours:number;notice:string;sources:Source[]};
 const statusLabels:Record<string,string>={unchanged:'Documento sin cambios detectados',changed:'Cambio detectado · requiere revisión',unreviewed:'Disponible · vigencia pendiente de revisión',unavailable:'No se pudo comprobar la fuente',not_checked:'Sin comprobación técnica todavía'};
 const documentNames={primary:'Documento principal',related:'Página o documento vinculado',script:'Aplicación del portal'};
 function date(value:string|null){return value?new Date(value).toLocaleString('es-MX'):'Pendiente';}
@@ -13,13 +13,14 @@ export default function OfficialSourceMonitor({sourceId}:{sourceId?:string}){
  const alerts:string[]=[];
  if(report){
   if(report.stale||selected.some(source=>source.stale))alerts.push('Reporte atrasado o sin comprobar · revisa las fuentes manualmente');
+  else if(report.overdue===true||selected.some(source=>source.overdue===true))alerts.push('No hay una comprobación dentro del intervalo previsto · revisa las fuentes manualmente');
   if(selected.some(source=>source.changeDetected||source.status==='changed'))alerts.push('Cambio detectado · requiere revisar el documento');
   if(selected.some(source=>source.status==='unavailable'))alerts.push('Hay fuentes que no se pudieron comprobar');
   if(!alerts.length)alerts.push(selected.some(source=>['unreviewed','not_checked'].includes(source.status))||!selected.length?'La revisión de fuentes sigue pendiente':'Sin cambios técnicos detectados; vigencia legal sin certificar');
  }
  return <div className="official-source-monitor">{alerts.map(alert=><p key={alert} className="source-monitor-alert" role="status">{alert}</p>)}{error&&<p role="status">{error}</p>}<details><summary>Seguimiento de fuentes oficiales</summary>
   {!report&&!error&&<p role="status">Consultando comprobaciones de documentos…</p>}
-  {report&&<><p className="hint">Comprobación programada cada {report.intervalHours} horas; GitHub puede retrasar su ejecución. Última ejecución: {date(report.checkedAt)}.{report.stale?' El reporte está pendiente o tiene más de 18 horas.':''}</p><p className="coverage-status">{report.notice}</p>
+  {report&&<><p className="hint">Comprobación programada cada {report.intervalHours} horas; GitHub puede retrasar su ejecución. Última ejecución: {date(report.checkedAt)}.{report.stale?' El reporte está pendiente o tiene más de 18 horas.':''}</p>{report.overdue===true&&!report.stale&&<p className="hint">Se superó el intervalo previsto sin una nueva comprobación. Esto no identifica la causa ni acredita que los documentos sigan iguales o vigentes.</p>}<p className="coverage-status">{report.notice}</p>
   {selected.toSorted((a,b)=>a.title.localeCompare(b.title,'es')).map(source=><article key={source.id}>
    <strong>{source.title}</strong><p>{source.availability==='partial'?'Comprobación parcial · algunos documentos no están disponibles':statusLabels[source.status]||statusLabels.not_checked}</p>
    <p className="hint">Comprobación: {date(source.checkedAt)} · última comprobación completa correcta: {date(source.lastSuccessAt)}</p>

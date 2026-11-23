@@ -34,3 +34,13 @@ test('fresh global report cannot hide stale selected evidence and legacy detail 
  globalThis.fetch=async()=>Response.json({intervalHours:6,checkedAt:'2026-11-10T12:00:00Z',stale:false,sources:[{id:'one',title:'Fuente anterior',status:'unchanged',stale:true}]});
  await render('one');assert.match(container.querySelector('.source-monitor-alert').textContent,/Reporte atrasado/);assert.match(container.textContent,/no incluye desglose por documento/);assert.equal(container.querySelector('.source-documents'),null);
 });
+
+test('a missed interval warns before the eighteen-hour stale threshold and stays visible with details collapsed',async()=>{
+ globalThis.fetch=async()=>Response.json({intervalHours:6,checkedAt:'2026-11-18T21:15:00Z',stale:false,overdue:true,notice:'No certifica vigencia.',sources:[{id:'one',title:'Fuente',status:'unchanged'}]});
+ await render('one');assert.match(container.querySelector('.source-monitor-alert').textContent,/intervalo previsto/);assert.equal(container.querySelector('details').open,false);assert.match(container.textContent,/no identifica la causa/);assert.doesNotMatch(container.querySelector('.source-monitor-alert').textContent,/Sin cambios/);
+});
+
+test('selected-source overdue and availability warnings remain independent of a current aggregate report',async()=>{
+ globalThis.fetch=async()=>Response.json({intervalHours:6,checkedAt:'2026-11-19T07:00:00Z',stale:false,overdue:false,sources:[{id:'one',title:'Fuente',status:'unavailable',overdue:true}]});
+ await render('one');const alerts=[...container.querySelectorAll('.source-monitor-alert')].map(n=>n.textContent).join(' ');assert.match(alerts,/intervalo previsto/);assert.match(alerts,/no se pudieron comprobar/);assert.equal(container.querySelector('details').open,false);
+});
