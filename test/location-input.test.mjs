@@ -139,6 +139,32 @@ test('only the focused field publishes its search results to the shared map',asy
   await act(async()=>{input.blur();Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,'Otra búsqueda');input.dispatchEvent(new window.Event('input',{bubbles:true}));});
   await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));assert.equal(published.length,previousCount);
 });
+
+test('unmatched nearby search keeps distant branches off the map and keyboard until explicitly revealed',async()=>{
+ const published=[];let confirmed=null;
+ const far={label:'Express en otra ciudad',lat:25.72,lng:-100.32,distanceMeters:655570,kind:'venue'};
+ globalThis.fetch=async()=>Response.json({ok:true,warning:'NO_NEARBY_MATCHES',suggestions:[far]});
+ function NearbyHarness(){const [value,setValue]=useState('Bodega Aurrera Express'),[selected,setSelected]=useState(null);return React.createElement(LocationInput,{title:'Destino',color:'orange',value,selected,mapReference:{lat:28.63,lng:-106.08},apiUrl:'/api',placeholder:'',onChange:setValue,onConfirm:point=>{confirmed=point;setSelected(point);},onSuggestions:points=>published.push(points)});}
+ container=document.createElement('div');document.body.append(container);root=createRoot(container);await act(async()=>root.render(React.createElement(NearbyHarness)));
+ const input=container.querySelector('[role="combobox"]');await act(async()=>input.focus());await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));
+ assert.equal(container.querySelector('[role="option"]'),null);assert.deepEqual(published.at(-1),[]);assert.equal(input.getAttribute('aria-expanded'),'false');
+ const enter=new window.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true});await act(async()=>input.dispatchEvent(enter));assert.equal(enter.defaultPrevented,true);assert.equal(confirmed,null);assert.equal(container.querySelector('.location-confirm-card'),null);
+ await act(async()=>{input.blur();input.focus();});assert.deepEqual(published.at(-1),[]);
+ await act(async()=>button('Ver coincidencias lejanas (1)').click());assert.deepEqual(published.at(-1),[far]);assert.match(container.querySelector('[role="option"]').textContent,/655.6 km/);
+ await act(async()=>button('Ocultar coincidencias lejanas').click());assert.equal(container.querySelector('[role="option"]'),null);assert.deepEqual(published.at(-1),[]);
+ await act(async()=>button('Ver coincidencias lejanas (1)').click());await act(async()=>container.querySelector('[role="option"]').click());assert.equal(confirmed,null);assert.match(container.querySelector('.location-confirm-card').textContent,/Express en otra ciudad/);
+ await act(async()=>button('Confirmar punto').click());assert.deepEqual(confirmed,far);assert.equal(input.value,far.label);
+});
+
+test('revealing distant results does not persist into another search, and an explicit city is shown normally',async()=>{
+ const far={label:'Express distante',lat:25.72,lng:-100.32,distanceMeters:655570};let calls=0;
+ globalThis.fetch=async url=>{calls++;return Response.json({ok:true,suggestions:[far],...(!new URL(url,'https://example.test').searchParams.get('q').includes(', Monterrey')?{warning:'NO_NEARBY_MATCHES'}:{})});};
+ function QueryHarness(){const [value,setValue]=useState('Express de prueba');return React.createElement(React.Fragment,null,React.createElement(LocationInput,{title:'Destino',color:'orange',value,mapReference:{lat:28.63,lng:-106.08},apiUrl:'/api',placeholder:'',onChange:setValue,onConfirm(){}}),React.createElement('button',{onClick:()=>setValue('Otra búsqueda Express')},'Nueva búsqueda'),React.createElement('button',{onClick:()=>setValue('Bodega Aurrera Express, Monterrey')},'Especificar ciudad'));}
+ container=document.createElement('div');document.body.append(container);root=createRoot(container);await act(async()=>root.render(React.createElement(QueryHarness)));await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));
+ await act(async()=>button('Ver coincidencias lejanas').click());assert.ok(container.querySelector('[role="option"]'));
+ await act(async()=>button('Nueva búsqueda').click());assert.equal(container.querySelector('[role="option"]'),null);await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));assert.equal(container.querySelector('[role="option"]'),null);assert.ok(button('Ver coincidencias lejanas'));
+ await act(async()=>button('Especificar ciudad').click());await act(async()=>new Promise(resolve=>setTimeout(resolve,350)));assert.ok(container.querySelector('[role="option"]'));assert.equal(button('Ver coincidencias lejanas'),undefined);assert.equal(calls,3);
+});
 test('an externally selected origin cancels a pending GPS fix',async()=>{
   let finish;
   Object.defineProperty(navigator,'geolocation',{configurable:true,value:{getCurrentPosition(ok){finish=ok;}}});
