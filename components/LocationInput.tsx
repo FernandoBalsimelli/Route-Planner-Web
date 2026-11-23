@@ -40,6 +40,9 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
   const focused = useRef(false);
   const suggestionsCallback = useRef(onSuggestions); suggestionsCallback.current = onSuggestions;
   const [suggestions, setSuggestions] = useState<LocationSelection[]>([]);
+  const [outsideNearby, setOutsideNearby] = useState(false);
+  const [showDistant, setShowDistant] = useState(false);
+  const visibleSuggestions = outsideNearby && !showDistant ? [] : suggestions;
   const [pending, setPending] = useState<LocationSelection | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
@@ -122,6 +125,8 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
     setPending(null);
     setSearchError('');
     setSearchNotice('');
+    setOutsideNearby(false);
+    setShowDistant(false);
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       setLoading(true);
@@ -132,9 +137,11 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
         const payload = await fetchLocationSuggestions(`${apiUrl}/v1/locations/suggest?${params}`, controller.signal);
         if (controller.signal.aborted) return;
         const locations = Array.isArray(payload.suggestions) ? payload.suggestions.filter(validLocation) : [];
+        const distant = payload.warning === 'NO_NEARBY_MATCHES';
         setSuggestions(locations);
-        if (focused.current) suggestionsCallback.current?.(locations);
-        setSearchNotice(payload.warning === 'NO_NEARBY_MATCHES' ? 'No encontramos coincidencias a menos de 50 km del punto de referencia. Revisa la ciudad y la distancia de estos resultados.' : !locations.length ? 'Sin coincidencias. Añade calle, colonia o ciudad, o elige el punto en el mapa.' : '');
+        setOutsideNearby(distant);
+        if (focused.current) suggestionsCallback.current?.(distant ? [] : locations);
+        setSearchNotice(distant ? 'No encontramos coincidencias a menos de 50 km del punto de referencia. Añade calle o ciudad, pega coordenadas o un Plus Code, o elige el acceso en el mapa cerca del origen.' : !locations.length ? 'Sin coincidencias. Añade calle, colonia o ciudad, o elige el punto en el mapa.' : '');
       } catch (error) {
         if (controller.signal.aborted) return;
         setSuggestions([]);
@@ -168,7 +175,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
         role="combobox"
         ref={inputRef}
         aria-label={title}
-        onFocus={() => { focused.current = true; suggestionsCallback.current?.(suggestions); }}
+        onFocus={() => { focused.current = true; suggestionsCallback.current?.(visibleSuggestions); }}
         onBlur={() => { focused.current = false; }}
         maxLength={180}
         value={value}
@@ -176,16 +183,17 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
         placeholder={placeholder}
         autoComplete="off"
         aria-autocomplete="list"
-        aria-expanded={!pending && suggestions.length > 0}
+        aria-expanded={!pending && visibleSuggestions.length > 0}
         aria-controls={listId}
-        aria-activedescendant={!pending && activeIndex >= 0 && activeIndex < suggestions.length ? `${listId}-${activeIndex}` : undefined}
+        aria-activedescendant={!pending && activeIndex >= 0 && activeIndex < visibleSuggestions.length ? `${listId}-${activeIndex}` : undefined}
         aria-busy={loading}
         onKeyDown={event => {
           if (event.key === 'Escape') { setPending(null); setSuggestions([]); setActiveIndex(-1); return; }
           if (event.key === 'Enter' && pending) { event.preventDefault(); confirmPending(); return; }
-          if (!suggestions.length || pending) return;
-          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setActiveIndex(index => index < 0 ? event.key === 'ArrowDown' ? 0 : suggestions.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + suggestions.length) % suggestions.length); }
-          else if (event.key === 'Enter') { event.preventDefault(); setPending(suggestions[activeIndex >= 0 ? activeIndex : 0]); }
+          if (event.key === 'Enter' && outsideNearby && !visibleSuggestions.length) { event.preventDefault(); return; }
+          if (!visibleSuggestions.length || pending) return;
+          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setActiveIndex(index => index < 0 ? event.key === 'ArrowDown' ? 0 : visibleSuggestions.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + visibleSuggestions.length) % visibleSuggestions.length); }
+          else if (event.key === 'Enter') { event.preventDefault(); setPending(visibleSuggestions[activeIndex >= 0 ? activeIndex : 0]); }
         }}
       />
     </label>
@@ -195,7 +203,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       if (mapOpen) { closeMap(); return; }
       cancelLocation();
       setBookOpen(false);
-      setMapSeed(selected || pending || suggestions[0] || mapReference || null);
+      setMapSeed(selected || pending || (!outsideNearby ? suggestions[0] : null) || mapReference || null);
       setMapOpen(true);
     }}>⌖ {mapOpen ? 'Cerrar mapa' : 'Elegir en el mapa'}</button>
     {mapOpen && <MapLocationPicker title={title} initialPoint={mapSeed} apiUrl={apiUrl} onClose={closeMap} onConfirm={location => {
@@ -208,10 +216,14 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       {geoStatus && <p className="location-search-status" role="status" aria-live="polite">{geoStatus}</p>}
     </div>}
     {loading && <p className="location-search-status">Buscando direcciones y lugares…</p>}
-    {onSuggestions && suggestions.length > 0 && !pending && <a className="suggestions-map-link" href="#mapa-planificacion" onClick={() => suggestionsCallback.current?.(suggestions)}>Ver estas coincidencias en el mapa ↑</a>}
+    {onSuggestions && visibleSuggestions.length > 0 && !pending && <a className="suggestions-map-link" href="#mapa-planificacion" onClick={() => suggestionsCallback.current?.(visibleSuggestions)}>Ver estas coincidencias en el mapa ↑</a>}
     {!loading && searchNotice && !selected && !pending && <p className="location-search-status" role="status">{searchNotice}</p>}
-    {suggestions.length > 0 && !pending && <div className="location-suggestions" id={listId} role="listbox" aria-label={`Sugerencias para ${title}`}>
-      {suggestions.map((suggestion, index) => <button
+    {!loading && outsideNearby && suggestions.length > 0 && !selected && !pending && <button type="button" className="text-button" aria-expanded={showDistant} onClick={() => {
+      setShowDistant(!showDistant); setActiveIndex(-1);
+      suggestionsCallback.current?.(showDistant ? [] : suggestions);
+    }}>{showDistant ? 'Ocultar coincidencias lejanas' : `Ver coincidencias lejanas (${suggestions.length})`}</button>}
+    {visibleSuggestions.length > 0 && !pending && <div className="location-suggestions" id={listId} role="listbox" aria-label={`Sugerencias para ${title}`}>
+      {visibleSuggestions.map((suggestion, index) => <button
         type="button"
         className="location-suggestion"
         id={`${listId}-${index}`}

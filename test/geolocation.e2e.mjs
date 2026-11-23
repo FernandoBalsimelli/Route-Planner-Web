@@ -86,6 +86,28 @@ test('mobile map confirms the chosen nearby branch into the correct field', asyn
   } finally { await context.close(); }
 });
 
+test('missing nearby branches keep the picker at the origin and reveal distant matches only on request',async()=>{
+ for(const viewport of [{width:390,height:844},{width:1365,height:900}]){
+  const {context,page}=await setup(success,viewport);const reverses=[];
+  try{
+   await page.route('**/api/route-planner/**',route=>{
+    const url=new URL(route.request().url());
+    if(url.pathname.endsWith('/reverse')){reverses.push({lat:Number(url.searchParams.get('lat')),lng:Number(url.searchParams.get('lng'))});return route.fulfill({json:{ok:true,location:{label:'Acceso en Chihuahua'}}});}
+    return route.fulfill({json:{ok:true,nearby:true,warning:'NO_NEARBY_MATCHES',suggestions:[{label:'Bodega Aurrera Express, Monterrey',lat:25.721274,lng:-100.325989,distanceMeters:655570,kind:'venue'}]}});
+   });
+   await page.goto(base);await page.getByRole('button',{name:'Usar mi ubicación actual',exact:true}).click();await page.getByText('Ubicación actual establecida como origen.').waitFor();
+   const destination=page.getByRole('combobox',{name:'Destino',exact:true}),field=page.locator('.location-field').filter({has:destination});await destination.fill('Bodega Aurrera Express');
+   await page.getByRole('button',{name:'Ver coincidencias lejanas (1)',exact:true}).waitFor();assert.equal(await field.getByRole('option').count(),0);assert.equal(await page.getByRole('button',{name:'S1',exact:true}).count(),0);
+   await destination.press('Enter');assert.equal(await page.locator('.location-confirm-card').count(),0);
+   await page.getByRole('button',{name:'Elegir destino en el mapa',exact:true}).click();await page.getByRole('button',{name:'Elegir el centro del mapa',exact:true}).click();await page.getByRole('button',{name:'Confirmar punto del mapa',exact:true}).waitFor({state:'visible'});
+   await page.getByText('Comprueba la dirección y confirma el punto.').waitFor();assert.equal(reverses.length,2);assert.ok(Math.abs(reverses[1].lat-28.662926123)<.00001);assert.ok(Math.abs(reverses[1].lng+106.099908456)<.00001);
+   await page.getByRole('button',{name:'Cerrar mapa de destino',exact:true}).click();await page.getByRole('button',{name:'Ver coincidencias lejanas (1)',exact:true}).click();
+   await page.getByRole('option',{name:/Bodega Aurrera Express, Monterrey/}).click();assert.equal(await destination.inputValue(),'Bodega Aurrera Express');await page.getByRole('button',{name:'Confirmar punto',exact:true}).click();assert.equal(await destination.inputValue(),'Bodega Aurrera Express, Monterrey');
+   const link=new URL(await page.getByRole('link',{name:/Abrir puntos en Google Maps/}).getAttribute('href'));assert.equal(link.searchParams.get('destination'),'25.721274, -100.325989');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+  }finally{await context.close();}
+ }
+});
+
 test('permission denial keeps the typed origin and allows a retry', async () => {
   const { context, page } = await setup(() => Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition(ok, fail) { fail({ code: 1 }); } } }));
   try {
