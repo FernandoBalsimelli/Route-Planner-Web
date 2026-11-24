@@ -1059,3 +1059,32 @@ real ni navegación Android física. Web productivo e4dc800 / dpl_FBuJ3aHArJMcnp
 API 868578e / dpl_9eQFA7KepdWgd3bgxVi8uxrKdFHV, ambos READY.
 La lectura remota posterior de las 17:18 UTC ya recibió el reporte nuevo.
 Publicación, verificaciones y rollback en el último ciclo de ingeniería.
+
+
+## Cancelación de candidatos y consistencia de la referencia · 24-11-2026
+
+Web #51 cancela búsquedas descartadas con Escape y retira sus marcadores;
+abrir el selector o iniciar GPS también invalida las sugerencias anteriores.
+Conserva borradores, puntos confirmados y orden; el selector conserva el centro
+propuesto para corroboración explícita. No añade restricciones al motor.
+
+La referencia Web CHIHUAHUA-CAPITAL-REFERENCE aún resumía el artículo 66 de
+agosto. Se sincroniza con el decreto estatal publicado el 21-11-2026, ya cotejado
+e incorporado a la API en un ciclo anterior, conservando el historial. Nueva
+huella coincide; se revisaron visualmente páginas 32/42. No se extraen horarios
+ejecutables de una remisión reglamentaria ni del horario de ventanilla de un trámite.
+La consulta pública del portal municipal sin registros visibles no demuestra
+que no existan acuerdos. No cambia el código ni el reporte de fuentes de la API.
+
+Consulta pública Express con referencia en Chihuahua: ocho candidatos devueltos,
+ninguno a menos de 50 km; el primero a 655570 m, warning=NO_NEARBY_MATCHES.
+Los resultados lejanos siguen requiriendo revelación y confirmación explícitas.
+No se completa el catálogo local ni se deduce inexistencia de sucursales.
+
+Web a5cf75d / dpl_7B912mmxhYZpidqvVKB2fxjbkWHY READY/production.
+API 868578e conserva el despliegue y el reporte anterior; no se vuelve a publicar.
+Build/TypeScript, 236 pruebas Web, 48 casos de navegador y 13 integraciones
+Auth locales aprobados. Casos nuevos a 390/1280 px; no Android físico, cálculo
+ORS real autenticado alojado o garantía de navegación Google para camiones.
+Se mantienen 15 municipios parciales y cero con validación legal completa.
+Geometrías, permisos, horarios y cobertura integral siguen pendientes.

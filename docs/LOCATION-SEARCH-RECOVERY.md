@@ -1,6 +1,6 @@
 # Recuperación de búsquedas de ubicaciones
 
-Revisión: 16-11-2026. Sólo Web; sin cambios de proveedor, API o datos alojados.
+Revisión: 24-11-2026 (historial original: 16-11-2026). Sólo Web; sin cambios de proveedor, API o datos alojados.
 
 ## Causa y comportamiento
 
@@ -47,3 +47,23 @@ La cobertura municipal sigue incompleta y los puntos guía no fijan rutas HGV.
 Referencias técnicas consultadas el 16-11-2026:
 https://developer.mozilla.org/en-US/docs/Web/API/AbortController/abort
 https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+
+
+## Descartar candidatos también cancela la búsqueda · 24-11-2026
+
+En el campo de dirección, Escape retira la lista y S1/S2… del mapa, cancela el debounce de 320 ms y aborta
+la solicitud en curso. Una respuesta tardía no repone el punto descartado. Se
+conservan texto, entregas y puntos ya confirmados; Escape no borra una ruta.
+Para buscar otra vez, pulsa Enter, vuelve a enfocar el campo o edita el texto.
+
+Abrir favoritos o el selector, comenzar GPS y confirmar una sugerencia también
+retiran los candidatos públicos anteriores. El selector conserva la propuesta
+como centro de revisión antes de vaciar la lista; elegir el centro y confirmar
+siguen siendo acciones explícitas. Un GPS denegado conserva el origen escrito,
+sin confirmar el candidato antiguo ni reactivar la consulta al cerrar el mapa.
+La pausa afecta al buscador, no cancela una selección externa o su protección
+frente a una lectura GPS tardía.
+
+El componente compartido conserva coordenadas/Plus Codes y selección explícita;
+no incorpora negocios públicos, nuevas normas, límites de entregas o garantías
+HGV. Regresiones y publicación exacta en el último ciclo de ENGINEERING-STATUS.

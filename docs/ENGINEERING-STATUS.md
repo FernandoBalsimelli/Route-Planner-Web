@@ -2,37 +2,34 @@
 
 Fecha de revisión: 2026-11-24 (Chihuahua). Alcance: exclusivamente Route Planner.
 
-Estado vigente: Web e4dc800f09b702d5ef6858f92af8d0b61221f404 está publicado
-en producción. Recuperación hacia favoritos (PR #49) y retirada de marcadores
-obsoletos al abrir el libro (PR #50), comprobada además en el navegador público.
-Deployment dpl_FBuJ3aHArJMcnp7dtt8J1PeEdD8a READY; alias y SHA contrastados.
+Estado vigente: Web a5cf75ddc17a7d8fb046f86faecd4abb35703b4f está publicado
+en producción: dpl_7B912mmxhYZpidqvVKB2fxjbkWHY READY, alias y SHA exactos.
+PR #51 corrige cancelación de ubicaciones y candidatos descartados; verificado
+también en navegador público antes/después.
 
-La consulta pendiente se transfiere a Favoritos, con filtro de toda la cuenta.
-Ante error, ausencia o coincidencias lejanas del buscador público se ofrece
-Buscar en mis favoritos. La entrega no se modifica hasta elegir un punto guardado;
-se conservan sus coordenadas y no se vuelve a geocodificar. Al abrir un punto ya
-confirmado, el libro muestra todas las sucursales. Se avisa si el filtro de
-120 caracteres requiere usar el inicio del texto; la dirección completa se conserva.
-No se amplía el índice comercial público ni se declara resuelta la precisión Express.
+Escape cancela debounce y solicitud de ubicaciones y retira los candidatos
+anteriores del mapa. Enter, reenfocar o editar reanudan la búsqueda sin perder
+el borrador ni confirmar puntos. Abrir el selector conserva el centro propuesto
+para corroborar; iniciar GPS invalida sugerencias antiguas incluso al cerrar el
+mapa. Se mantiene la recuperación hacia favoritos y su filtro privado global.
 
-API 868578e sólo actualiza data/mx/source-status.json sobre el código e4aaa01.
-Checker real 2026-11-24T17:05:02.838Z: siete grupos/27 documentos, 25 descargas
-correctas y dos HTTP_503. C5 y Juárez recuperados; CDMX/Puebla parciales.
-API/proxy sirven la comprobación nueva con stale=false/overdue=false.
-Se observó lectura remota anterior, pero el lector conserva el bundle más reciente,
-sin perder fechas o evidencia ni atribuir una causa de red no comprobada.
-La lectura remota de las 17:18 UTC ya recibió checkedAt 17:05:02.838Z.
+Código final aprobado: build/TypeScript, 236 pruebas Web, 48 casos de navegador
+y 13 integraciones Auth/REST/Postgres locales reales, auditoría cero. Las tres
+regresiones nuevas usan anchos 390/1280 px. El navegador local estuvo bloqueado;
+se ejecutaron en CI. Pendiente reproducir una entrada muy temprana que no persistió
+durante la carga inicial en CUA; no se declara resuelta ni Android físico probado.
 
-Verificaciones del código final: Web build/TypeScript, 232 pruebas, 45 casos de
-navegador y 13 integraciones con Auth/REST/Postgres locales reales, todos aprobados.
-API build y 91 pruebas; auditorías de producción sin vulnerabilidades. Búsqueda
-pública, coordenadas, Plus Codes, validación de 0/2/48 intermedias y límite 49
-comprobados; no se hizo cálculo ORS real autenticado ni prueba Android físico.
+La API no cambia: 868578eedc9aef3b087301e2e2237edc710e1eb5 /
+dpl_9eQFA7KepdWgd3bgxVi8uxrKdFHV. El checker anterior comprobó 27 documentos
+el 24-11-2026 a las 17:05:02.838Z: 25 descargas correctas y dos fallos HTTP_503;
+esto no acredita revisión legal integral. La consulta Express real de las 17:39 UTC
+sólo devolvió candidatos lejanos (primero a 655570 m de la referencia de Chihuahua).
+No se presenta el catálogo público local como resuelto ni se inventan negocios.
 
-Se conservan OCR/manifiestos, GPS, mapa, vehículos, selección explícita,
-48 intermedias del proveedor y enlaces Google consecutivos. La normativa sigue
-en 15 municipios parciales y cero con validación legal automática completa.
-Google no recibe HGV ni fija un trazado exacto. El programa general continúa.
+Se conservan vehículos, GPS, OCR/manifiestos, rutas guardadas, 48 intermedias del
+proveedor y enlaces Google consecutivos. Quedan 15 municipios parciales, cero
+con validación legal automática completa; Google no recibe HGV ni fija trazado.
+Sin gastos, migraciones o escrituras alojadas. El programa general continúa.
 
 ## Recursos verificados
 
@@ -5621,3 +5618,145 @@ parciales y cero con validación legal completa. Google no transmite HGV ni fija
 No se probaron Android físico, ORS alojado autenticado o favoritos con sesión
 real del propietario en producción. No se activa pago, se exponen claves o se
 modifican otros proyectos. Se conserva la continuación; programa general abierto.
+
+
+## Ciclo: descartar búsquedas sin conservar candidatos en el mapa · 24-11-2026
+
+### Estado inicial y causa
+
+Main Web 95824bd5ab3bf5eb49edcd970ed816f9d4d0719b y API
+868578eedc9aef3b087301e2e2237edc710e1eb5 comprobados antes de editar.
+Se leyeron ENGINEERING-STATUS y MEXICO-COVERAGE desde main. Web productivo
+e4dc800f09b702d5ef6858f92af8d0b61221f404 /
+dpl_FBuJ3aHArJMcnp7dtt8J1PeEdD8a; API productiva 868578e /
+dpl_9eQFA7KepdWgd3bgxVi8uxrKdFHV, ambos READY/production.
+Supabase pakhlscjbjvwnheeyjxd ACTIVE_HEALTHY, sólo lectura de estado.
+Worktree aislado; ningún cambio previo sobrescrito ni operación sobre Gestión.
+
+Escape vaciaba la lista de LocationInput, sin retirar la publicada en el mapa
+ni cancelar la espera de debounce o su solicitud. Una respuesta tardía podía
+reponer candidatos descartados. Iniciar GPS o revisar un punto en el selector
+también debía invalidarlos, aun después de perder foco. Cambiar del selector a
+GPS podía reiniciar el buscador por el cambio de estado del mapa.
+
+Cuatro regresiones añadidas fallaron sobre el código previo: S1 persistente,
+consulta enviada después de Escape antes de debounce, señal no abortada durante
+la solicitud y sugerencias antiguas tras un GPS denegado. Pasaron con el cambio.
+Sobre la producción previa e4dc800, se abrió una sugerencia real para 28.635300123,-106.088900456: SN Avenida Mirador, Chihuahua, México (75WMJWP6+4C). Escape retiró la lista del campo, pero S1 permaneció en el mapa. No se confirmó ni guardó el punto; no se borraron recientes ni se inició sesión.
+
+### Cambio implementado
+
+Archivos de código/pruebas: components/LocationInput.tsx,
+test/location-input.test.mjs y test/geolocation.e2e.mjs.
+
+La invalidación explícita corta temporizador/solicitud, limpia lista, índice
+activo, carga y publicación al mapa. Una pausa evita reiniciar la dirección
+anterior durante las transiciones de GPS. Enter, reenfocar o editar permiten
+buscar otra vez; cerrar voluntariamente mapa/favoritos también reanuda la
+búsqueda pendiente. Confirmar una sugerencia retira sus candidatos anteriores.
+
+El punto propuesto se conserva como centro del selector antes de retirar la
+lista. Abrir el mapa no lo confirma. GPS denegado conserva el texto, sin elegir
+el candidato antiguo; una selección externa sigue cancelando un GPS tardío.
+Se conservan puntos ya confirmados, pedidos, coordenadas, Plus Codes, orden,
+48 intermedias del proveedor, manifiestos y enlaces Google consecutivos.
+No hay dependencia nueva, migración, dato alojado escrito o cambio de API/cuota.
+
+### Validación y publicación
+
+Local final: build, TypeScript, 236 pruebas y auditoría de producción cero.
+Las cuatro regresiones incluyen respuesta tardía de un transporte que no respeta
+abort, preservación del texto y reanudación por foco sin confirmar automáticamente.
+Tres casos nuevos de navegador comprueban Escape/Enter, selector con centro
+preservado y GPS denegado desde el buscador y desde el mapa, a 390/1280 px.
+El intento local de tres casos de navegador no llegó a ejecutarlos: Chromium falló en socket() con Operation not permitted. No se solicitaron excepciones ni se desactivaron controles del entorno; se verifican en CI. No se presenta ese intento como aprobación funcional.
+PR [#51](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/51),
+candidato final 09d082d51d51d587193a227d3e0b6806343a49b1.
+CI [45450747022](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/45450747022)
+aprobada: 236 pruebas, 48 casos de navegador y 13 integraciones Auth locales;
+build, TypeScript y auditoría cero. Logs leídos de jobs 138647061529 y
+138647061077. Las integraciones usan Auth/REST/Postgres reales desechables
+y la API fijada en 772a6b2ba6bc56f79c3ac3adfbbfe149e9679e07; ORS y
+geometrías de esos flujos son sintéticos. No equivalen a una cuenta alojada
+del propietario ni a navegación Android física. API runtime 868578e no cambia;
+sus 91 pruebas del ciclo previo no se presentan como una ejecución nueva.
+Merge a5cf75ddc17a7d8fb046f86faecd4abb35703b4f. Producción Web
+dpl_7B912mmxhYZpidqvVKB2fxjbkWHY READY/production, build Vercel 26 s,
+alias https://route-planner-web-sand.vercel.app/ al SHA exacto.
+Los tres archivos locales probados coinciden byte a byte con el merge;
+worktree propio alineado, sin sobrescribir directorios previos.
+Después de recargar producción a5cf75d y esperar la carga de la aplicación,
+la búsqueda pública de las mismas coordenadas devolvió SN Avenida Mirador.
+Escape retiró lista y S1; Enter repuso la búsqueda sin confirmar un punto.
+El selector abrió en esa propuesta; elegir su centro devolvió la dirección real
+y 28.635300,-106.088900 / 75WMJWP6+4C. Se cerró sin confirmar y se descartó
+otra vez la búsqueda: cero candidatos, cero puntos confirmados, nueve decimales
+del borrador intactos y sin desbordamiento en escritorio de 1348 px.
+No se guardaron puntos, borraron recientes o escribieron datos de cuenta.
+Captura real de invitado conservada como evidencia de interfaz.
+
+Observación pendiente: un primer llenado automatizado inmediatamente después
+de reload no persistió al finalizar la carga inicial; se repitió tras aparecer el
+mapa. No se atribuye todavía causa al código o al método de interacción. Falta
+reproducir con entrada nativa y carga lenta/Android antes de declarar ese caso
+resuelto o introducir un cambio. No afecta a los resultados comprobados después
+de cargar ni se oculta como una prueba completada.
+
+### Precisión pública y fuentes oficiales
+
+Consulta real 2026-11-24T17:39:42.288627Z a través del proxy: Bodega Aurrera Express,
+referencia pública de prueba 28.6353,-106.0889. HTTP 200, ocho resultados;
+el más cercano devuelto está en Monterrey, a 655570 m en línea recta.
+warning=NO_NEARBY_MATCHES. Se conservan ocultos hasta una revelación explícita;
+no se presentan como sucursales cercanas de Chihuahua. Una respuesta correcta
+de red no resuelve la ausencia de comercios locales en el índice del proveedor.
+No se integra ni geocodifica masivamente un directorio del operador sin licencia
+compatible; identidad y acceso siguen por corroborar. Favoritos permite reutilizar
+puntos privados guardados sin volver a enviarlos al geocodificador.
+
+Se detectó que CHIHUAHUA-CAPITAL-REFERENCE de Web seguía en la revisión
+histórica del 11-11, mientras la API ya incorporaba el decreto de noviembre.
+Se sincroniza la referencia Web con el decreto primario: nueva descarga HTTP 200,
+2,801,294 bytes/44 páginas, SHA-256 b3deb0d1531ccb5d0e922103d120e41dc77a5cf19f6b2fdcaa5796cb0631cbda
+igual a la huella de la API, y revisión visual seleccionada de páginas 32/42.
+Se conservan el resumen histórico y sus límites. No es una norma nueva de este ciclo.
+Consulta acotada adicional de portales oficiales documentada en esa referencia. El registro municipal leído no devolvió registros
+de horarios; esto no prueba inexistencia de actos. El horario del trámite estatal
+es de atención al público, no de circulación. No se restauró el artículo 66
+histórico encontrado en índices por encima de la reforma de noviembre ya cotejada.
+Sin nuevas reglas ejecutables, geometrías o municipios legalmente verificados.
+La cobertura permanece en 15 municipios parciales y cero completos. Google
+Maps no recibe HGV ni fija el trazado ORS; los puntos guía sólo lo orientan.
+
+Sondas públicas posteriores al despliegue, completadas 2026-11-24T17:48:23Z:
+API directa/proxy health y fuentes →200; checker reportado 17:05:02.838Z,
+stale=false y overdue=false. Recuperación del reporte disponible, intento
+17:42:05.047Z/éxito 17:42:05.117Z, receivedCheckedAt 17:05:02.838Z;
+próxima lectura indicada 17:57:05.117Z. No se ejecutó otra descarga de los
+27 documentos ni se presenta la lectura del reporte como comprobación jurídica.
+
+Coordenadas de nueve decimales conservadas. Plus Code completo 75XMRW22+22
+y compuesto RW22+22 Chihuahua →200 como ejemplos independientes, no el mismo
+punto. Validate de 0/2/48 intermedias →200 y 49→400; plan sin sesión →401
+AUTH_REQUIRED. Son validaciones de entrada, no cálculo ORS real autenticado.
+CORS autorizado OPTIONS 204 con Allow-Origin correcto; origen ajeno 404 sin
+permiso. Las ventanas consultadas de Vercel error/fatal agrupadas por requestPath
+no devolvieron grupos en ambos proyectos, incluida la posterior al despliegue.
+Esto no equivale a vigilancia permanente o ausencia futura de errores.
+
+### Recuperación y próxima prioridad
+
+Rollback Web e4dc800f09b702d5ef6858f92af8d0b61221f404 /
+dpl_FBuJ3aHArJMcnp7dtt8J1PeEdD8a. API conserva 868578e y su deployment;
+no se vuelve a publicar una API sin cambios. Candidatos 9aef225 y 09d082d,
+PR #51 y rama codex/location-candidate-lifecycle-20261124 conservados.
+El cierre documental modifica sólo docs y no reemplaza el alias del código probado.
+
+Completado: cancelación y retirada coherente de candidatos; comprobaciones
+indicadas arriba. Parcial: catálogo público comercial y cobertura municipal.
+Pendiente inmediato: reproducir la entrada temprana observada en CUA.
+Después, fuente compatible de sucursales Express con identidad/acceso;
+actos actuales de implementación, configuración de vehículo, horarios, permisos,
+excepciones y geometrías verificadas. No se hizo Android físico ni ORS real
+alojado autenticado; Auth local no se presenta como sesión del propietario en
+producción. Continúa el programa general y se mantiene su continuación existente.
