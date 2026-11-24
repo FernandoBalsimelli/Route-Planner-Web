@@ -68,6 +68,18 @@ test('mobile GPS button resolves an address, retains coordinates and shows accur
   } finally { await context.close(); }
 });
 
+test('opening saved locations clears prior public map candidates without changing the delivery on mobile and desktop',async()=>{
+ for(const width of [390,1280]){
+  const {context,page}=await setup(()=>{},{width,height:844});let calls=0;
+  try{
+   await page.route('**/api/route-planner/v1/locations/suggest?**',route=>{calls++;return route.fulfill({json:{ok:true,suggestions:[{label:'Acceso público sintético',lat:28.635300123,lng:-106.088900456}]}});});
+   await page.goto(base);const input=page.getByRole('combobox',{name:'Destino',exact:true});await input.fill('28.635300123,-106.088900456');await page.locator('.rp-map-pin-search').waitFor();
+   const field=page.locator('.location-field').filter({has:input});await field.getByRole('button',{name:'☆ Recientes y favoritos',exact:true}).click();await page.getByRole('region',{name:'Ubicaciones guardadas para Destino',exact:true}).waitFor();await page.locator('.rp-map-pin-search').waitFor({state:'detached'});
+   assert.equal(await field.getByRole('option').count(),0);assert.equal(await field.locator('.location-confirmed').count(),0);assert.equal(await input.inputValue(),'28.635300123,-106.088900456');assert.equal(calls,1);assert.equal(await field.getByRole('button',{name:'Buscar en mis favoritos',exact:true}).count(),0,'guest view must not offer account favorites as available');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  }finally{await context.close();}
+ }
+});
+
 test('Maps search links paste as unconfirmed coordinates while short links and viewports preserve the draft',async()=>{
  for(const viewport of [{width:390,height:844},{width:1365,height:900}]){
   const {context,page}=await setup(()=>{},viewport);const queries=[];let external=0;
