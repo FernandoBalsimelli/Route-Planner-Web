@@ -957,3 +957,67 @@ Google no recibe HGV ni asegura conservar el trazado. CI: 222 Web, 89 API,
 42 navegador y 12 flujos Auth locales, con ORS sintético; prueba pública real
 de reutilización por separado. Android físico y ORS alojado autenticado pendientes.
 Deployments, comprobaciones, rollback y próxima prioridad en ingeniería.
+
+
+## Reporte recuperable y publicación histórica CDMX · 24-11-2026
+
+Web #47/8aef006 permite volver a consultar el reporte sin perder la evidencia;
+separa fecha documental, descarga del reporte y revisión jurídica. El fallo de
+recuperación es visible con los detalles cerrados. El botón no ejecuta el checker,
+no cambia fechas de comprobación ni garantiza una descarga nueva antes de vencer
+la caché. Se preserva compatibilidad sin metadatos y se omiten errores crudos.
+
+API #33/e4aaa01 incorpora una copia de Gaceta 747 (15-12-2021) alojada por C5.
+Descarga real HTTP 200, 4518924 bytes/180 páginas, SHA-256
+ec3c36bad93ae7ab05f8a272e121981085ea71e3636da105cbb8fa910ace976a.
+Se cotejaron texto e imagen de pp. 6–7, no los demás actos. Consejería/actos base
+2019 siguen con 503 en los intentos directos. La copia nueva se monitorea por URL
+independiente sin afirmar igualdad binaria o vigencia consolidada.
+
+Dos fichas históricas distinguen circulación de carga/descarga y sus operadores
+de longitud/peso. No se resuelven igualdades ni se equiparan toneladas con peso
+bruto o capacidad. Sin nuevos comparadores, geometrías, permisos o exclusiones del
+trazado. La fuente primaria sigue siendo el folleto 2024. Sus cinco fichas y 21
+vialidades apuntaban a portada: se corrigen a páginas 2/3 y 3 respectivamente,
+sin reemplazar su texto/ventana ni resolver diferencias frente al acto.
+Detalle de descarga, ámbito y pendientes:
+https://github.com/FernandoBalsimelli/Route-Planner-API/blob/main/docs/CDMX-GACETA-2021-MIRROR-20261124.md
+
+Checker manual 2026-11-24T12:10:20.866Z, siete grupos/27 documentos: C5
+descargado con la huella cotejada. Reporte posterior main 0dd0473/12:14:19.921Z,
+servido por API/proxy, conserva esa evidencia aunque CDMX queda con cuatro
+NETWORK_OR_TIMEOUT y Juárez HTTP_403; Puebla disponible/cambio técnico.
+La recuperación del reporte es correcta y stale=false/overdue=false. Eso describe
+la fecha del intento, no descargas correctas de todas las fuentes o vigencia legal.
+No se establece una causa detallada de red no observada ni se sustituye el fallo.
+
+Web #48/796a822 distingue fecha de firma (08-12-2021), publicación y entrada
+indicada (15-12-2021), con aviso de vigencia actual pendiente. Los actos sin
+fechas conocidas mantienen su presentación anterior; no se copia la fecha del
+acto a las fichas del folleto.
+
+Siguen 15 municipios parciales y cero con validación legal automática completa.
+El buscador Express aún tiene cobertura incompleta. No se añade geometría legal
+por recuperar una Gaceta ni se transmite HGV/trazado fijo a Google.
+Comprobaciones finales: 228 Web, 91 API, 44 navegador y 12 Auth locales;
+ORS/geometrías de CI sintéticos. Guía pública de escritorio comprobada aparte;
+Android físico y cálculo ORS alojado autenticado pendientes.
+
+
+
+### Contraste federal adicional, sin reglas nuevas
+
+Se reabrió el catálogo oficial de Economía el 24-11-2026:
+https://platiica.economia.gob.mx/normalizacion/nom-012-sct-2-2017/
+La ficha sigue indicando NOM-012-SCT-2-2017 vigente, publicación 26-12-2017,
+entrada 24-02-2018 y confirmación en revisión sistemática 21-03-2023.
+También se abrió el Programa Nacional de Infraestructura de la Calidad 2026:
+https://sidof.segob.gob.mx/notas/docFuente/5780781
+Incluye la modificación de esta norma como trabajo previsto enero–diciembre
+de 2026. Un tema programado no demuestra modificación publicada o entrada en
+vigor nueva. No se incorporan nuevas tablas, clases de camino, permisos o reglas
+por esta consulta; tampoco se acredita ausencia exhaustiva de actos posteriores.
+El monitoreo federal ampliado queda pendiente; no se cambia la frecuencia ni
+el registro municipal a partir de una búsqueda.
+
+Producción, logs, PR/commits y rollback en el último ciclo de ingeniería.

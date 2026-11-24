@@ -2,34 +2,41 @@
 
 Fecha de revisión: 2026-11-24 (Chihuahua). Alcance: exclusivamente Route Planner.
 
-Estado vigente: Web c3119d1 permite reutilizar, mediante elección explícita,
-puntos corroborados en entregas anteriores del mismo manifiesto. Conserva todos
-los pedidos y su orden, coordenadas exactas y opciones para accesos diferentes.
-No consulta sugerencias para una repetición elegible hasta elegir buscar otro
-punto. Texto distinto/editado, puntos obsoletos y filas excluidas no se proponen.
-Siguen OCR/PDF, GPS, favoritos, perfiles, confirmación completa, 48 intermedias
-del proveedor y enlaces Google consecutivos.
+Estado vigente: la guía permite consultar de nuevo el reporte de fuentes sin
+perder la evidencia visible. Distingue descarga del reporte, comprobación de
+documentos y revisión jurídica; muestra fallos incluso con los detalles cerrados
+y no reproduce mensajes privados. Mantiene compatibilidad con reportes anteriores.
 
-API 171cb4d añade reportRefresh: lectura remota, fecha recibida y fallo
-técnico saneado, separados de la comprobación de documentos. Caché de éxito
-15 min; tras fallo, reintento bajo demanda a 1 min conservando la evidencia.
-No se establece retrospectivamente la causa del rezago observado en la versión
-sin telemetría. Reporte real c4d52da, checkedAt 2026-11-24T07:02:52.496Z,
-verificado en API/proxy: stale=false, overdue=false y lectura disponible.
-Sin nuevas reglas, geometrías, fuentes registradas, cron o permisos.
+API e4aaa01 incorpora una copia oficial C5 de la Gaceta 747 de CDMX, con revisión
+seleccionada de páginas 6–7 y dos fichas históricas separadas de circulación y
+maniobras. Corrige las cinco fichas de la guía 2024 a páginas 2/3 y sus 21 renglones
+a página 3: antes apuntaban a portada. Explicita diferencias de límites e igualdades
+entre publicación y folleto; no aplica comparadores o exclusiones nuevas al trazado.
 
-Build/TypeScript, 222 pruebas Web, 89 API, 42 casos de navegador, 12 flujos Auth
+Web 796a822 separa firma del acto, publicación y entrada indicada, manteniendo
+la advertencia sobre vigencia actual. La interfaz pública quedó comprobada.
+Los actos sin fechas conocidas conservan su estado anterior.
+
+Se conservan manifiestos/OCR/PDF, reutilización explícita sin perder pedidos,
+GPS, favoritos, vehículos, rutas guardadas y recuperación, confirmación completa,
+48 intermedias del proveedor y enlaces Google consecutivos.
+Los Plus Codes completo/compuesto y coordenadas exactas responden; validar entradas
+no equivale a un cálculo ORS real autenticado.
+
+Build/TypeScript, 228 pruebas Web, 91 API, 44 casos de navegador, 12 flujos Auth
 locales y SQL/RLS desechable aprobados; auditorías de producción cero.
-Reutilización comprobada en navegador público real con coordenadas públicas.
-CI usa ORS sintético; Android físico y ORS autenticado alojado siguen pendientes.
+Guía/reconsulta públicas reales comprobadas aparte. CI usa ORS sintético;
+Android físico y ORS autenticado alojado siguen pendientes.
 
-Se recuperaron fuentes registradas de Juárez y parcialmente CDMX/Puebla.
-La ficha CDMX 1679 cambia sus bytes/metadatos de generación con idéntico texto
-extraído; eso no demuestra reforma. Nuevos contrastes documentales conservados
-en CDMX-SOURCE-RECHECK-20261124.md y STORE-DIRECTORY-RESEARCH-20261124.md.
-Cobertura pública Express aún incompleta; 15 municipios parciales y cero con
-validación legal automática completa. Google no recibe HGV ni fija el trazado.
-El programa general sigue abierto; publicación y recuperación en el último ciclo.
+Monitor manual real: 2026-11-24T12:10:20.866Z, siete grupos/27 documentos.
+Reporte posterior 0dd0473: checkedAt 2026-11-24T12:14:19.921Z, servido por API/proxy
+con stale=false/overdue=false y recuperación disponible. CDMX queda con fallos
+NETWORK_OR_TIMEOUT, Juárez HTTP_403 y Puebla disponible con cambio técnico.
+La copia C5 mantiene su última descarga correcta, huella y fecha anterior;
+ningún fallo se sustituye por una comprobación inventada.
+Cobertura Express aún incompleta; 15 municipios parciales, cero con validación
+jurídica automática completa. Google no recibe HGV ni fija el trazado.
+Programa general abierto. Publicaciones, pruebas y rollback en el último ciclo.
 
 ## Recursos verificados
 
@@ -5216,3 +5223,211 @@ Se mantienen 15 municipios parciales y cero con validación legal automática co
 Google no recibe dimensiones/peso HGV ni fija trazado exacto. ORS alojado autenticado
 y Android físico pendientes. Sin cambios en Gestión, otros proyectos, costos,
 claves, permisos o programadores. La automatización se conserva; programa general abierto.
+
+
+## Ciclo: reporte recuperable y procedencia CDMX · 24-11-2026
+
+### Estado contrastado y diagnóstico
+
+Se leyó main antes de editar: Web a34f5227bd73ef53eda7af74fdfbe20005f8e99c,
+sólo cierre documental sobre producción c3119d1/dpl_EE8phtvU3hBknAxL3zQfN9PxZgpt;
+API abc55e37f8781d7b592e45d42d5854bf75f0340f, reporte posterior al código
+171cb4d/dpl_6jJqYYy31Ex3Z9Anrvkc2zh4y3FS. Ambos alias READY/production al
+código esperado. Supabase autorizado ACTIVE_HEALTHY, sólo lectura de estado.
+Se usaron worktrees aislados y no se sobrescribieron las modificaciones antiguas
+de otros directorios. No se modificaron Gestión ni otros proyectos.
+
+La API ya exponía reportRefresh, pero OfficialSourceMonitor no lo consumía.
+Por ello, una lectura remota fallida con evidencia conservada carecía de aviso
+en la guía, aunque los documentos individuales mantenían su estado. La interfaz
+tampoco ofrecía reintento explícito sin volver a montar la sección.
+Se corrige esa falta de presentación; no se atribuye una causa histórica de red
+sin observación suficiente.
+
+El cotejo directo encontró otro defecto concreto: las cinco fichas y 21
+renglones de la guía ACH 2024 enlazaban página 1, que es portada. El PDF tiene
+12 páginas; circulación y excepciones están en 2, maniobras/vialidades en 3.
+La configuración de páginas era errónea; no se establece cuándo se introdujo
+ni se infiere una reforma por esa corrección.
+
+### Implementación y archivos
+
+Web PR [#47](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/47):
+components/OfficialSourceMonitor.tsx, lib/source-report-refresh.ts,
+app/globals.css, test/official-source-monitor.test.mjs, test/geolocation.e2e.mjs.
+
+Aviso de fallo de recuperación visible con detalles cerrados; se conserva el
+reporte y sus fuentes durante la consulta y tras error de transporte/HTTP/esquema.
+El botón se deshabilita mientras hay una petición y vuelve a quedar disponible.
+Sólo consulta el endpoint existente; no dispara el checker, no renueva fechas
+documentales ni añade polling. Intento, última recuperación correcta, comprobación
+del último reporte recibido y próxima consulta elegible son datos separados.
+La fecha bajo demanda no es una actualización garantizada. Las horas incluyen
+zona del dispositivo. Se reconoce si el último reporte recibido es anterior a
+la evidencia conservada. Errores opcionales se traducen mediante lista permitida;
+metadatos desconocidos no se muestran como mensajes crudos y las respuestas
+anteriores sin reportRefresh continúan funcionando. Cancelación al desmontar.
+
+API PR [#33](https://github.com/FernandoBalsimelli/Route-Planner-API/pull/33):
+data/mx/national-references.json, data/mx/source-status.json,
+docs/CDMX-GACETA-2021-SOURCE.md, docs/CDMX-GACETA-2021-MIRROR-20261124.md,
+test/municipal-regulations.test.js, test/source-monitor.test.js.
+
+Se conserva Consejería como URL independiente y se añade la copia oficial C5
+al monitor existente. HTTP 200, 4518924 bytes, 180 páginas, SHA-256
+ec3c36bad93ae7ab05f8a272e121981085ea71e3636da105cbb8fa910ace976a.
+Lectura de texto y cotejo visual de pp. 6–7; no se revisaron los demás actos del PDF.
+Firma 08-12-2021, publicación/entrada indicada 15-12-2021. No se demuestra
+igualdad binaria con el archivo de Consejería, que dio 503, ni vigencia actual.
+Actos base de septiembre/diciembre 2019 intentados también 503; no se agregan
+al registro en este ciclo ni se declara su lectura.
+
+Dos fichas históricas separan circulación y carga/descarga. El artículo 4-II usa
+longitudes estrictamente menores; 5-II/III usa no mayor/máximo. Hay diferencias
+en exactamente 3.8 t, 7.5 m y 14 m entre actividades/tabla/folleto. Se explicitan
+sin resolverlas por inferencia. Toneladas no se convierten en peso bruto/carga útil/
+carga por eje. No hay nuevos vehicleConditions, límites ejecutables, ventanas
+aplicadas, geometrías, permisos o calles excluidas por el motor.
+Se preservan texto/ventana de las cinco fichas del folleto y sus 21 renglones,
+corrigiendo únicamente citas/páginas. La guía descargada conserva SHA-256
+ce23f9fd52cacb2c8693aca7d6ce08857da323222023f9b2792ca65f33aa283d,
+541032 bytes/12 páginas; pp. 2–3 cotejadas visualmente.
+
+En la verificación pública se detectó una etiqueta genérica que seguía marcando
+la publicación como pendiente pese a existir publishedAt en la API. Web PR
+[#48](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/48) añade
+presentación separada de firma/acto, publicación y entrada indicada por el acto.
+No copia fechas a otras fichas ni las inventa cuando faltan; conserva el aviso
+de vigencia actual y el comportamiento anterior de actos sin publicación conocida.
+
+Archivos: components/MunicipalCoverage.tsx, test/municipal-review.test.mjs,
+test/geolocation.e2e.mjs. Candidato 24059a85ac3ba96c868473d9904dd8b5d8fce9db,
+merge 796a82249ae1c30126d9c13b0f497323e5201092.
+Local build/TypeScript y 228 pruebas. CI 45392287444 aprobada:
+228 pruebas, 44 casos de navegador, 12 Auth locales y auditoría cero.
+Logs de jobs 138438860147/138438860549 leídos. La nueva regresión comprueba
+fechas distintas, enlace/página y aislamiento de la ficha del folleto a
+360/1280 px; no convierte una fecha histórica en permiso o vigencia.
+
+Deployment final Web dpl_96ZYi2BLzQifjEnik24Ym6VXKqvj, READY/production,
+alias https://route-planner-web-sand.vercel.app/ al merge 796a822 exacto.
+Build Vercel 33 s; tres archivos de este PR coinciden byte a byte con los probados.
+
+
+### Comprobaciones técnicas y publicaciones
+
+Web #47 candidato 96c475a613ac9469e63192fdd7523c8c19575b03,
+merge 8aef0069883a6218a8c6ac1e21fc8dd1c1dab83d.
+CI 45390292871: 227 pruebas, 43 casos de navegador, 12 flujos Auth locales,
+build/TypeScript y auditorías cero. Logs leídos de jobs 138431884168/138431884641.
+Caso nuevo con transporte controlado a 360/1280 px: fallo de lectura remota,
+respuesta HTTP 503 al reintentar, conservación de fuentes y recuperación explícita,
+sin solicitudes automáticas adicionales, sin perder detalle abierto ni desbordar.
+Ésta es una simulación del fallo; no se provocó una caída en producción.
+
+Deployment Web dpl_8tBZ3GACEM5D591b6EJhMuESE7Gb, READY/production,
+alias https://route-planner-web-sand.vercel.app/ al merge exacto; build Vercel 28 s.
+Cinco archivos publicados coinciden byte a byte con los probados.
+
+API #33 candidato 248c7a3c681303cca641968dbce83bb8badf5acc,
+merge e4aaa01bd40d79112c4bf3fe64bca1c4dcfe2d23.
+CI 45391342910/job 138435561322: 91 pruebas, build, auditoría cero y
+migraciones/SQL de aislamiento, permisos/RLS, rutas, favoritos, enlaces y progreso
+aprobados en PostgreSQL desechable. Logs leídos. No hubo migraciones alojadas.
+Deployment dpl_Evz7pb7Use63rJ7WVrzDAzWp4Fou, READY/production,
+alias https://route-planner-api.vercel.app/ al mismo merge; build Vercel 4 s.
+Los seis archivos coinciden byte a byte. El reporte remoto puede avanzar
+independientemente del bundle por el lector existente.
+
+Checker manual existente: checkedAt 2026-11-24T12:10:20.866Z, siete grupos/27
+documentos. Copia C5 unreviewed con la misma huella del cotejo; CDMX/Puebla
+parciales por un 503 cada uno; Juárez recuperado. Registro, fechas y bytes reales,
+sin editar el resultado para hacerlo pasar por revisión jurídica.
+Después se observó main 0dd0473988d8f00255c3d611a140c291f069fcca, sólo reporte
+con checkedAt 2026-11-24T12:14:19.921Z. El workflow existente también se activa
+al cambiar national-references.json; no se modificó su cron de seis horas.
+
+API y proxy devolvieron ese reporte posterior: stale=false/overdue=false,
+reportRefresh available, receivedCheckedAt concordante. CDMX NETWORK_OR_TIMEOUT
+en sus cuatro documentos, Juárez HTTP_403; Puebla disponible/cambio técnico.
+La copia C5 retiene lastSuccessAt 12:10:20.866Z y su SHA-256. La observación
+de fallos del monitor no es un fallo de recuperación del reporte: ambos estados
+se distinguen. No se establece la causa detallada de los NETWORK_OR_TIMEOUT ni
+se sobrescribe ese intento con un éxito fabricado.
+
+Público tras publicación API/Web: health de API/proxy 200; coordenadas
+28.635300123,-106.088900456 preservadas con nueve decimales; Plus Code
+75XMRW22+22 y compuesto RW22+22 Chihuahua, ambos 200. Son pruebas independientes;
+no se afirma que esos dos códigos identifiquen el mismo lugar.
+Validate: 0, 2 y 48 intermedias →200; 49→400; plan sin sesión→401.
+Validación de entrada, no cálculo real ORS. CORS autorizado OPTIONS204 y
+Allow-Origin correcto; origen ajeno404/sin cabecera.
+
+Navegador público real sin sesión ni mocks: guía, selección alfabética Ciudad de
+México/Cuauhtémoc, dos fichas históricas, enlaces de páginas 2/3/6/7 y consulta
+manual del reporte comprobados. La consulta devuelve el estado disponible y
+conserva las fechas documentales y la selección; el botón queda disponible.
+Tras el último deploy, firma 08/12/2021, publicación 15/12/2021 y entrada indicada
+15/12/2021 aparecen por separado, con aviso de vigencia actual no acreditada.
+La ficha del folleto conserva sus propias fechas/páginas. Sin escrituras de cuenta,
+GPS privado, sesión alojada o cálculo real. Viewport real 1363×936, sin desborde.
+Captura JPEG real 1348×926, 102008 bytes, verificada legible por PIL; muestra la
+ficha de circulación dentro del panel. Es evidencia de escritorio, no Android físico.
+
+Vercel error/fatal agregados por requestPath, ambos proyectos, ventanas 30 min
+antes/después: sin grupos retornados. Ventanas limitadas; no prueba de ausencia
+permanente de errores. Alias finales contrastados con ambos commits de código.
+Búsqueda pública real adicional con foco 28.635300123,-106.088900456:
+Bodega Aurrera Express devolvió HTTP200, nearby=true, NO_NEARBY_MATCHES,
+ocho resultados; primero Monterrey a 655570 m. Añadiendo Chihuahua devolvió
+HTTP200, misma advertencia, tres resultados de Los Mochis/Culiacán;
+primero a 428473 m. No se afirman coincidencias locales correctas ni
+cobertura completa. El problema observado es falta de candidatos locales
+en esas respuestas, no un Failed to fetch. No demuestra inexistencia de
+sucursales ni su causa dentro del índice externo. La protección previa
+mantiene esos candidatos lejanos fuera de mapa/teclado hasta elección
+explícita; no se cambia esa lógica ni se declara resuelta la cobertura.
+
+
+### Contraste federal adicional, sin reglas nuevas
+
+Se reabrió el catálogo oficial de Economía el 24-11-2026:
+https://platiica.economia.gob.mx/normalizacion/nom-012-sct-2-2017/
+La ficha sigue indicando NOM-012-SCT-2-2017 vigente, publicación 26-12-2017,
+entrada 24-02-2018 y confirmación en revisión sistemática 21-03-2023.
+También se abrió el Programa Nacional de Infraestructura de la Calidad 2026:
+https://sidof.segob.gob.mx/notas/docFuente/5780781
+Incluye la modificación de esta norma como trabajo previsto enero–diciembre
+de 2026. Un tema programado no demuestra modificación publicada o entrada en
+vigor nueva. No se incorporan nuevas tablas, clases de camino, permisos o reglas
+por esta consulta; tampoco se acredita ausencia exhaustiva de actos posteriores.
+El monitoreo federal ampliado queda pendiente; no se cambia la frecuencia ni
+el registro municipal a partir de una búsqueda.
+
+
+### Recuperación, límites y siguiente prioridad
+
+Rollback Web del primer cambio: c3119d189028bd127622a5e81c9481d1140f4236 /
+dpl_EE8phtvU3hBknAxL3zQfN9PxZgpt.
+Rollback del ajuste final de fechas: 8aef0069883a6218a8c6ac1e21fc8dd1c1dab83d /
+dpl_8tBZ3GACEM5D591b6EJhMuESE7Gb.
+Rollback API: 171cb4d4190f882537cd2c7fb83413d0affa524e /
+dpl_6jJqYYy31Ex3Z9Anrvkc2zh4y3FS. abc55e3 conserva el reporte previo y
+e4aaa01 conserva el checker manual/copia nueva antes del intento posterior.
+Ramas de los tres PR conservadas; no se ejecutó rollback ni se borraron datos.
+Este cierre sólo modifica documentación Web; el alias conserva el commit de
+código verificado y main añade el informe.
+
+Completado: reconsulta explícita y diagnóstico visible, corrección de páginas,
+procedencia C5 y distinción de actividades/fechas históricas.
+Parcial: normativa nacional y catálogo comercial público. Pendiente:
+corroborar identidad/accesos de Bodega Aurrera Express e ingesta con procedencia,
+metadatos y condiciones de uso; actos base/posteriores CDMX, interpretación,
+permisos, días, sentidos y geometrías; seguimiento de fallos reales de fuentes.
+No se amplía el buscador Express ni se completa cobertura jurídica por añadir
+un documento. Siguen 15 municipios parciales y cero con validación automática
+completa. Google Maps no recibe restricciones HGV ni fija una ruta exacta.
+No se presenta CI con ORS sintético como cálculo ORS alojado autenticado o Android
+físico: esos dos controles siguen pendientes. No se modifican costos, claves,
+cuotas, permisos, otros proyectos o programadores. Automatización conservada
+activa y programa general abierto.
