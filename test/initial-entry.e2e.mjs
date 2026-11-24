@@ -35,13 +35,28 @@ test('an address entered before application scripts load is not silently lost af
    await input.waitFor({state:'visible'});assert.ok(scripts>0,'scripts are held while server-rendered fields are visible');
    // Native keyboard events, rather than fill/DOM assignment, distinguish a
    // real early-entry problem from the previous computer-use timing observation.
-   await input.pressSequentially(value,{delay:15});assert.equal(await input.inputValue(),value);assert.equal(queries.length,0);
+   const acceptedEarly=await input.isEnabled();
+   if(acceptedEarly){await input.pressSequentially(value,{delay:15});assert.equal(await input.inputValue(),value);}
+   else{await page.getByText('Preparando el buscador de origen…',{exact:true}).waitFor();assert.equal(await input.inputValue(),'');assert.equal(await page.getByRole('button',{name:'Usar mi ubicación actual',exact:true}).isEnabled(),false);}
+   assert.equal(queries.length,0);
    release();await page.locator('.leaflet-container').first().waitFor();
-   assert.equal(await input.inputValue(),value,'startup must preserve the address accepted before hydration');
+   assert.ok(await input.isEnabled());
+   if(acceptedEarly)assert.equal(await input.inputValue(),value,'startup must preserve the address accepted before hydration');
+   else{assert.equal(await input.inputValue(),'');await input.pressSequentially(value,{delay:15});}
+   assert.equal(await page.getByText('Preparando el buscador de origen…',{exact:true}).count(),0);
    assert.equal(await page.locator('.location-confirmed').count(),0,'typing never confirms a point');
    await input.pressSequentially(' ');await page.getByRole('listbox',{name:'Sugerencias para Origen',exact:true}).waitFor();
    assert.equal(queries.at(-1),value);assert.equal(await input.inputValue(),value+' ');assert.equal(await page.locator('.location-confirmed').count(),0);
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   }finally{release();await context.close();}
  }
+});
+
+test('without JavaScript the planner explains why locations cannot be entered instead of accepting a lost draft',async()=>{
+ const context=await browser.newContext({javaScriptEnabled:false,viewport:{width:390,height:844}});
+ try{
+  await context.route('https://fonts.googleapis.com/**',route=>route.abort());await context.route('https://fonts.gstatic.com/**',route=>route.abort());
+  const page=await context.newPage();await page.goto(base);assert.equal(await page.getByRole('combobox',{name:'Origen',exact:true}).isEnabled(),false);assert.equal(await page.getByRole('combobox',{name:'Destino',exact:true}).isEnabled(),false);assert.equal(await page.getByRole('button',{name:'Usar mi ubicación actual',exact:true}).isEnabled(),false);
+  assert.equal(await page.getByText('Activa JavaScript para escribir y confirmar ubicaciones.',{exact:true}).count(),2);
+ }finally{await context.close();}
 });

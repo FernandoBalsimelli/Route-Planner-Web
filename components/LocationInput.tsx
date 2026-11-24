@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import dynamic from 'next/dynamic';
 import { locateDevice } from '@/lib/geolocation';
 import { addressNumberNotice, businessLocationNotice, resolvePointLabel, type Coordinates, type LocationSelection } from '@/lib/locations';
@@ -13,6 +13,11 @@ import { mapsLocationPaste } from '@/lib/maps-location-paste';
 
 export type { LocationSelection } from '@/lib/locations';
 const MapLocationPicker = dynamic(() => import('./MapLocationPicker'), { ssr: false, loading: () => <p role="status">Cargando mapa…</p> });
+// Server markup waits for handlers. Fields created later in the running app
+// are ready immediately, so manifest review can focus them on mount.
+const subscribeToReadiness = () => () => {};
+const clientReady = () => true;
+const serverReady = () => false;
 
 function locationKind(kind?: string) {
   return kind ? ({ locality: 'Ciudad o localidad', address: 'Dirección', venue: 'Lugar', street: 'Calle', neighbourhood: 'Colonia', borough: 'Distrito' } as Record<string, string>)[kind] : undefined;
@@ -33,6 +38,7 @@ type Props = {
 };
 
 export default function LocationInput({ title, color, value, placeholder, apiUrl, selected, allowCurrentLocation = false, mapReference, onChange, onConfirm, onSuggestions }: Props) {
+  const interactive = useSyncExternalStore(subscribeToReadiness, clientReady, serverReady);
   const book = useLocationBook();
   const [bookOpen, setBookOpen] = useState(false);
   const listId = useId();
@@ -209,7 +215,9 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
     setSearchError('');
   }
 
-  return <div className="location-field">
+  return <fieldset className="location-field" aria-label={`Ubicación: ${title}`} disabled={!interactive} aria-busy={!interactive || loading}>
+    {!interactive && <p className="location-search-status" role="status">Preparando el buscador de {title.toLowerCase()}…</p>}
+    <noscript><p>Activa JavaScript para escribir y confirmar ubicaciones.</p></noscript>
     <label className="field">
       <span><i className={color === 'number' ? 'stop-number' : `dot ${color}`}>{color === 'number' ? title.match(/\d+/)?.[0] : ''}</i> {color === 'number' ? title : title.toUpperCase()}</span>
       <input
@@ -314,5 +322,5 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
     {selected && selected.label === value && !pending && <p className="location-confirmed"><span>✓ Punto confirmado</span><small>{selected.plusCode || `${selected.lat.toFixed(6)}, ${selected.lng.toFixed(6)}`}</small></p>}
     {selected && selected.label === value && addressNumberNotice(selected) && <p className="address-number-notice">{addressNumberNotice(selected)}</p>}
     {selected?.source === 'geolocation' && selected.label === value && <p className="location-accuracy">{Number.isFinite(selected.accuracyM) ? `Precisión aproximada: ±${Math.ceil(selected.accuracyM!)} m. ` : ''}Revisa que el punto corresponda al acceso que vas a utilizar. <a href={`https://www.google.com/maps/search/?api=1&query=${selected.lat},${selected.lng}`} target="_blank" rel="noreferrer">Ver ubicación ↗</a></p>}
-  </div>;
+  </fieldset>;
 }
