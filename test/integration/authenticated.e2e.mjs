@@ -365,6 +365,8 @@ test('real local favorite search finds older branches by literal name or address
    const field=page.locator('.location-field').filter({has:page.getByRole('combobox',{name:'Destino',exact:true})});
    await field.getByRole('button',{name:'☆ Recientes y favoritos',exact:true}).click();
    const region=page.getByRole('region',{name:'Ubicaciones guardadas para Destino',exact:true});
+   assert.equal(await region.getByRole('searchbox',{name:'Buscar favoritos para Destino',exact:true}).inputValue(),'Borrador que no debe cambiar');
+   await region.getByRole('button',{name:'Limpiar búsqueda de favoritos',exact:true}).click();
    await region.getByRole('button',{name:'Cargar más favoritos',exact:true}).waitFor();assert.equal(await region.getByRole('button',{name:/^★ /}).count(),50);
    assert.equal(await region.getByRole('button',{name:new RegExp('^★ Express 50%')}).count(),0);
    const search=region.getByRole('searchbox',{name:'Buscar favoritos para Destino',exact:true});
@@ -377,9 +379,30 @@ test('real local favorite search finds older branches by literal name or address
    await search.fill('cedro 123');const selected=region.getByRole('button',{name:/^★ Express 50%/});await selected.waitFor();await selected.click();
    assert.equal(await page.getByRole('combobox',{name:'Destino',exact:true}).inputValue(),'Calle Cedro 123');await field.getByText('✓ Punto confirmado',{exact:false}).waitFor();
    const target=inserted.data.find(row=>row.name===names[0]);const map=field.getByRole('button',{name:'★ Quitar de favoritos',exact:true});await map.waitFor();
-   await field.getByRole('button',{name:'☆ Recientes y favoritos',exact:true}).click();await region.getByRole('button',{name:'Limpiar búsqueda de favoritos',exact:true}).click();await region.getByRole('button',{name:'Cargar más favoritos',exact:true}).waitFor();
+   await field.getByRole('button',{name:'☆ Recientes y favoritos',exact:true}).click();assert.equal(await search.inputValue(),'');await region.getByRole('button',{name:'Cargar más favoritos',exact:true}).waitFor();
    assert.equal(await field.getByRole('button',{name:'★ Quitar de favoritos',exact:true}).count(),1,'searching another page must not forget the selected favorite');
    const stored=await owner.client.from('favorite_locations').select('id,name,lat,lng').eq('id',target.id).single();assert.equal(stored.error,null);assert.equal(stored.data.name,names[0]);assert.equal(stored.data.lat,target.lat);
+  }finally{await context.close();}
+ }
+});
+
+test('public lookup failures and distant results recover into exact account-wide saved branch search without replaying geocoding',{timeout:180000},async()=>{
+ const {favoriteSearchFilter}=await import('../../lib/favorite-search.ts');
+ for(const width of [390,1280]){
+  const context=await browser.newContext({viewport:{width,height:844},isMobile:width<768,hasTouch:width<768});await context.route('https://tile.openstreetmap.org/**',route=>route.abort());const page=await context.newPage();let geocoding=0;
+  try{
+   const username='favorite-recovery-'+width;await page.goto(base);await createAccount(page,username);const owner=await session(username),other=await createLocalAccount(username+'-other');
+   const name='Express 50%_* (A)',target={owner_id:owner.uid,name,address_label:'Acceso de prueba Cedro 123',lat:28.635300123,lng:-106.088900456,archived:false,created_at:'2020-01-01T00:00:00Z'};
+   const seed=await owner.client.from('favorite_locations').insert([...Array.from({length:55},(_,i)=>({...target,name:'Sucursal '+i,lat:28.64+i/10000,created_at:'2026-11-24T00:00:00Z'})),target]);assert.equal(seed.error,null);
+   assert.equal((await other.client.from('favorite_locations').insert({...target,owner_id:other.uid,address_label:'Acceso de otra cuenta',lat:29})).error,null);
+   await page.reload();await page.locator('.account-button').filter({hasText:username}).waitFor();
+   await page.route('**/api/route-planner/v1/locations/suggest?**',route=>{geocoding++;return width===390?route.fulfill({status:503,json:{ok:false,code:'PHOTON_UNAVAILABLE',message:'Proveedor sintético temporalmente no disponible'}}):route.fulfill({json:{ok:true,suggestions:[{label:'Express lejana de prueba',lat:25.7,lng:-100.3}],warning:'NO_NEARBY_MATCHES'}});});
+   const input=page.getByRole('combobox',{name:'Destino',exact:true}),field=page.locator('.location-field').filter({has:input});await input.fill(name);await field.getByRole('button',{name:'Buscar en mis favoritos',exact:true}).waitFor();assert.equal(geocoding,1);assert.equal(await field.locator('.location-confirmed').count(),0);
+   const responsePromise=page.waitForResponse(response=>{const u=new URL(response.url());return u.pathname.endsWith('/rest/v1/favorite_locations')&&u.searchParams.get('or')==='('+favoriteSearchFilter(name)+')';});
+   await field.getByRole('button',{name:'Buscar en mis favoritos',exact:true}).click();const response=await responsePromise;assert.equal(response.status(),200);const found=await response.json();assert.equal(found.length,1);assert.equal(found[0].address_label,target.address_label);assert.equal(new URL(response.url()).searchParams.get('owner_id'),'eq.'+owner.uid);
+   const region=page.getByRole('region',{name:'Ubicaciones guardadas para Destino',exact:true});assert.equal(await region.getByRole('searchbox').inputValue(),name);assert.equal(await input.inputValue(),name);assert.equal(await field.locator('.location-confirmed').count(),0);assert.equal(geocoding,1);
+   await region.getByRole('button',{name:/^★ Express 50%/}).click();assert.equal(await input.inputValue(),target.address_label);await field.getByText('✓ Punto confirmado',{exact:false}).waitFor();assert.equal(geocoding,1);assert.equal(await region.count(),0);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+   assert.equal(found[0].lat,target.lat);assert.equal(found[0].lng,target.lng);const stored=await owner.client.from('favorite_locations').select('lat,lng,address_label').eq('name',name).single();assert.equal(stored.error,null);assert.equal(stored.data.lat,target.lat);assert.equal(stored.data.lng,target.lng);assert.equal(stored.data.address_label,target.address_label);
   }finally{await context.close();}
  }
 });

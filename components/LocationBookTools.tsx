@@ -32,6 +32,7 @@ export default function LocationBookTools({ title, value, selected, open, onTogg
       {!book.signedIn ? <p>Inicia sesión para consultar tus favoritos desde cualquier dispositivo.</p> : <>
         <label className="favorite-name">Buscar en todos mis favoritos<input type="search" aria-label={`Buscar favoritos para ${title}`} placeholder="Sucursal, número de tienda o dirección" maxLength={120} value={book.search} onChange={event => book.searchFavorites(event.target.value)}/></label>
         <p>Busca por el nombre que guardaste o por la dirección. No cambia el punto hasta que elijas una sucursal.</p>
+        {!selected && value.trim().length > 120 && <p className="hint">Los favoritos buscan hasta 120 caracteres. Se trasladó el inicio de tu búsqueda; puedes ajustar este filtro. La dirección completa del planificador se conserva.</p>}
         {book.search && <button type="button" className="text-button" onClick={() => book.searchFavorites('')}>Limpiar búsqueda de favoritos</button>}
         {book.loading && <p role="status">Buscando tus sucursales guardadas…</p>}
         {book.error && <div role="alert"><p>{book.error}</p><button type="button" onClick={book.retryFavorites}>Reintentar favoritos</button></div>}
