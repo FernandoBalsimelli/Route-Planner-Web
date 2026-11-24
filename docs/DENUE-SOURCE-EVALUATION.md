@@ -79,3 +79,10 @@ El índice público de Express sigue pendiente y se conserva NO_NEARBY_MATCHES.
 Observaciones extraídas y metadatos originales conservados en
 [evidence/denue-chihuahua-202605-observations.json](evidence/denue-chihuahua-202605-observations.json).
 Las ocho filas son evidencia de evaluación, no un catálogo de sucursales verificadas.
+
+## Contraste posterior · 24-11-2026
+
+Se documentaron directorios candidatos del operador y sus límites de alcance en
+[STORE-DIRECTORY-RESEARCH-20261124.md](STORE-DIRECTORY-RESEARCH-20261124.md).
+Siguen pendientes cotejo de identidad/acceso y condiciones de reutilización;
+no se incorpora un catálogo runtime ni se sustituye la evidencia DENUE anterior.

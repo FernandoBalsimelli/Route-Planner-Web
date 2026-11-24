@@ -1,6 +1,6 @@
 # Cobertura municipal mexicana y navegación
 
-Revisión: 2026-11-23. Exclusivamente Route Planner. El programa general sigue abierto.
+Revisión: 2026-11-24. Exclusivamente Route Planner. El programa general sigue abierto.
 
 ## Qué existe realmente
 
@@ -928,3 +928,32 @@ automática completa. No se añaden normas, horarios, excepciones, permisos,
 sentidos o geometrías en este ciclo. Google no recibe restricciones HGV ni
 garantiza conservar el trazado. Publicación, rollback y continuación en el
 último ciclo de ENGINEERING-STATUS.md; el programa general continúa.
+
+## Evidencia recuperada y lectura del reporte · 24-11-2026
+
+API PR #32/171cb4d separa la recuperación del reporte remoto de la fecha de
+comprobación documental y de la revisión jurídica. El fallo conserva evidencia y
+permite consultar de nuevo al minuto; éxito mantiene quince minutos. Son consultas
+bajo demanda, sin nuevo cron. Lectura real API/proxy disponible, checkedAt
+2026-11-24T07:02:52.496Z, stale=false/overdue=false. No se estableció la causa
+histórica del rezago previo de la versión sin telemetría.
+
+El checker real conserva siete grupos/26 documentos: Juárez recuperado con
+cambios técnicos; CDMX/Puebla parciales por un 503 cada uno. Guía ACH 2024 y
+ficha 1679 recuperadas. Dos PDFs de la ficha tienen bytes/metadatos distintos
+y el mismo texto extraído; la generación actual no es una reforma.
+La ficha refiere 2019 y la guía cita Gaceta de 2021. Ambos actos intentados
+siguen sin descarga por 503. No se resuelven vigencia o geometrías.
+Evidencia/hashes: [CDMX-SOURCE-RECHECK-20261124.md](CDMX-SOURCE-RECHECK-20261124.md).
+
+Web PR #46/c3119d1 reutiliza puntos anteriores sólo mediante elección
+explícita; no agrupa pedidos ni convierte textos repetidos en identidad comercial,
+acceso de carga o permiso. Directorios candidatos del operador documentados,
+sin incorporar datos al buscador: [STORE-DIRECTORY-RESEARCH-20261124.md](STORE-DIRECTORY-RESEARCH-20261124.md).
+
+Siguen 15 municipios parciales, cero con validación legal automática completa
+y ninguna regla, horario, excepción, permiso o geometría nueva en este ciclo.
+Google no recibe HGV ni asegura conservar el trazado. CI: 222 Web, 89 API,
+42 navegador y 12 flujos Auth locales, con ORS sintético; prueba pública real
+de reutilización por separado. Android físico y ORS alojado autenticado pendientes.
+Deployments, comprobaciones, rollback y próxima prioridad en ingeniería.

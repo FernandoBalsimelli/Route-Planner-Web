@@ -1,34 +1,35 @@
 # Route Planner — estado de ingeniería
 
-Fecha de revisión: 2026-11-23 (Chihuahua). Alcance: exclusivamente Route Planner.
+Fecha de revisión: 2026-11-24 (Chihuahua). Alcance: exclusivamente Route Planner.
 
-Estado vigente: Web b85ab83 mejora la corroboración del manifiesto. Muestra el
-texto preparado junto al punto elegido, avance y acceso a la primera pendiente.
-Cada confirmación lleva a la siguiente entrega incluida en orden documental y
-vuelve a pendientes anteriores; al terminar enfoca la importación explícita.
-Conserva exclusiones, pedidos repetidos, coordenadas y orden de importación.
-Siguen búsqueda de favoritos privados, GPS, OCR/PDF, perfiles, confirmación de
-todos los puntos, 48 intermedias y enlaces Google consecutivos.
+Estado vigente: Web c3119d1 permite reutilizar, mediante elección explícita,
+puntos corroborados en entregas anteriores del mismo manifiesto. Conserva todos
+los pedidos y su orden, coordenadas exactas y opciones para accesos diferentes.
+No consulta sugerencias para una repetición elegible hasta elegir buscar otro
+punto. Texto distinto/editado, puntos obsoletos y filas excluidas no se proponen.
+Siguen OCR/PDF, GPS, favoritos, perfiles, confirmación completa, 48 intermedias
+del proveedor y enlaces Google consecutivos.
 
-API runtime c136592 sin cambios; main bf714ca sólo actualiza el reporte técnico.
-API/proxy sirven checkedAt 2026-11-24T00:11:23.638Z, stale=false/overdue=false
-al consultar. No se alteraron reglas, geometrías, cron, claves o permisos.
-Supabase Route Planner ACTIVE_HEALTHY; ninguna escritura o migración alojada.
+API 171cb4d añade reportRefresh: lectura remota, fecha recibida y fallo
+técnico saneado, separados de la comprobación de documentos. Caché de éxito
+15 min; tras fallo, reintento bajo demanda a 1 min conservando la evidencia.
+No se establece retrospectivamente la causa del rezago observado en la versión
+sin telemetría. Reporte real c4d52da, checkedAt 2026-11-24T07:02:52.496Z,
+verificado en API/proxy: stale=false, overdue=false y lectura disponible.
+Sin nuevas reglas, geometrías, fuentes registradas, cron o permisos.
 
-Build/TypeScript, 219 pruebas Web, 85 API, 41 casos de navegador y 12 flujos
-Auth locales aprobados. Auditorías cero vulnerabilidades. Flujo público del
-manifiesto comprobado en producción con coordenadas públicas reales. Auth/REST/
-Postgres de CI son reales locales; ORS sintético. Android físico y cálculo ORS
-autenticado alojado permanecen pendientes.
+Build/TypeScript, 222 pruebas Web, 89 API, 42 casos de navegador, 12 flujos Auth
+locales y SQL/RLS desechable aprobados; auditorías de producción cero.
+Reutilización comprobada en navegador público real con coordenadas públicas.
+CI usa ORS sintético; Android físico y ORS autenticado alojado siguen pendientes.
 
-DENUE: se recuperó el ZIP oficial de Chihuahua, con metadatos/diccionario y
-142295 filas; ocho nombres contienen aurrer y uno Express, con discrepancia
-de clasificación que requiere corroboración. Evidencia y hashes versionados;
-no se incorpora un índice runtime ni se acredita cobertura comercial.
-Siguen 15 municipios con referencias parciales y cero con validación legal
-automática completa. Google no recibe HGV ni fija el trazado exacto.
-El programa general continúa; publicación, límites, rollback y continuación
-en el último ciclo y en docs/DENUE-SOURCE-EVALUATION.md.
+Se recuperaron fuentes registradas de Juárez y parcialmente CDMX/Puebla.
+La ficha CDMX 1679 cambia sus bytes/metadatos de generación con idéntico texto
+extraído; eso no demuestra reforma. Nuevos contrastes documentales conservados
+en CDMX-SOURCE-RECHECK-20261124.md y STORE-DIRECTORY-RESEARCH-20261124.md.
+Cobertura pública Express aún incompleta; 15 municipios parciales y cero con
+validación legal automática completa. Google no recibe HGV ni fija el trazado.
+El programa general sigue abierto; publicación y recuperación en el último ciclo.
 
 ## Recursos verificados
 
@@ -5056,3 +5057,162 @@ validación legal automática completa. Google no recibe HGV ni fija trazado
 exacto. ORS autenticado alojado y Android físico siguen pendientes.
 Sin cambios en Gestión u otros proyectos, gastos, claves, permisos o cron.
 La automatización existente permanece habilitada; el programa general sigue abierto.
+
+## Ciclo: reutilización de entregas y diagnóstico del reporte remoto · 24-11-2026
+
+### Reconciliación y causas observadas
+
+Antes de editar: Web main 588e57f sobre runtime b85ab83; API main bf714ca sobre
+runtime c136592. Se consultaron ambos alias, main y los dos informes
+de ingeniería/cobertura; se usaron worktrees aislados y no se alteraron los
+árboles anteriores. Supabase Route Planner ACTIVE_HEALTHY.
+
+P1: cada repetición del manifiesto montaba de nuevo LocationInput e iniciaba
+otra búsqueda, aunque un punto anterior con idéntico texto ya estuviera
+corroborado. Ahora se ofrecen puntos de filas anteriores incluidas y confirmadas,
+con dirección, posición original y coordenadas sin redondear. Sólo se normalizan
+mayúsculas y espacios del texto preparado; no se infieren coincidencias entre
+nombres/direcciones diferentes. El botón confirma un punto por pedido.
+
+Cuando hay accesos/coordenadas o etiquetas distintos se conservan como opciones
+separadas; no se toma la primera automáticamente. Una fila editada, excluida,
+sin confirmar o con selección obsoleta/inválida no aporta una propuesta válida.
+Se agrupan opciones idénticas, nunca entregas. La búsqueda se monta sólo al pedir
+Buscar o ajustar otro punto, o si no hay propuesta elegible. El foco y scroll
+aceptan tanto campo como botón de reutilización. Añadir sigue siendo explícito.
+
+Web, seis archivos:
+components/ManifestImport.tsx; lib/manifest-review.ts; app/globals.css;
+test/manifest-review.test.mjs; test/account-workflows.test.mjs;
+test/geolocation.e2e.mjs. Sin nuevas dependencias, esquema o persistencia.
+No se cambia OCR, ni el límite real 48 intermedias/50 puntos, ni la división
+consecutiva de Google, ni el orden/identidad de visitas repetidas.
+
+Se observó que API/proxy seguían sirviendo 00:11:23Z con overdue=true después de
+publicar la comprobación nueva. El lector capturaba cualquier fallo sin exponerlo
+y guardaba el respaldo otros quince minutos. Sin telemetría previa no se puede
+determinar la causa histórica de ese rezago: red, respuesta remota o caché.
+
+API: lib/source-monitor.js y test/source-refresh.test.js. Lector con dependencias
+inyectables para probar reloj/fetch, single-flight y selección de la evidencia
+más reciente. Éxito mantiene caché quince minutos; fallo conserva fechas/datos y
+habilita consulta bajo demanda tras un minuto. No se crea un programador nuevo.
+reportRefresh contiene estado de lectura, intento, última recuperación correcta,
+fecha del reporte recibido, código técnico y próxima consulta elegible. available
+describe recuperación, no vigencia jurídica. Errores HTTP/JSON/esquema/tamaño/fecha
+futura se distinguen; otros errores se agrupan como red/timeout sin mensaje privado.
+Una advertencia estructurada omite detalles crudos. No se escriben normas o fechas
+de comprobación durante un reintento y no se sustituye evidencia nueva por una remota
+anterior. El consumo público existente conserva su contrato; el campo es adicional.
+
+### Comprobación de fuentes y datos
+
+Checker real existente: 2026-11-24T07:02:52.496Z, siete grupos/26 documentos.
+Reporte publicado por separado en c4d52da76919d0e8507c8b345074472a183223b6;
+sólo data/mx/source-status.json. Juárez recupera cinco URLs y presenta cambios
+técnicos; CDMX y Puebla quedan con disponibilidad parcial por un 503 cada uno.
+Se mantienen las huellas previas, estados de revisión y URLs. Disponibilidad,
+cambio técnico y aprobación legal continúan separados.
+
+Se recuperaron la guía ACH de 2024 (12 páginas; revisión visual seleccionada
+pp.2–3) y dos descargas de la ficha 1679. Tienen hashes binarios distintos,
+CreationDate/ModDate distintos y texto pdftotext idéntico. La fecha de generación
+en 2026 no es la publicación de la disposición: la ficha refiere 20-09-2019.
+La guía remite a 15-12-2021. Ambas Gacetas intentadas devolvieron 503; no se
+recuperó su texto íntegro ni se resolvieron modificaciones posteriores.
+Detalle/hashes: [CDMX-SOURCE-RECHECK-20261124.md](CDMX-SOURCE-RECHECK-20261124.md).
+No se convierte el folleto en reglas ejecutables o geometrías.
+
+También se documentan dos directorios candidatos del operador, sus descargas,
+huellas y alcance, sin ingestión o geocodificación masiva:
+[STORE-DIRECTORY-RESEARCH-20261124.md](STORE-DIRECTORY-RESEARCH-20261124.md).
+Siguen pendientes procedencia publicada, condiciones de reutilización y cotejo
+de sucursal/acceso. No amplían el índice público Express. No se ejecutaron EXE,
+crearon cuentas o eludieron bloqueos.
+
+### Pruebas
+
+Local Web: build, TypeScript, 222 pruebas y auditoría de producción cero.
+Se adaptó la regresión previa de repetidos, que aún esperaba una segunda
+sugerencia y falló tras introducir la reutilización; ahora exige elección y
+comprueba una sola consulta en ese caso. No se presenta ese intento como aprobado.
+
+Primera CI Web 45345032131: 222 pruebas y 12 flujos Auth aprobados; 41/42 casos
+de navegador. El caso nuevo usaba getByRole(option) global y tomó la opción del
+selector de vehículo antes de llegar la dirección. Se acotaron las dos selecciones
+a su fila; la corrección no altera código de producto. Ningún candidato fallido
+se publicó en producción.
+
+CI final [45346906052](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/45346906052),
+jobs 138283557503/138283557794: 222 pruebas, build/TypeScript, 42 navegador,
+12 Auth locales y auditoría aprobados; logs completos leídos.
+El caso nuevo cubre 390/1280 px, doce pedidos repetidos, dos accesos distintos,
+exclusión/reinclusión, foco, coordenadas/etiquetas preservadas, orden y
+confirmación/importación explícitas. Cuenta dos solicitudes al endpoint simulado
+de sugerencias; no es medición de cuota real del proveedor en producción.
+
+API: build y 89 pruebas locales aprobados. CI
+[45347388590](https://github.com/FernandoBalsimelli/Route-Planner-API/actions/runs/45347388590),
+job 138285150119: build, 89 pruebas, SQL de migraciones/RLS/compartidos/progreso en
+Postgres desechable y auditoría cero. Los cuatro casos nuevos usan reloj/fetch
+controlados para fallos, recuperación a un minuto, caché de éxito, concurrencia,
+rechazos y conservación de fechas. No se forzó una caída alojada.
+
+Auth/REST/Postgres de Web CI son reales locales; API del workflow fijada a
+772a6b2, ORS/geometrías sintéticos. No se afirman cálculos autenticados alojados
+reales, navegación o sensores de Android físico.
+
+### Publicaciones y verificaciones
+
+Web PR [#46](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/46),
+primer candidato add2779, final 02cad19c8e07a7fa9f90b1c582737adf3e607b03.
+Merge c3119d189028bd127622a5e81c9481d1140f4236; deployment dpl_EE8phtvU3hBknAxL3zQfN9PxZgpt,
+READY/production. Alias https://route-planner-web-sand.vercel.app/ al mismo
+commit. Los seis archivos probados coinciden byte a byte. Build Vercel 35 s.
+
+Navegador público real sin sesión/mocks: tres filas con las mismas coordenadas
+públicas 28.635300123,-106.088900456. Se eligió y confirmó la sugerencia real
+SN Avenida Mirador, Chihuahua. En la segunda fila apareció la propuesta, con
+foco en Confirmar punto de entrega 1 y sin campos de búsqueda montados.
+Se confirmó por separado cada repetición. Antes de Añadir no había paradas;
+después quedaron dos paradas y un destino repetidos, sin omisiones ni desbordamiento.
+El origen permaneció pendiente y el cálculo bloqueado. No se guardaron datos
+de cuenta. Captura de escritorio realizada; no es Android físico.
+
+API PR [#32](https://github.com/FernandoBalsimelli/Route-Planner-API/pull/32),
+candidato 6d09f5979d44e2581f20509974f08211b7fc77b3, merge 171cb4d4190f882537cd2c7fb83413d0affa524e;
+deployment dpl_6jJqYYy31Ex3Z9Anrvkc2zh4y3FS, READY/production,
+alias https://route-planner-api.vercel.app/ verificado. Los dos archivos de
+código/prueba y el reporte coinciden con main. No hubo migraciones alojadas.
+
+API y proxy públicos devolvieron HTTP 200, checkedAt=2026-11-24T07:02:52.496Z,
+stale=false, overdue=false y reportRefresh.status=available. Intento real
+07:23:32.198Z, recuperación 07:23:32.317Z, receivedCheckedAt concordante.
+La rama de fallo/reintento se prueba de forma controlada; esta observación real
+confirma el éxito actual, no el motivo del rezago pasado. No hubo advertencias
+de refresco devueltas en la ventana consultada.
+
+Después del deploy API: coordenadas exactas, Plus Code completo y compuesto
+HTTP 200; validación de 0/2/48 paradas 200 y 49→400. Plan sin sesión 401.
+Esto valida entrada, no calcula ORS. CORS autorizado 204 con Allow-Origin;
+ajeno 404 sin cabecera, repetidos después de ambos despliegues; no cambia CORS.
+Vercel error/fatal de ambos proyectos, ventana 30 min antes/después: sin grupos
+retornados. Ventanas limitadas, no garantía permanente de ausencia de errores.
+
+### Recuperación y prioridades
+
+Rollback Web b85ab83b7e0249631765786cdd0e851bb9689f89 /
+dpl_6apJWqmuKwKRxrRatnvekgtP62rn. API c1365927f3d03fbe9454a5c7ac1d0beb4a3bed69 /
+dpl_BjNpUf7dcutUMSPu2AiJ8aGuyTM4. bf714ca conserva el reporte anterior en historial.
+Ramas codex/manifest-review-resume-20261124 y codex/source-check-20261124 conservadas.
+Este cierre sólo modifica docs en Web; no requiere otro despliegue de código.
+
+Completado: reutilización explícita en producción; lector de reportes observable
+y reintento conservador; comprobación real publicada y servida.
+Parcial: catálogo comercial y normativa. Pendiente: ingesta con procedencia y
+metadatos, corroboración de accesos, actos íntegros y posteriores, permisos,
+horarios y geometrías; hacer visible reportRefresh en la guía si aporta contexto.
+Se mantienen 15 municipios parciales y cero con validación legal automática completa.
+Google no recibe dimensiones/peso HGV ni fija trazado exacto. ORS alojado autenticado
+y Android físico pendientes. Sin cambios en Gestión, otros proyectos, costos,
+claves, permisos o programadores. La automatización se conserva; programa general abierto.
