@@ -630,6 +630,34 @@ test('mobile source review retains a verified principal alongside a failed linke
 });
 
 
+test('source report retry retains evidence, recovers explicitly and fits mobile and desktop',async()=>{
+ for(const width of [360,1280]){
+  const {context,page}=await setup(()=>{},{width,height:850});let requests=0,finishRetry,beginRetry;
+  const retryStarted=new Promise(resolve=>{beginRetry=resolve;});
+  const refresh={status:'unavailable',attemptedAt:'2026-11-24T11:00:00Z',lastSuccessAt:'2026-11-24T10:30:00Z',receivedCheckedAt:'2026-11-24T09:00:00Z',nextRefreshAt:'2026-11-24T11:01:00Z',error:'REPORT_NETWORK_OR_TIMEOUT'};
+  const report={intervalHours:6,checkedAt:'2026-11-24T10:00:00Z',stale:false,overdue:false,notice:'No acredita vigencia legal.',sources:[{id:'one',title:'Fuente conservada',url:'https://official.gob.mx/rules',status:'changed',scope:'Zona de prueba',reviewedAt:'2026-11-20T00:00:00Z',checkedAt:'2026-11-24T10:00:00Z',documentBreakdownAvailable:true,documents:[{kind:'primary',url:'https://official.gob.mx/rules',status:'changed'},{kind:'related',url:'https://official.gob.mx/annex',status:'unavailable',error:'HTTP_503'}]}]};
+  try{
+   await page.route('**/api/route-planner/**',async route=>{
+    if(new URL(route.request().url()).pathname.endsWith('/source-status')){
+     requests++;
+     if(requests===2){await new Promise(resolve=>{finishRetry=resolve;beginRetry();});return route.fulfill({status:503,json:{message:'private upstream message'}});}
+     return route.fulfill({json:{...report,reportRefresh:requests===1?refresh:{...refresh,status:'available',error:null}}});
+    }
+    return route.fulfill({json:{states:[{id:'08',name:'Chihuahua'}],municipalities:[],totalMunicipalities:2478,municipalitiesWithPartialReference:15}});
+   });
+   await page.goto(base+'/#guia-camion');await page.getByRole('button',{name:'Consultar cobertura municipal',exact:true}).click();
+   const monitor=page.locator('.official-source-monitor'),button=monitor.getByRole('button',{name:'Volver a consultar reporte',exact:true});
+   await monitor.locator('.source-monitor-alert').filter({hasText:'No se pudo actualizar el reporte'}).waitFor();assert.equal(requests,1);assert.equal(await monitor.locator('details').evaluate(node=>node.open),false);
+   await monitor.getByText('Seguimiento de fuentes oficiales',{exact:true}).click();await monitor.getByText('Última comprobación documental:',{exact:false}).waitFor();await monitor.getByRole('heading',{name:'Recuperación del reporte',exact:true}).waitFor();
+   await button.click();await retryStarted;await monitor.getByText('Consultando comprobaciones de documentos…',{exact:true}).waitFor();assert.equal(await button.isDisabled(),true);assert.equal(await monitor.locator('.source-documents li').count(),2);assert.equal(requests,2);
+   finishRetry();await monitor.getByText('Seguimiento temporalmente no disponible;',{exact:false}).waitFor();assert.equal(await button.isEnabled(),true);assert.equal(await monitor.locator('.source-documents li').count(),2);assert.doesNotMatch(await monitor.innerText(),/private upstream message/);
+   await button.click();await monitor.getByText('Se pudo recuperar el reporte remoto.',{exact:true}).waitFor();assert.equal(requests,3);assert.equal(await monitor.locator('details').evaluate(node=>node.open),true);assert.equal(await monitor.locator('.source-documents li').count(),2);
+   await monitor.getByText('El último reporte recibido era anterior',{exact:false}).waitFor();assert.doesNotMatch(await monitor.innerText(),/Seguimiento temporalmente no disponible|No se pudo actualizar el reporte/);
+   await monitor.getByText('Cambio detectado · requiere revisar el documento',{exact:true}).waitFor();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+  }finally{finishRetry?.();await context.close();}
+ }
+});
+
 test('mobile truck operating profile derives axles, allows unidentified units and fits a narrow screen', async () => {
   const { context, page } = await setup(() => {}, { width: 360, height: 800 });
   try {
