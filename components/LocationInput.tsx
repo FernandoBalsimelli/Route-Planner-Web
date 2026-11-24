@@ -49,6 +49,10 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
   const [searchError, setSearchError] = useState('');
   const [searchErrorCode, setSearchErrorCode] = useState('');
   const [searchAttempt, setSearchAttempt] = useState(0);
+  const [searchPaused, setSearchPaused] = useState(false);
+  const searchController = useRef<AbortController | null>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchDismissed = useRef(false);
   const [preferNearby, setPreferNearby] = useState(true);
   const [searchNotice, setSearchNotice] = useState('');
   const [pasteNotice, setPasteNotice] = useState('');
@@ -60,16 +64,28 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
   const [mapSeed, setMapSeed] = useState<(Coordinates & { label?: string }) | null>(null);
   const mapButton = useRef<HTMLButtonElement | null>(null);
 
-  function closeMap() { setMapOpen(false); mapButton.current?.focus(); }
+  function closeMap() { setMapOpen(false); setSearchPaused(false); mapButton.current?.focus(); }
+
+  function dismissSearch() {
+    if (searchTimer.current !== null) clearTimeout(searchTimer.current);
+    searchTimer.current = null;
+    searchController.current?.abort();
+    searchController.current = null;
+    searchDismissed.current = true;
+    setSearchPaused(true);
+    setSuggestions([]); setPending(null); setActiveIndex(-1); setLoading(false);
+    setSearchError(''); setSearchNotice('');
+    setOutsideNearby(false); setShowDistant(false);
+    suggestionsCallback.current?.([]);
+  }
 
   function openLocationBook() {
     cancelLocation();
     setMapOpen(false);
     if (!bookOpen) {
-      suggestionsCallback.current?.([]);
-      setActiveIndex(-1);
+      dismissSearch();
       book?.searchFavorites(selected?.label === value ? '' : value.trim());
-    }
+    } else setSearchPaused(false);
     setBookOpen(current => !current);
   }
 
@@ -84,7 +100,9 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
 
   async function useCurrentLocation() {
     cancelLocation();
+    dismissSearch();
     setMapOpen(false);
+    setBookOpen(false);
     if (!window.isSecureContext || !navigator.geolocation) {
       setGeoStatus('La ubicación requiere HTTPS y un navegador compatible. Puedes escribir el origen manualmente.');
       return;
@@ -114,7 +132,6 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
   }
 
   useEffect(() => {
-    if (mapOpen || bookOpen) { setSuggestions([]); setPending(null); setLoading(false); return; }
     if (selected && selected.label === value) {
       geoRequest.current++; reverseController.current?.abort(); setGeoBusy(false);
       if (focused.current) suggestionsCallback.current?.([]);
@@ -125,6 +142,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       setLoading(false);
       return;
     }
+    if (mapOpen || bookOpen || searchPaused) { setSuggestions([]); setPending(null); setLoading(false); return; }
     if (value.trim().length < 2) {
       if (focused.current) suggestionsCallback.current?.([]);
       setSuggestions([]);
@@ -141,8 +159,11 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
     setSearchNotice('');
     setOutsideNearby(false);
     setShowDistant(false);
+    searchDismissed.current = false;
     const controller = new AbortController();
+    searchController.current = controller;
     const timer = setTimeout(async () => {
+      searchTimer.current = null;
       setLoading(true);
       setSearchError('');
       try {
@@ -165,15 +186,21 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
         if (!controller.signal.aborted) setLoading(false);
       }
     }, 320);
+    searchTimer.current = timer;
     return () => {
       clearTimeout(timer);
       controller.abort();
+      if (searchController.current === controller) {
+        searchController.current = null;
+        searchTimer.current = null;
+      }
     };
-  }, [value, apiUrl, selected, mapOpen, bookOpen, preferNearby, mapReference?.lat, mapReference?.lng, searchAttempt]);
+  }, [value, apiUrl, selected, mapOpen, bookOpen, searchPaused, preferNearby, mapReference?.lat, mapReference?.lng, searchAttempt]);
 
   function confirmPending() {
     if (!pending) return;
     cancelLocation();
+    dismissSearch();
     onChange(pending.label);
     onConfirm(pending); book?.remember(pending);
     setPending(null);
@@ -189,17 +216,22 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
         role="combobox"
         ref={inputRef}
         aria-label={title}
-        onFocus={() => { focused.current = true; suggestionsCallback.current?.(visibleSuggestions); }}
+        onFocus={() => {
+          focused.current = true;
+          if (searchDismissed.current && !mapOpen && !bookOpen && value.trim().length >= 2 && selected?.label !== value) {
+            searchDismissed.current = false; setSearchPaused(false); setSearchAttempt(attempt => attempt + 1);
+          } else suggestionsCallback.current?.(visibleSuggestions);
+        }}
         onBlur={() => { focused.current = false; }}
         maxLength={180}
         value={value}
-        onChange={event => { cancelLocation(); setPasteNotice(''); setMapOpen(false); onChange(event.target.value); setPending(null); }}
+        onChange={event => { cancelLocation(); setSearchPaused(false); setPasteNotice(''); setMapOpen(false); onChange(event.target.value); setPending(null); }}
         onPaste={event => {
           const imported = mapsLocationPaste(event.clipboardData.getData('text'));
           if (!imported) return;
           event.preventDefault(); cancelLocation();
           if (imported.type === 'unsupported') { setPasteNotice(imported.message); return; }
-          setMapOpen(false); setBookOpen(false); setPending(null); setActiveIndex(-1);
+          setMapOpen(false); setBookOpen(false); setSearchPaused(false); setPending(null); setActiveIndex(-1);
           onChange(imported.query);
           setPasteNotice('Búsqueda extraída del enlace de Google Maps. Elige una sugerencia y corrobora el punto antes de confirmarlo; el enlace no acredita la sucursal ni el acceso.');
         }}
@@ -212,7 +244,10 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
         aria-activedescendant={!pending && activeIndex >= 0 && activeIndex < visibleSuggestions.length ? `${listId}-${activeIndex}` : undefined}
         aria-busy={loading}
         onKeyDown={event => {
-          if (event.key === 'Escape') { setPending(null); setSuggestions([]); setActiveIndex(-1); return; }
+          if (event.key === 'Escape') { cancelLocation(); dismissSearch(); return; }
+          if (event.key === 'Enter' && searchDismissed.current && !mapOpen && !bookOpen && value.trim().length >= 2 && selected?.label !== value) {
+            event.preventDefault(); searchDismissed.current = false; setSearchPaused(false); setSearchAttempt(attempt => attempt + 1); return;
+          }
           if (event.key === 'Enter' && pending) { event.preventDefault(); confirmPending(); return; }
           if (event.key === 'Enter' && outsideNearby && !visibleSuggestions.length) { event.preventDefault(); return; }
           if (!visibleSuggestions.length || pending) return;
@@ -229,6 +264,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       cancelLocation();
       setBookOpen(false);
       setMapSeed(selected || pending || (!outsideNearby ? suggestions[0] : null) || mapReference || null);
+      dismissSearch();
       setMapOpen(true);
     }}>⌖ {mapOpen ? 'Cerrar mapa' : 'Elegir en el mapa'}</button>
     {mapOpen && <MapLocationPicker title={title} initialPoint={mapSeed} apiUrl={apiUrl} onClose={closeMap} onConfirm={location => {
@@ -265,14 +301,14 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
         <span className="suggestion-arrow">›</span>
       </button>)}
     </div>}
-    {searchError && <div className="location-search-error" role="alert" data-error-code={searchErrorCode}><p>{searchError} Puedes continuar escribiendo una dirección completa.</p><button type="button" className="text-button" aria-label={`Reintentar búsqueda de ${title.toLowerCase()}`} onClick={() => { cancelLocation(); setMapOpen(false); setBookOpen(false); inputRef.current?.focus(); setSearchAttempt(attempt => attempt + 1); }}>Reintentar búsqueda</button></div>}
+    {searchError && <div className="location-search-error" role="alert" data-error-code={searchErrorCode}><p>{searchError} Puedes continuar escribiendo una dirección completa.</p><button type="button" className="text-button" aria-label={`Reintentar búsqueda de ${title.toLowerCase()}`} onClick={() => { cancelLocation(); setMapOpen(false); setBookOpen(false); setSearchPaused(false); inputRef.current?.focus(); setSearchAttempt(attempt => attempt + 1); }}>Reintentar búsqueda</button></div>}
     {pending && <div className="location-confirm-card">
       <div><strong>¿Es este el punto correcto?</strong><p>{pending.label}</p><small>{locationKind(pending.kind) && `${locationKind(pending.kind)} · `}{pending.plusCode || `${pending.lat.toFixed(6)}, ${pending.lng.toFixed(6)}`}</small></div>
       {businessLocationNotice(pending) && <p className="address-number-notice" role="status">{businessLocationNotice(pending)}</p>}
       {addressNumberNotice(pending) && <p className="address-number-notice" role="status">{addressNumberNotice(pending)}</p>}
       {pending.numberMatch && pending.numberMatch !== 'matched' && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value.trim())}`} target="_blank" rel="noreferrer">Buscar la dirección escrita en Google Maps ↗</a>}
       <LocationReviewLinks point={pending}/>
-      <button type="button" className="map-open-button" onClick={() => { setMapSeed(pending); setMapOpen(true); }}>Corroborar aquí en el mapa</button>
+      <button type="button" className="map-open-button" onClick={() => { setMapSeed(pending); dismissSearch(); setMapOpen(true); }}>Corroborar aquí en el mapa</button>
       <div className="location-confirm-actions"><button type="button" onClick={() => setPending(null)}>Elegir otro</button><button type="button" onClick={confirmPending}>Confirmar punto</button></div>
     </div>}
     {selected && selected.label === value && !pending && <p className="location-confirmed"><span>✓ Punto confirmado</span><small>{selected.plusCode || `${selected.lat.toFixed(6)}, ${selected.lng.toFixed(6)}`}</small></p>}
