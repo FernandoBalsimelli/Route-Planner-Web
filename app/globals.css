@@ -34,6 +34,11 @@
 .official-source-monitor { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 1rem; overflow-wrap: anywhere; }
 .official-source-monitor summary { cursor: pointer; font-weight: 600; }
 .official-source-monitor article { padding: .8rem 0; border-bottom: 1px solid var(--line); }
+.source-monitor-actions { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem 1rem; margin:.5rem 0 1rem; }
+.source-monitor-actions button { min-height:44px; }
+.source-monitor-actions .hint { margin:0; }
+.source-report-retrieval { margin:1rem 0; padding:.8rem; border:1px solid var(--line); border-radius:10px; background:var(--surface-soft); }
+.source-report-retrieval h4 { margin:0 0 .5rem; }
 
 .road-preferences{margin:0 0 16px;padding:16px;border:1px solid var(--line);border-radius:16px;min-width:0}
 .road-preferences legend{padding:0 6px;font-weight:700;font-size:.88rem}
