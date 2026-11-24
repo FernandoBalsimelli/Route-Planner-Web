@@ -47,3 +47,42 @@ Resolver discrepancias antes de unir registros; conservar identidades distintas.
 Las sugerencias sin coordenadas corroboradas deben seguir como propuestas.
 No se copiaron directorios completos al catálogo runtime, generaron coordenadas,
 hicieron consultas masivas de geocodificación o ampliaron cuotas.
+
+
+## Enlaces publicados y condiciones contrastados · 24-11-2026
+
+Se abrió el directorio corporativo:
+https://www.walmartmexico.com/conocenos/directorio-de-tiendas
+Su enlace Ver la lista de tiendas dirige a:
+https://www.walmartmexico.com/content/dam/walmart-mexico/documents/conocenos/directorio-consultorios-141122.pdf
+
+La lectura del PDF devuelve ocho páginas, encabezados de formato/tienda/estado,
+días de servicio y dirección. La ruta y su contenido corresponden a consultorios;
+no se acredita un catálogo completo o actual de Express por el título de la
+página que lo enlaza. No se conecta este enlace con el PDF de 42 páginas alojado
+en walmartimages ni se afirma que sean versiones del mismo directorio.
+No se obtuvieron coordenadas o accesos de descarga de esa consulta.
+
+La página Cuenta Cashi:
+https://cuentacashi.com.mx/listado-tiendas
+sí enlaza, mediante Descargar y un visor, al PDF candidato de 29 páginas ya
+identificado. Queda corroborada esa cadena de publicación; no se infiere una
+fecha editorial sólo por 2026 en su nombre. El ámbito sigue siendo tiendas del
+servicio Cashi, no entradas de camión. La consulta fue de lectura por buscador,
+sin cuentas, transacciones, interacción financiera ni elusión del 403 directo
+observado anteriormente. No se afirma una descarga binaria nueva/hash distinto.
+
+Condiciones corporativas leídas:
+https://www.walmartmexico.com/terminos-de-uso-y-condiciones
+El texto limita los contenidos a uso personal no comercial y no concede licencia
+de propiedad intelectual por acceder. No se encontró allí autorización para
+republicar el directorio en esta plataforma. Esa lectura no determina por sí sola
+las condiciones de otros dominios o datasets: las de cada fuente requieren
+evaluación independiente. No se contactó al operador ni se aceptaron acuerdos.
+
+Resultado: no se ingiere un directorio comercial completo ni se generan puntos
+inventados para suplir resultados ausentes. Siguen pendientes autorización o
+fuente abierta compatible, metadatos, identidad/formato actual, georreferenciación
+y corroboración del acceso. El avance funcional de este ciclo usa exclusivamente
+los favoritos de la cuenta ya corroborados por el operador, con elección explícita,
+sin enviar esos datos al proveedor de direcciones ni publicarlos como catálogo.

@@ -2,41 +2,37 @@
 
 Fecha de revisión: 2026-11-24 (Chihuahua). Alcance: exclusivamente Route Planner.
 
-Estado vigente: la guía permite consultar de nuevo el reporte de fuentes sin
-perder la evidencia visible. Distingue descarga del reporte, comprobación de
-documentos y revisión jurídica; muestra fallos incluso con los detalles cerrados
-y no reproduce mensajes privados. Mantiene compatibilidad con reportes anteriores.
+Estado vigente: Web e4dc800f09b702d5ef6858f92af8d0b61221f404 está publicado
+en producción. Recuperación hacia favoritos (PR #49) y retirada de marcadores
+obsoletos al abrir el libro (PR #50), comprobada además en el navegador público.
+Deployment dpl_FBuJ3aHArJMcnp7dtt8J1PeEdD8a READY; alias y SHA contrastados.
 
-API e4aaa01 incorpora una copia oficial C5 de la Gaceta 747 de CDMX, con revisión
-seleccionada de páginas 6–7 y dos fichas históricas separadas de circulación y
-maniobras. Corrige las cinco fichas de la guía 2024 a páginas 2/3 y sus 21 renglones
-a página 3: antes apuntaban a portada. Explicita diferencias de límites e igualdades
-entre publicación y folleto; no aplica comparadores o exclusiones nuevas al trazado.
+La consulta pendiente se transfiere a Favoritos, con filtro de toda la cuenta.
+Ante error, ausencia o coincidencias lejanas del buscador público se ofrece
+Buscar en mis favoritos. La entrega no se modifica hasta elegir un punto guardado;
+se conservan sus coordenadas y no se vuelve a geocodificar. Al abrir un punto ya
+confirmado, el libro muestra todas las sucursales. Se avisa si el filtro de
+120 caracteres requiere usar el inicio del texto; la dirección completa se conserva.
+No se amplía el índice comercial público ni se declara resuelta la precisión Express.
 
-Web 796a822 separa firma del acto, publicación y entrada indicada, manteniendo
-la advertencia sobre vigencia actual. La interfaz pública quedó comprobada.
-Los actos sin fechas conocidas conservan su estado anterior.
+API 868578e sólo actualiza data/mx/source-status.json sobre el código e4aaa01.
+Checker real 2026-11-24T17:05:02.838Z: siete grupos/27 documentos, 25 descargas
+correctas y dos HTTP_503. C5 y Juárez recuperados; CDMX/Puebla parciales.
+API/proxy sirven la comprobación nueva con stale=false/overdue=false.
+Se observó lectura remota anterior, pero el lector conserva el bundle más reciente,
+sin perder fechas o evidencia ni atribuir una causa de red no comprobada.
+La lectura remota de las 17:18 UTC ya recibió checkedAt 17:05:02.838Z.
 
-Se conservan manifiestos/OCR/PDF, reutilización explícita sin perder pedidos,
-GPS, favoritos, vehículos, rutas guardadas y recuperación, confirmación completa,
-48 intermedias del proveedor y enlaces Google consecutivos.
-Los Plus Codes completo/compuesto y coordenadas exactas responden; validar entradas
-no equivale a un cálculo ORS real autenticado.
+Verificaciones del código final: Web build/TypeScript, 232 pruebas, 45 casos de
+navegador y 13 integraciones con Auth/REST/Postgres locales reales, todos aprobados.
+API build y 91 pruebas; auditorías de producción sin vulnerabilidades. Búsqueda
+pública, coordenadas, Plus Codes, validación de 0/2/48 intermedias y límite 49
+comprobados; no se hizo cálculo ORS real autenticado ni prueba Android físico.
 
-Build/TypeScript, 228 pruebas Web, 91 API, 44 casos de navegador, 12 flujos Auth
-locales y SQL/RLS desechable aprobados; auditorías de producción cero.
-Guía/reconsulta públicas reales comprobadas aparte. CI usa ORS sintético;
-Android físico y ORS autenticado alojado siguen pendientes.
-
-Monitor manual real: 2026-11-24T12:10:20.866Z, siete grupos/27 documentos.
-Reporte posterior 0dd0473: checkedAt 2026-11-24T12:14:19.921Z, servido por API/proxy
-con stale=false/overdue=false y recuperación disponible. CDMX queda con fallos
-NETWORK_OR_TIMEOUT, Juárez HTTP_403 y Puebla disponible con cambio técnico.
-La copia C5 mantiene su última descarga correcta, huella y fecha anterior;
-ningún fallo se sustituye por una comprobación inventada.
-Cobertura Express aún incompleta; 15 municipios parciales, cero con validación
-jurídica automática completa. Google no recibe HGV ni fija el trazado.
-Programa general abierto. Publicaciones, pruebas y rollback en el último ciclo.
+Se conservan OCR/manifiestos, GPS, mapa, vehículos, selección explícita,
+48 intermedias del proveedor y enlaces Google consecutivos. La normativa sigue
+en 15 municipios parciales y cero con validación legal automática completa.
+Google no recibe HGV ni fija un trazado exacto. El programa general continúa.
 
 ## Recursos verificados
 
@@ -5431,3 +5427,197 @@ No se presenta CI con ORS sintético como cálculo ORS alojado autenticado o And
 físico: esos dos controles siguen pendientes. No se modifican costos, claves,
 cuotas, permisos, otros proyectos o programadores. Automatización conservada
 activa y programa general abierto.
+
+
+## Ciclo: recuperar sucursales sin repetir la búsqueda · 24-11-2026
+
+### Diagnóstico y alcance
+
+Main y producción contrastados antes de editar: Web bb91bd85c5d3f40b89bbe0ef052cac29fdbac846
+(cierre documental), runtime 796a82249ae1c30126d9c13b0f497323e5201092 /
+dpl_96ZYi2BLzQifjEnik24Ym6VXKqvj; API main 0dd0473988d8f00255c3d611a140c291f069fcca,
+runtime e4aaa01bd40d79112c4bf3fe64bca1c4dcfe2d23 /
+dpl_Evz7pb7Use63rJ7WVrzDAzWp4Fou. Ambos READY/production.
+Se leyeron ENGINEERING-STATUS y MEXICO-COVERAGE actuales. Supabase autorizado
+ACTIVE_HEALTHY; no migraciones o escrituras alojadas. Worktrees aislados,
+sin sobrescribir cambios previos de otros directorios ni tocar Gestión.
+
+La búsqueda global de favoritos ya existía, pero no recibía el texto escrito
+en origen/parada/destino. Tras un fallo o ausencia de una sucursal en el proveedor
+había que abrir el libro y volver a escribir. Se añade ese puente de recuperación,
+no se presenta como un aumento del índice externo. No se introduce Overpass:
+la evaluación previa de sus condiciones desaconseja usar el servidor público
+como backend general y no se elude ese límite con otra instancia.
+
+### Implementación y límites
+
+Cuatro archivos:
+- components/LocationInput.tsx
+- components/LocationBookTools.tsx
+- test/favorite-search.test.mjs
+- test/integration/authenticated.e2e.mjs
+
+Recientes y favoritos traslada la consulta pendiente al filtro privado. Si el punto
+ya está confirmado, limpia el filtro para mostrar el libro completo. El acceso
+Buscar en mis favoritos sólo aparece con sesión, texto suficiente, sin selección
+pendiente/confirmada o mapa/libro abierto, y después de error, ausencia o resultados
+lejanos. No aparece para invitados como si tuvieran favoritos disponibles.
+
+La apertura cancela consultas externas pendientes; el texto del planificador
+permanece intacto hasta elegir una sucursal. Se reutiliza el filtro literal,
+paginación, propietario y exclusión de archivados existentes; no nuevos SQL/RLS.
+Los puntos guardados no se envían al geocodificador al reutilizarlos y no se
+redondean sus coordenadas. Una sucursal favorita no prueba identidad comercial
+actual, acceso de carga o permiso. Se mantiene la revisión explícita de entrega.
+
+El filtro existente admite 120 caracteres frente a 180 del campo. Se informa
+cuando se traslada sólo el inicio y la dirección completa se conserva editable.
+No hay deduplicación de pedidos, cambio de límites de paradas o preferencias,
+geometrías, permisos o rutas automáticas nuevos.
+
+### Validación y publicación Web
+
+Local: build, TypeScript, 231 pruebas y auditoría de producción cero.
+Las tres regresiones nuevas cubren apertura antes de debounce sin geocodificar,
+favorito fuera de primera página, propietario/archivado, 503/NO_NEARBY_MATCHES,
+elección explícita, precisión y dirección larga. Se adaptó el caso Auth anterior
+a la transferencia del texto y apertura sin filtro de un punto confirmado.
+
+PR [#49](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/49),
+candidato c043f9b34fb1f2907471147176ca4ffd99626b50, merge
+77b5aa8c3466f454e9874a0eeb17a17183f7a061. CI 45444468861 aprobada:
+231 pruebas, 44 casos de navegador y 13 Auth locales, build/TypeScript y auditoría cero.
+Logs leídos de jobs 138624312812/138624313673. La prueba nueva usa Auth/REST/Postgres
+reales desechables a 390/1280 px, siembra 55 favoritos recientes, uno antiguo y uno
+de otra cuenta. El servicio público simulado devuelve 503 o NO_NEARBY_MATCHES;
+se verifica filtro literal/propietario, una coincidencia, selección explícita,
+texto conservado, coordenadas exactas y ninguna geocodificación extra al reutilizar.
+Los demás flujos de cálculo locales usan ORS/geometrías sintéticos. Esto no es
+Android físico ni búsqueda autenticada con una cuenta real alojada.
+Primera publicación Web: dpl_6zWrryVy9VdEsxt9eDdYKZExw8Wh,
+READY/production, alias https://route-planner-web-sand.vercel.app/ al merge 77b5aa8.
+Build Vercel 24 s; los cuatro archivos probados coinciden byte a byte.
+La corrección posterior del mapa se documenta más abajo y tiene recuperación
+independiente.
+
+
+### Hallazgo durante la comprobación pública y corrección posterior
+
+La revisión real sin sesión, sobre 77b5aa8, introdujo coordenadas públicas
+28.635300123,-106.088900456 sin confirmar. La sugerencia real fue
+SN Avenida Mirador, Chihuahua, México. Al abrir Recientes y favoritos se retiró
+la lista del campo, pero permanecía el marcador S1 en el mapa. No se confirmó
+ni guardó ese punto, no se borraron recientes ni se escribieron datos de cuenta.
+
+Causa: la rama bookOpen del efecto vaciaba la lista local, sin notificar al
+consumidor del mapa. Al pulsar el botón el campo ya perdía foco, por lo que no
+bastaba una retirada condicionada a focused.current. El cambio posterior avisa
+al mapa en la apertura explícita del libro y reinicia el índice de teclado.
+No se publica desde una respuesta tardía ni se cambia el texto/selección.
+
+Web PR #50, candidato 19469bf2ee4250deb0953278617c104beabbb48a:
+components/LocationInput.tsx, test/favorite-search.test.mjs,
+test/geolocation.e2e.mjs. Build/TypeScript y 232 pruebas locales aprobadas.
+Nueva regresión con blur antes de abrir; caso de navegador invitado a
+390/1280 px comprueba desaparición del marcador, texto intacto, ausencia
+de confirmación y una sola consulta simulada. No se presenta ese caso como
+búsqueda autenticada de favoritos o geocodificación pública real.
+CI [45446442590](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/45446442590)
+aprobada: 232 pruebas Web, 45 casos de navegador y 13 integraciones Auth locales;
+build, TypeScript y auditoría de producción cero. Logs leídos de jobs
+138631412488 y 138631413029. Los dos anchos simulados son 390/1280 px;
+no equivalen a Android físico ni a una sesión alojada del propietario.
+Merge e4dc800f09b702d5ef6858f92af8d0b61221f404, publicado mediante
+dpl_FBuJ3aHArJMcnp7dtt8J1PeEdD8a, READY/production y alias
+https://route-planner-web-sand.vercel.app/ al SHA exacto. Build Vercel 25 s;
+los tres archivos probados coinciden byte a byte con el merge.
+Rollback inmediato: 77b5aa8c3466f454e9874a0eeb17a17183f7a061 /
+dpl_6zWrryVy9VdEsxt9eDdYKZExw8Wh; también se conserva el despliegue anterior.
+
+Tras recargar el alias nuevo, el navegador público devolvió de nuevo
+SN Avenida Mirador, Chihuahua, México para las coordenadas de prueba.
+Se abrió Recientes y favoritos: cero marcadores de búsqueda, sin lista anterior,
+texto completo intacto y cero puntos confirmados. La interfaz siguió como invitado,
+sin favoritos de cuenta, sin guardar puntos ni borrar recientes. No hubo
+desbordamiento horizontal en ese escritorio (1348 px). Captura de evidencia
+de la interfaz invitada; no se presenta como validación Auth de producción.
+
+
+### Fuentes: comprobación real conservada
+
+Se ejecutó el checker existente, no una simulación, con checkedAt
+2026-11-24T17:05:02.838Z: siete grupos y 27 documentos; 25 descargados,
+dos HTTP_503 (Consejería CDMX y OJP Puebla). CDMX/Puebla parciales.
+Juárez vuelve a estar disponible con cambio técnico; C5 unreviewed con SHA-256
+ec3c36bad93ae7ab05f8a272e121981085ea71e3636da105cbb8fa910ace976a,
+igual al documento cotejado en el ciclo previo. No se da por aprobada su vigencia.
+Reporte publicado en 868578eedc9aef3b087301e2e2237edc710e1eb5 por lease,
+sólo data/mx/source-status.json; padre 0dd0473 conservado. No cambia registry,
+normas, cron, cuotas o revisión legal.
+
+Build y 91 pruebas API locales aprobados; auditoría cero. Sin nueva migración,
+no se ejecutaron SQL alojados. El código es idéntico a e4aaa01; el único diff
+es el reporte. Se publica el bundle actualizado para que la evidencia nueva
+quede disponible aunque la recuperación remota aún entregue una copia anterior.
+Deployment API dpl_9eQFA7KepdWgd3bgxVi8uxrKdFHV, READY/production, alias
+https://route-planner-api.vercel.app/ al commit 868578e exacto.
+
+API/proxy HTTP200: checkedAt 17:05:02.838Z, stale=false, overdue=false.
+Recuperación disponible, intento 17:07:34.210Z/éxito 17:07:34.269Z;
+receivedCheckedAt 12:14:19.921Z. Esa copia remota anterior no reemplaza el bundle
+nuevo. No se establece la causa del rezago del remoto. C5 conserva descarga
+correcta 17:05:02.838Z. El aviso de copia anterior del lector/guía es pertinente.
+La posterior recuperación de las 17:18 UTC se detalla en las comprobaciones finales;
+no acredita disponibilidad de las dos URLs fallidas.
+
+### Directorios comerciales
+
+Se corroboró la cadena de publicación de Cuenta Cashi al PDF candidato de
+29 páginas. El enlace de la página corporativa Walmart dirige a un directorio
+de consultorios de ocho páginas; no al PDF de 42 páginas analizado antes.
+Las condiciones corporativas restringen los contenidos a uso personal no
+comercial, sin licencia por acceder; no se infiere permiso para republicar una
+base comercial ni se extrapolan esas condiciones a otros dominios sin revisión.
+Detalle y URLs en STORE-DIRECTORY-RESEARCH-20261124.md. No hay ingesta de
+directorios, scraping masivo, coordenadas inventadas, acuerdos aceptados o
+contactos enviados. La precisión pública Express sigue pendiente.
+
+### Comprobaciones públicas y recuperación
+
+Health/proxy 200; coordenadas 28.635300123,-106.088900456 conservadas;
+Plus Code completo 75XMRW22+22 y compuesto RW22+22 Chihuahua →200,
+como pruebas independientes, no el mismo punto. Validate: 0, 2 y 48 intermedias →200;
+49→400 y plan sin sesión →401. Son validaciones de entrada, no ORS real autenticado.
+Repetición pública final completada 2026-11-24T17:27:38Z: API directa y proxy
+health/source-status 200, nueva evidencia vigente del checker (sin validación
+jurídica); tres búsquedas 200, exactitud conservada en coordenadas;
+validate 0/2/48 →200 y 49→400; plan sin sesión 401 AUTH_REQUIRED.
+CORS: origen autorizado OPTIONS 204 con Allow-Origin correcto; example.test
+404 sin permiso. La recuperación remota observada después ya recibe el reporte
+17:05:02.838Z (intento 17:18:18.036Z, éxito 17:18:18.283Z), con próxima
+revisión 17:33:18.283Z: no sigue mostrando la copia anterior en esa lectura.
+No se infiere éxito de cálculo ORS a partir de validate.
+
+Logs Vercel error/fatal agrupados por requestPath: sin grupos en ambos proyectos
+durante las ventanas de 30 minutos consultadas, incluida la posterior al último
+despliegue. Son ventanas limitadas, no garantía de ausencia futura de errores.
+Sólo se operó sobre los dos repositorios y proyectos autorizados; Supabase alojado
+se inspeccionó sin escrituras. No se modificó Gestión ni recursos ajenos.
+La continuación existente permanece habilitada, sin duplicar tareas.
+
+Rollback Web: 796a82249ae1c30126d9c13b0f497323e5201092 /
+dpl_96ZYi2BLzQifjEnik24Ym6VXKqvj.
+Rollback API: e4aaa01bd40d79112c4bf3fe64bca1c4dcfe2d23 /
+dpl_Evz7pb7Use63rJ7WVrzDAzWp4Fou; 0dd0473 conserva el reporte previo.
+Ramas de recuperación conservadas; no rollback ejecutado ni datos borrados.
+Este cierre modifica sólo docs Web y conserva el alias del código probado.
+
+Completado: recuperación directa hacia favoritos sin reescribir; checker real
+publicado con evidencia preservada. Parcial: catálogo comercial público y
+normativa nacional. Pendiente: fuente abierta/licencia compatible, identidad y
+acceso de sucursales Express, georreferenciación y cobertura; actos municipales
+íntegros/actuales, permisos, horarios, sentidos y geometrías. Siguen 15 municipios
+parciales y cero con validación legal completa. Google no transmite HGV ni fija el trazado.
+No se probaron Android físico, ORS alojado autenticado o favoritos con sesión
+real del propietario en producción. No se activa pago, se exponen claves o se
+modifican otros proyectos. Se conserva la continuación; programa general abierto.

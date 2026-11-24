@@ -1021,3 +1021,41 @@ El monitoreo federal ampliado queda pendiente; no se cambia la frecuencia ni
 el registro municipal a partir de una búsqueda.
 
 Producción, logs, PR/commits y rollback en el último ciclo de ingeniería.
+
+
+## Recuperación hacia favoritos y nuevas comprobaciones · 24-11-2026
+
+Web #49 transfiere la búsqueda pendiente al filtro de Favoritos y ofrece
+recuperación directa ante error, ausencia o resultados lejanos. Reutiliza puntos
+privados guardados mediante selección explícita; no añade sucursales a un índice
+público ni acredita identidad comercial actual, entrada de camión o permiso.
+Se conserva precisión y orden de entregas. Web #50 retira marcadores públicos
+anteriores al abrir el libro, tras observar ese fallo en la comprobación real.
+
+Checker existente ejecutado con checkedAt 2026-11-24T17:05:02.838Z:
+siete grupos/27 documentos, 25 descargas correctas y dos HTTP_503
+(Consejería CDMX y OJP Puebla). CDMX/Puebla parciales; Juárez recuperado.
+La copia C5 mantiene SHA-256 ec3c36bad93ae7ab05f8a272e121981085ea71e3636da105cbb8fa910ace976a
+y descarga correcta nueva, sin pasar a revisión jurídica aprobada.
+API 868578eedc9aef3b087301e2e2237edc710e1eb5 sólo cambia el reporte;
+runtime anterior e4aaa01 sin cambios. API/proxy sirven la fecha nueva.
+Se observó copia remota anterior: el lector conservó el bundle más reciente.
+No se modifican fuente primaria, reglas, geometrías, cron o cuotas.
+
+Se corroboró la cadena publicada de Cuenta Cashi al PDF de 29 páginas.
+El enlace de la página corporativa de Walmart publica un directorio de
+consultorios, no demuestra cobertura completa de Express. Sus condiciones no
+conceden reutilización comercial por acceder; no se incorpora una base por
+suponer permiso ni se extrapolan condiciones entre dominios. Investigación
+y enlaces en STORE-DIRECTORY-RESEARCH-20261124.md.
+
+Siguen 15 municipios parciales y cero con validación legal automática completa.
+Sin nuevos horarios, permisos, sentidos, excepciones o geometrías aplicados a
+rutas. Google no recibe HGV ni fija trazado; los puntos guía sólo lo orientan.
+Build/TypeScript, 232 pruebas Web, 45 de navegador y 13 Auth locales aprobados;
+build y 91 API aprobados. Verificación pública del mapa, coordenadas y Plus Codes;
+validate de 0/2/48 intermedias y rechazo de 49. No son cálculo ORS autenticado
+real ni navegación Android física. Web productivo e4dc800 / dpl_FBuJ3aHArJMcnp7dtt8J1PeEdD8a;
+API 868578e / dpl_9eQFA7KepdWgd3bgxVi8uxrKdFHV, ambos READY.
+La lectura remota posterior de las 17:18 UTC ya recibió el reporte nuevo.
+Publicación, verificaciones y rollback en el último ciclo de ingeniería.
