@@ -67,3 +67,31 @@ frente a una lectura GPS tardía.
 El componente compartido conserva coordenadas/Plus Codes y selección explícita;
 no incorpora negocios públicos, nuevas normas, límites de entregas o garantías
 HGV. Regresiones y publicación exacta en el último ciclo de ENGINEERING-STATUS.
+
+
+## Entrada durante la carga inicial · 24-11-2026
+
+Se confirmó el caso pendiente: con scripts retenidos, el campo del HTML inicial
+aceptaba teclado real antes de conectar React, y después quedaba vacío.
+La regresión previa conservó 48 casos aprobados y falló únicamente por perder
+28.635300123,-106.088900456 al arrancar. No era sólo un llenado demasiado temprano
+de la comprobación anterior; también se reprodujo mediante SSR/hidratación local.
+
+Los controles de cada ubicación se sirven en un fieldset nativo deshabilitado,
+con aviso de preparación y ayuda si JavaScript está desactivado. Se habilitan al
+conectar los manejadores; no se espera al mapa, geocodificador, cuenta o red.
+Se distinguen snapshots de servidor/cliente: los campos que se crean después
+dentro de la app están listos inmediatamente y conservan el enfoque automático
+de revisión del manifiesto. Una espera por useEffect en cada montaje afectaba
+ese enfoque; las pruebas lo detectaron y se corrigió antes de publicar.
+
+No se recupera ni confirma un texto por adivinar la intención: se evita aceptar
+entrada cuando todavía no se puede procesar. Al estar listo, se conserva el
+borrador y la precisión; elegir sugerencia y confirmar siguen siendo explícitos.
+No cambian cuotas, proveedores, límites de entregas, datos de cuenta o normativa.
+
+Se añadieron pruebas de servidor/hidratación, scripts iniciales lentos a
+390/1280 px con teclado real y navegación sin JavaScript. Los resultados concretos,
+commit, producción, alias, logs y rollback constan en ENGINEERING-STATUS.
+Esto no es navegación Android física ni cálculo ORS autenticado en producción.
+Referencia técnica: https://react.dev/reference/react/useSyncExternalStore

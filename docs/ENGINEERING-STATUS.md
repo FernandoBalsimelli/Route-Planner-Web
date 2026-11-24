@@ -2,34 +2,35 @@
 
 Fecha de revisión: 2026-11-24 (Chihuahua). Alcance: exclusivamente Route Planner.
 
-Estado vigente: Web a5cf75ddc17a7d8fb046f86faecd4abb35703b4f está publicado
-en producción: dpl_7B912mmxhYZpidqvVKB2fxjbkWHY READY, alias y SHA exactos.
-PR #51 corrige cancelación de ubicaciones y candidatos descartados; verificado
-también en navegador público antes/después.
+Estado vigente: Web 297d486c0255f3aec0b8085d0289dbd41985eba4, PR #52,
+en producción dpl_AM9V3bGk71aLSUYLV7tChj1acBuJ READY; alias y SHA exactos.
+Se verificaron HTML inicial, entrada pública, sugerencias y corroboración explícita.
 
-Escape cancela debounce y solicitud de ubicaciones y retira los candidatos
-anteriores del mapa. Enter, reenfocar o editar reanudan la búsqueda sin perder
-el borrador ni confirmar puntos. Abrir el selector conserva el centro propuesto
-para corroborar; iniciar GPS invalida sugerencias antiguas incluso al cerrar el
-mapa. Se mantiene la recuperación hacia favoritos y su filtro privado global.
+El caso pendiente de entrada inicial quedó reproducido con teclado real y scripts
+retenidos: el HTML aceptaba coordenadas que se perdían al conectar React.
+Los controles de ubicación ahora esperan a sus manejadores con aviso breve y
+ayuda sin JavaScript. Los campos creados dentro de una app ya cargada están
+listos inmediatamente; se conserva el enfoque de revisión del manifiesto.
+No se espera al mapa, cuenta o proveedor para habilitar la escritura.
 
-Código final aprobado: build/TypeScript, 236 pruebas Web, 48 casos de navegador
-y 13 integraciones Auth/REST/Postgres locales reales, auditoría cero. Las tres
-regresiones nuevas usan anchos 390/1280 px. El navegador local estuvo bloqueado;
-se ejecutaron en CI. Pendiente reproducir una entrada muy temprana que no persistió
-durante la carga inicial en CUA; no se declara resuelta ni Android físico probado.
+Verificación final: build/TypeScript, 237 pruebas Web, 50 casos de navegador
+y 13 integraciones Auth/REST/Postgres locales reales; build y 91 pruebas API.
+Auditorías de producción sin vulnerabilidades. Los casos nuevos incluyen scripts
+lentos a 390/1280 px y JavaScript desactivado. No son Android físico ni cálculo
+ORS real autenticado alojado; las limitaciones se conservan en el informe.
 
-La API no cambia: 868578eedc9aef3b087301e2e2237edc710e1eb5 /
-dpl_9eQFA7KepdWgd3bgxVi8uxrKdFHV. El checker anterior comprobó 27 documentos
-el 24-11-2026 a las 17:05:02.838Z: 25 descargas correctas y dos fallos HTTP_503;
-esto no acredita revisión legal integral. La consulta Express real de las 17:39 UTC
-sólo devolvió candidatos lejanos (primero a 655570 m de la referencia de Chihuahua).
-No se presenta el catálogo público local como resuelto ni se inventan negocios.
+API dd2705fde35a70297651f291e927591af8614559 sólo actualiza source-status.json.
+Deployment dpl_EZFEUMmFpqweaSgdEucFuYRTyALC READY y alias exacto.
+Checker real 24-11-2026T22:02:18.392Z: siete grupos, 27 documentos,
+25 descargas correctas y dos HTTP_503 (Consejería CDMX/OJP Puebla).
+Se conserva la evidencia más reciente aunque una lectura remota sea anterior.
+No se aprueban automáticamente normas ni se amplía la cobertura por descargar.
 
-Se conservan vehículos, GPS, OCR/manifiestos, rutas guardadas, 48 intermedias del
-proveedor y enlaces Google consecutivos. Quedan 15 municipios parciales, cero
-con validación legal automática completa; Google no recibe HGV ni fija trazado.
-Sin gastos, migraciones o escrituras alojadas. El programa general continúa.
+Se conservan GPS, Plus Codes, vehículos, favoritos, OCR/manifiestos, rutas guardadas,
+48 intermedias y Google en tramos consecutivos. Catálogo público Express y normativa
+nacional siguen parciales: 15 municipios parciales, cero completos automáticamente.
+Google no recibe HGV ni fija trazado. Sin gastos, migraciones o escrituras alojadas.
+El programa general continúa.
 
 ## Recursos verificados
 
@@ -5760,3 +5761,132 @@ actos actuales de implementación, configuración de vehículo, horarios, permis
 excepciones y geometrías verificadas. No se hizo Android físico ni ORS real
 alojado autenticado; Auth local no se presenta como sesión del propietario en
 producción. Continúa el programa general y se mantiene su continuación existente.
+
+
+## Ciclo: proteger la entrada inicial de ubicaciones · 24-11-2026
+
+### Base y diagnóstico comprobados
+
+Se contrastaron antes de editar main Web 02b2a7dcf951f3dc78c018bea0e82e00a301a83d
+y API 868578eedc9aef3b087301e2e2237edc710e1eb5. ENGINEERING-STATUS y MEXICO-COVERAGE
+leídos desde main. Web runtime a5cf75ddc17a7d8fb046f86faecd4abb35703b4f /
+dpl_7B912mmxhYZpidqvVKB2fxjbkWHY y API 868578e /
+dpl_9eQFA7KepdWgd3bgxVi8uxrKdFHV READY/production. Supabase autorizado
+ACTIVE_HEALTHY, sólo estado leído. Worktrees aislados; sin operaciones sobre Gestión.
+
+El pendiente de CUA se reprodujo primero con SSR/hidratación local: el DOM aceptó
+coordenadas antes de conectar los manejadores y quedó vacío tras los efectos.
+Después se retuvieron los scripts de la aplicación real y se escribió con teclado
+nativo en Chromium CI. Al arrancar, el valor pasó de 28.635300123,-106.088900456
+a cadena vacía. Baseline 53b0674d25c01067ab80fa5cdfcb0c300430d91f, CI 45496585144,
+job Web 138808616723: 236 unitarias aprobadas; navegador 48/49, único fallo por
+pérdida de texto. El candidato de diagnóstico nunca se publicó en producción.
+La integración Auth de ese diagnóstico aprobó; no se confunde con la corrección final.
+
+### Implementación y archivos
+
+Cuatro archivos: components/LocationInput.tsx, app/globals.css,
+test/initial-entry.e2e.mjs y test/location-initialization.test.mjs.
+
+El HTML de ubicaciones se entrega con controles nativos deshabilitados hasta
+conectar los manejadores, aviso breve y ayuda noscript. La disponibilidad no espera
+al mapa, cuenta o proveedor. Los snapshots de servidor/cliente coinciden durante
+hidratación y habilitan inmediatamente campos creados en una app ya funcionando.
+El CSS elimina sólo el borde/padding nativo del fieldset para conservar el diseño.
+
+Un prototipo local basado en useEffect falló una prueba existente de enfoque
+automático del manifiesto (236/237); se cambió antes de publicar el candidato final.
+La suite volvió a aprobar íntegra. No se eliminó la regresión ni se debilitó su
+assertion. Referencia técnica primaria: https://react.dev/reference/react/useSyncExternalStore
+
+Se conservan coordenadas, Plus Codes, confirmación explícita, GPS, favoritos,
+manifiestos, vehículos, rutas guardadas, orden de entregas, 48 intermedias y enlaces
+Google consecutivos. Sin dependencia nueva, cambios de permisos o escritura alojada.
+
+### Pruebas y publicación Web
+
+Local final: build, TypeScript y 237 pruebas aprobados; auditoría de producción cero.
+El caso nuevo de servidor comprueba bloqueo inicial, habilitación, borrador preciso
+y confirmación explícita. El navegador retrasa scripts a 390/1280 px y comprueba
+que la app no acepta silenciosamente entrada que después pierde; también se
+comprueba el aviso y bloqueo con JavaScript desactivado. No se intentó lanzar
+otra vez el Chromium local bloqueado en el ciclo previo; se usa CI.
+PR [#52](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/52),
+candidato final 247a3abdc3ec2687dca0e698a3f9eeb0835501bc. CI
+[45497984314](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/45497984314)
+aprobada: build/TypeScript, 237 pruebas, 50 casos de navegador y 13 integraciones
+Auth locales, auditoría cero. Logs leídos de jobs 138813444786/138813445434.
+Los dos casos nuevos pasan: scripts lentos a 390/1280 px con teclado real y sin
+JavaScript. Los 13 casos Auth/REST/Postgres usan servicios locales reales
+desechables y API fijada en 772a6b2ba6bc56f79c3ac3adfbbfe149e9679e07;
+ORS/geometrías son sintéticos. No equivalen a la cuenta alojada del propietario.
+Merge 297d486c0255f3aec0b8085d0289dbd41985eba4. Deployment
+dpl_AM9V3bGk71aLSUYLV7tChj1acBuJ READY/production, build Vercel 28 s;
+alias https://route-planner-web-sand.vercel.app/ al SHA exacto.
+Los cuatro archivos probados coinciden byte a byte con el merge y el
+worktree propio quedó alineado. No se sobrescribieron directorios previos.
+Comprobación pública sobre el alias nuevo: recarga y llenado de origen con
+28.635300123,-106.088900456; el valor permaneció durante la carga y apareció
+la sugerencia real SN Avenida Mirador, Chihuahua, México / 75WMJWP6+4C.
+Al elegirla se mostró la tarjeta de corroboración, conservando el borrador completo
+y cero puntos confirmados. Los dos grupos de ubicación quedaron habilitados;
+sin desbordamiento horizontal en escritorio real de 1348 px. No se pulsó
+Confirmar punto, guardó ruta/favorito, borró recientes o escribió datos de cuenta.
+Vista de invitado y captura JPEG real verificados. La carga lenta controlada y
+la sesión sin JavaScript se probaron en CI, no se simularon como Android físico
+o como condiciones de red reproducidas en este navegador público.
+
+### Nueva comprobación real de fuentes y publicación API
+
+Checker existente ejecutado con checkedAt 2026-11-24T22:02:18.392Z: siete grupos,
+27 documentos, 25 descargas correctas y dos HTTP_503, Consejería CDMX/OJP Puebla.
+Conserva evidencias previas, hashes y estados de revisión. No se aprueban normas
+por descargar ni se añaden horarios, geometrías, permisos o municipios verificados.
+No hay nuevos usos comerciales de directorios ni registros Express inventados.
+
+API build y 91 pruebas aprobados después de completar el checker, auditoría cero.
+Sólo cambia data/mx/source-status.json. Commit dd2705fde35a70297651f291e927591af8614559;
+código del motor sin cambios. Deployment dpl_EZFEUMmFpqweaSgdEucFuYRTyALC
+READY/production, build 4 s y alias https://route-planner-api.vercel.app/ al SHA exacto.
+Reporte local/remoto cotejado byte a byte y diff limitado al archivo indicado.
+
+Lectura pública API/proxy posterior: checkedAt 22:02:18.392Z, stale=false y
+overdue=false. Primer intento de recuperación 22:06:42.791Z/éxito 22:06:42.869Z
+recibió una copia remota de 17:05:02.838Z; no sustituyó el bundle nuevo.
+No se atribuye una causa de red o caché no demostrada. Observación final abajo.
+
+Sondas públicas completadas 2026-11-24T22:17:39Z: health API directa/proxy →200,
+fuentes checkedAt 22:02:18.392Z con stale=false/overdue=false. Esa lectura aún
+recibía el remoto de 17:05:02.838Z y conservaba el bundle nuevo. No se falsea una
+actualización posterior ni se presenta lectura de reporte como descarga de documentos.
+
+Coordenadas de nueve decimales conservadas. Plus Code completo 75XMRW22+22
+y compuesto RW22+22 Chihuahua →200 como casos independientes, no el mismo punto.
+Validate de 0/2/48 intermedias →200 y 49→400; plan sin sesión →401 AUTH_REQUIRED.
+Son validaciones de entradas, no cálculos reales de dos/múltiples paradas en ORS.
+CORS autorizado OPTIONS 204 con Allow-Origin correcto; origen ajeno 404 sin permiso.
+HTML público HTTP200: ambos controles iniciales bloqueados nativamente en fieldset,
+con ayuda noscript. Se contrasta con habilitación y escritura observadas en CUA.
+
+Ventanas Vercel error/fatal de 30 minutos agrupadas por requestPath sin grupos
+en ambos proyectos, incluidas las posteriores a los despliegues. No es garantía
+de ausencia futura de errores. Sólo se operó sobre recursos autorizados, sin
+gastos, permisos nuevos, migraciones, eliminación de datos o escrituras Supabase.
+
+### Recuperación y próxima prioridad
+
+Rollback Web: a5cf75ddc17a7d8fb046f86faecd4abb35703b4f /
+dpl_7B912mmxhYZpidqvVKB2fxjbkWHY. Rollback API: 868578eedc9aef3b087301e2e2237edc710e1eb5 /
+dpl_9eQFA7KepdWgd3bgxVi8uxrKdFHV. No rollback ejecutado ni datos eliminados.
+PR #52 y rama codex/initial-location-entry-20261124 conservan diagnóstico y solución.
+Cierre documental separado; no se vuelve a desplegar código por modificar sólo docs.
+
+Completado: diagnóstico de pérdida de entrada y protección inicial, con pruebas
+indicadas arriba; reporte real de fuentes renovado. Parcial: índice público Express
+y normativa mexicana. Pendiente: fuente compatible con licencia/metadatos para
+sucursales, identidad y acceso, y actos municipales actuales con configuración,
+horarios, permisos, excepciones y geometrías verificadas. Continúan 15 municipios
+parciales y cero con validación legal completa. Google no recibe HGV ni fija trazado.
+Android físico y ORS real alojado autenticado siguen sin comprobar en este ciclo.
+No se presenta Auth local con ORS sintético como cálculo real del propietario.
+El programa continúa y su continuación existente permanece habilitada.

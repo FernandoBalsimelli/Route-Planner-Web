@@ -1088,3 +1088,29 @@ Auth locales aprobados. Casos nuevos a 390/1280 px; no Android físico, cálculo
 ORS real autenticado alojado o garantía de navegación Google para camiones.
 Se mantienen 15 municipios parciales y cero con validación legal completa.
 Geometrías, permisos, horarios y cobertura integral siguen pendientes.
+
+
+## Entrada inicial y renovación de evidencia · 24-11-2026
+
+Web #52 confirma y corrige la pérdida de coordenadas aceptadas antes de arrancar
+la aplicación. Los controles se habilitan al conectar sus manejadores, con aviso
+inicial y ayuda sin JavaScript. No espera al proveedor/mapa ni cambia confirmación,
+puntos, orden de entregas o parámetros del vehículo.
+
+Checker real nuevo: 2026-11-24T22:02:18.392Z, siete grupos/27 documentos,
+25 descargas correctas y dos HTTP_503 (Consejería CDMX/OJP Puebla).
+API dd2705fde35a70297651f291e927591af8614559 sólo actualiza source-status.json;
+dpl_EZFEUMmFpqweaSgdEucFuYRTyALC READY, alias exacto. Build y 91 pruebas
+API aprobados; no código de motor, cron, cuotas o reglas nuevas. El bundle más
+reciente conserva sus evidencias aunque se reciba una copia remota anterior.
+
+Web 297d486 / dpl_AM9V3bGk71aLSUYLV7tChj1acBuJ READY, alias exacto.
+Build/TypeScript y 237 pruebas Web, 50 de navegador y 13 Auth locales aprobados;
+búsqueda y HTML inicial públicos comprobados. No Android físico o ORS real
+autenticado alojado. Los proveedores/rutas de CI están controlados.
+No hay nueva cobertura jurídica: permanecen 15 municipios parciales y cero
+validados automáticamente por completo. Sigue pendiente catálogo Express con
+identidad/acceso corroborados y licencia compatible, así como actos actuales,
+horarios, permisos, excepciones, sentidos y geometrías. Google no recibe HGV
+ni fija trazado ORS; no se declara una ruta segura o legal por estos cambios.
+Detalles de pruebas públicas, publicación, límites y rollback en ENGINEERING-STATUS.
