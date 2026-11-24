@@ -65,7 +65,11 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
   function openLocationBook() {
     cancelLocation();
     setMapOpen(false);
-    if (!bookOpen) book?.searchFavorites(selected?.label === value ? '' : value.trim());
+    if (!bookOpen) {
+      suggestionsCallback.current?.([]);
+      setActiveIndex(-1);
+      book?.searchFavorites(selected?.label === value ? '' : value.trim());
+    }
     setBookOpen(current => !current);
   }
 

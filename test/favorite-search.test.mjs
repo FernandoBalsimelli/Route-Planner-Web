@@ -16,8 +16,8 @@ const {favoriteSearchFilter}=await import('../lib/favorite-search.ts');
 const originalFrom=supabase.from,originalTimeout=globalThis.setTimeout,originalFetch=globalThis.fetch;
 const alice={id:'alice'},bob={id:'bob'};
 const row=(id,name,owner_id='alice',address_label='Calle Uno')=>({id,name,owner_id,address_label,archived:false,lat:28.635300123+Number(id.replace(/\D/g,'' )||0)*.00001,lng:-106.088900456,created_at:'2026-11-23'});
-let root,container,rows,requests,intercept,picked;
-function database(data){rows=data;requests=[];intercept=null;picked=null;supabase.from=table=>{
+let root,container,rows,requests,intercept,picked,published;
+function database(data){rows=data;requests=[];intercept=null;picked=null;published=[];supabase.from=table=>{
  const request={table,filters:[],orders:[],limit:0};
  const q={select(columns){request.columns=columns;return q;},eq(key,value){request.filters.push({key,value});return q;},or(value){request.or=value;return q;},order(key,options){request.orders.push([key,options]);return q;},limit(value){request.limit=value;return q;},abortSignal(signal){request.signal=signal;return q;},then(resolve,reject){
   requests.push(request);if(intercept){const deferred=intercept(request);if(deferred)return deferred.then(resolve,reject);}
@@ -48,7 +48,7 @@ test('favorite filters independently quote PostgREST grammar and escape regex sy
 
 function AddressHarness({user=alice,initial='Express 50%_* (A)'}){
  const [value,setValue]=useState(initial),[selected,setSelected]=useState(null);
- return React.createElement(Provider,{user},React.createElement(LocationInput,{title:'Destino',color:'orange',value,selected,placeholder:'',apiUrl:'/api/route-planner',mapReference:{lat:28.6353,lng:-106.0889},onChange:next=>{setValue(next);setSelected(null);},onConfirm:point=>{picked=point;setSelected(point);}}));
+ return React.createElement(Provider,{user},React.createElement(LocationInput,{title:'Destino',color:'orange',value,selected,placeholder:'',apiUrl:'/api/route-planner',mapReference:{lat:28.6353,lng:-106.0889},onSuggestions:points=>published.push(points),onChange:next=>{setValue(next);setSelected(null);},onConfirm:point=>{picked=point;setSelected(point);}}));
 }
 async function renderAddress(initial='Express 50%_* (A)'){
  container=document.createElement('div');document.body.append(container);root=createRoot(container);await act(async()=>root.render(React.createElement(AddressHarness,{initial})));await settle(10);
@@ -67,6 +67,11 @@ test('a failed or distant public lookup offers explicit favorite recovery withou
 });
 test('long address transfer discloses the favorite filter limit while retaining the complete unconfirmed delivery text',async()=>{
  const full='Calle '+('a'.repeat(150));database([]);globalThis.fetch=async()=>Response.json({suggestions:[]});await renderAddress(full);await act(async()=>button('Recientes y favoritos').click());assert.equal(input().value,full.slice(0,120));assert.match(container.textContent,/hasta 120 caracteres/);assert.equal(container.querySelector('.field input').value,full);assert.equal(picked,null);
+});
+test('opening the book withdraws public map candidates even after the address field loses focus',async()=>{
+ database([]);const candidate={label:'Coincidencia pública anterior',lat:28.635300123,lng:-106.088900456};let calls=0;globalThis.fetch=async()=>{calls++;return Response.json({suggestions:[candidate]});};
+ await renderAddress();const field=container.querySelector('.field input');await act(async()=>field.focus());await settle(350);assert.deepEqual(published.at(-1),[candidate]);
+ await act(async()=>{field.blur();button('Recientes y favoritos').click();});assert.deepEqual(published.at(-1),[]);assert.equal(container.querySelector('[role="option"]'),null);assert.equal(field.value,'Express 50%_* (A)');assert.equal(picked,null);await settle(350);assert.equal(calls,1);
 });
 test('favorite search runs before pagination, searches saved names and addresses, and preserves exact chosen coordinates',async()=>{
  const target=row('a1','Express 50%_* (A)','alice','Calle CEDRO 123');database([...Array.from({length:55},(_,i)=>row('z'+String(i).padStart(2,'0'),'Sucursal '+i)),target,row('foreign','Express 50%_* (A)','bob'),{...row('archive','Express 50%_* (A)'),archived:true}]);
