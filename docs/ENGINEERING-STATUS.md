@@ -1,31 +1,34 @@
 # Route Planner — estado de ingeniería
 
-Fecha de revisión: 2026-11-23. Alcance: exclusivamente Route Planner.
+Fecha de revisión: 2026-11-23 (Chihuahua). Alcance: exclusivamente Route Planner.
 
-Estado vigente: Web ac96bf6 permite buscar todos los favoritos privados por nombre
-de sucursal o dirección antes de paginar; conserva búsqueda sin acentos habituales,
-puntuación literal, coordenadas e identidad del favorito seleccionado.
-Debounce, cancelación, límites de espera, reintento y aislamiento por cuenta.
-Se mantiene la confirmación obligatoria de todos los puntos, GPS, mapa, OCR,
-perfiles, visitas repetidas, 48 intermedias y enlaces Google consecutivos.
+Estado vigente: Web b85ab83 mejora la corroboración del manifiesto. Muestra el
+texto preparado junto al punto elegido, avance y acceso a la primera pendiente.
+Cada confirmación lleva a la siguiente entrega incluida en orden documental y
+vuelve a pendientes anteriores; al terminar enfoca la importación explícita.
+Conserva exclusiones, pedidos repetidos, coordenadas y orden de importación.
+Siguen búsqueda de favoritos privados, GPS, OCR/PDF, perfiles, confirmación de
+todos los puntos, 48 intermedias y enlaces Google consecutivos.
 
-API c136592 separa el artículo 66 histórico de Chihuahua de la reforma estatal
-publicada el 21-11-2026, cotejada con artículo único y transitorio. Conserva las
-fuentes anteriores y vigila el decreto independientemente. No añade horarios,
-permisos, geometrías o exclusiones automáticas. Main 23770b7 sólo actualiza el
-reporte técnico después del merge; la API lo sirve sin otro despliegue.
+API runtime c136592 sin cambios; main bf714ca sólo actualiza el reporte técnico.
+API/proxy sirven checkedAt 2026-11-24T00:11:23.638Z, stale=false/overdue=false
+al consultar. No se alteraron reglas, geometrías, cron, claves o permisos.
+Supabase Route Planner ACTIVE_HEALTHY; ninguna escritura o migración alojada.
 
-Local y CI: build/TypeScript, 217 pruebas Web, 85 API, 40 casos de navegador,
-12 flujos Auth locales y SQL/RLS en Postgres desechable; auditorías cero
-vulnerabilidades. Guía pública contrastada en navegador. Los flujos Auth usan
-servicios reales locales y ORS sintético; no se presentan como cuenta alojada,
-ruteo real del proveedor o Android físico.
+Build/TypeScript, 219 pruebas Web, 85 API, 41 casos de navegador y 12 flujos
+Auth locales aprobados. Auditorías cero vulnerabilidades. Flujo público del
+manifiesto comprobado en producción con coordenadas públicas reales. Auth/REST/
+Postgres de CI son reales locales; ORS sintético. Android físico y cálculo ORS
+autenticado alojado permanecen pendientes.
 
-La cobertura comercial pública Express sigue incompleta. Son 15 municipios con
-referencias parciales y cero con validación legal automática completa.
-Pendientes reglamento/actos posteriores y geometrías, ORS autenticado alojado y
-Android físico. Google no recibe HGV ni fija trazado exacto. Programa general abierto;
-commits, deployments, límites y rollback constan en el último ciclo.
+DENUE: se recuperó el ZIP oficial de Chihuahua, con metadatos/diccionario y
+142295 filas; ocho nombres contienen aurrer y uno Express, con discrepancia
+de clasificación que requiere corroboración. Evidencia y hashes versionados;
+no se incorpora un índice runtime ni se acredita cobertura comercial.
+Siguen 15 municipios con referencias parciales y cero con validación legal
+automática completa. Google no recibe HGV ni fija el trazado exacto.
+El programa general continúa; publicación, límites, rollback y continuación
+en el último ciclo y en docs/DENUE-SOURCE-EVALUATION.md.
 
 ## Recursos verificados
 
@@ -4912,3 +4915,144 @@ comercial acreditadas en esta ejecución. Mantener confirmación explícita de
 todos los puntos, repeticiones y orden, 48 intermedias del proveedor y tramos
 Google completos. Google no transmite HGV ni fija el trazado exacto.
 El programa general continúa.
+
+## Ciclo: corroboración guiada de manifiestos y evaluación de DENUE · 23-11-2026
+
+### Diagnóstico y alcance
+
+Se reconciliaron main y los alias antes de editar: Web main
+7b993e4329dc00b7c5dbffeac3bfc0b1d04051c8 sobre runtime ac96bf6; API main
+bf714cafcc13c93cccc0d5afcef2e0d6fdbc6151 sobre runtime c136592.
+Se leyeron ENGINEERING-STATUS.md y MEXICO-COVERAGE.md de main y se creó un
+worktree aislado. Los otros árboles de trabajo quedaron intactos.
+
+P1: la interfaz del manifiesto sólo mostraba la etiqueta mutable del punto,
+aunque sourceValue ya conservaba la propuesta preparada internamente. Al
+confirmar se enfocaba otra fila con preventScroll y podía quedar fuera de
+vista. Además se volvía siempre a la primera sin confirmar, aunque se revisara
+una entrega posterior; un selected obsoleto no era una pendiente correcta.
+
+Ahora cada fila permite cotejar el texto preparado con la ubicación elegida.
+No es una transcripción literal de la imagen: el parser ya agrupa, normaliza
+espacios y limita cada propuesta a 180 caracteres. El OCR sigue requiriendo
+revisión. El resumen accesible muestra confirmadas, pendientes, excluidas,
+progreso y acceso a la primera pendiente. Cada confirmación explícita avanza
+desde esa fila, omite excluidas/confirmadas y vuelve a anteriores pendientes.
+Enfoca y desplaza el siguiente campo; al terminar enfoca Añadir, sin pulsarlo.
+Una edición invalida la confirmación, y coordenadas no finitas/fuera de rango
+no se contabilizan como corroboradas. No se infiere sucursal o acceso.
+
+Se preservan todas las ocurrencias y el orden documental al importar. Las
+advertencias de repetición/proximidad siguen permitiendo revisar y excluir
+manualmente. No cambian OCR, límites, proveedores, autenticación o persistencia.
+No se restituye el límite de ocho: 48 intermedias/50 puntos totales del proveedor
+y división Google consecutiva sin perder entregas.
+
+Archivos de código y pruebas:
+- components/ManifestImport.tsx
+- lib/manifest-review.ts
+- app/globals.css
+- test/manifest-review.test.mjs
+- test/geolocation.e2e.mjs
+
+### Pruebas y resultados
+
+Local: build de producción, TypeScript y 219 pruebas Web aprobados;
+auditoría npm de producción cero vulnerabilidades. API sin cambios de código:
+build, 85 pruebas y auditoría cero. El intento local de navegador se bloqueó
+antes de interactuar: Chromium no pudo crear su socket (Operation not permitted).
+No se cuenta como una prueba de navegador aprobada.
+
+CI [45309359091](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/45309359091):
+jobs 138160916114 y 138160916459 exitosos, logs leídos.
+219 pruebas, build/TypeScript, 41 casos de navegador, auditoría cero y
+12 flujos Auth locales. El nuevo caso prueba 390/1280 px, doce filas, una
+exclusión, revisión desde la entrega nueve, avance circular, fuente conservada,
+edición/reconfirmación, importación explícita, duplicado final y orden intacto.
+Comprueba foco dentro de la ventana y ausencia de desbordamiento horizontal.
+
+Los flujos autenticados usan Auth/REST/Postgres reales desechables, API fijada
+a 772a6b2 en el workflow y ORS/geometrías sintéticos. No acreditan Android
+físico, ubicación GPS real, sesión alojada o navegación real del proveedor.
+No se efectuaron migraciones ni escrituras de cuenta en Supabase alojado.
+
+### Publicación y verificación real
+
+PR [#45](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/45),
+candidato 41e5a078b1edec5e8924b84928700f059e28d018, merge
+b85ab83b7e0249631765786cdd0e851bb9689f89. Los cinco archivos probados coinciden
+byte a byte con el merge. Deployment dpl_6apJWqmuKwKRxrRatnvekgtP62rn,
+READY/production, build Vercel completado en 34 s. Alias
+https://route-planner-web-sand.vercel.app/ confirmado al mismo commit.
+
+Navegador público real, sin sesión ni mocks: se prepararon tres filas con
+coordenadas públicas y una repetida; se excluyó la segunda. El servicio real
+resolvió 28.635300123,-106.088900456 como SN Avenida Mirador, Chihuahua.
+Primera confirmación: 1/2, fuente preparada conservada, foco en entrega 3
+dentro de la ventana. Segunda: 2/2 y foco en Añadir, sin importar automáticamente.
+Al pulsar se crearon una parada y el destino repetido, manteniendo la exclusión.
+Origen siguió pendiente y el cálculo bloqueado. Sin desbordamiento horizontal.
+Captura de corroboración realizada; es una ventana de escritorio, no Android.
+No se guardaron rutas, favoritos o datos de cuenta alojados.
+
+Salud/proxy, coordenadas exactas, Plus Code completo 75XMRW22+22 y compuesto
+RW22+22 Chihuahua: HTTP 200. Esos dos códigos son entradas independientes,
+no se afirma que representen el mismo punto. Validación de 0/2/48 intermedias:
+200; 49:400 específico. Es validación de entrada, no cálculo ORS. Plan sin
+sesión:401. CORS del dominio autorizado:204 con Allow-Origin; ajeno:404 sin
+autorización. La búsqueda Express con foco Chihuahua sigue devolviendo ocho
+coincidencias lejanas y NO_NEARBY_MATCHES; se conserva su aviso y ocultación.
+
+API permanece c1365927f3d03fbe9454a5c7ac1d0beb4a3bed69 /
+dpl_BjNpUf7dcutUMSPu2AiJ8aGuyTM4, READY y alias
+https://route-planner-api.vercel.app/ sin redeploy. bf714ca sólo cambió
+data/mx/source-status.json. Reporte público API/proxy
+2026-11-24T00:11:23.638Z, stale=false/overdue=false al consultar: siete grupos,
+26 documentos; CDMX/Juárez no disponibles, Puebla con cambio técnico detectado.
+Una comprobación técnica reciente no acredita revisión o vigencia jurídica.
+
+Vercel error/fatal de ambos proyectos, ventana de 30 min antes y después:
+sin grupos retornados. Ventanas limitadas, no monitoreo continuo ni garantía
+de ausencia de fallos. Supabase pakhlscjbjvwnheeyjxd ACTIVE_HEALTHY.
+
+### Fuente comercial investigada, sin incorporación prematura
+
+Se leyó el flujo público de descarga masiva de INEGI y su JavaScript, se obtuvo
+el ZIP con XML y se descargó sólo el dataset actual de Chihuahua por el URL
+observado. No se ejecutó el EXE ni se resolvió CAPTCHA; tampoco se usaron tokens ajenos
+o descargaron todas las ediciones. ZIP 13749250 bytes, CSV CP1252 con 142295 filas.
+Filtro nom_estab contiene aurrer: ocho registros, uno Express en Cuauhtémoc.
+Este último tiene clasificación 464111/Farmacias sin minisúper, pendiente de
+corroboración. No se transforma en sucursal verificada ni prueba ausencia de
+Express en Chihuahua capital.
+
+Se cotejaron metadatos, diccionario, términos de libre uso y nota de corrección
+actual de cuatro páginas. La nota incluye 13 registros y correcciones de mayo/
+julio; se conserva el Modified original de mayo del ZIP sin fingir otra fecha.
+Los términos permiten extracción/uso comercial con atribución, metadatos y
+aviso de transformación. No equivalen a precisión de acceso o actualización
+en vivo. Detalle y hashes:
+[DENUE-SOURCE-EVALUATION.md](DENUE-SOURCE-EVALUATION.md).
+Ocho observaciones con valores originales y metadatos:
+[evidence/denue-chihuahua-202605-observations.json](evidence/denue-chihuahua-202605-observations.json).
+No se incorpora nuevo endpoint, proveedor runtime, dependencia o índice comercial.
+
+### Recuperación y continuación
+
+Rollback Web: ac96bf681da35f0a213b18cad0c5eec5cbaff4c6 /
+dpl_74RUdGHLvd9dnhHubsoasWo3QEwK. API permanece en su release anterior.
+Rama codex/manifest-favorites-20261123 conservada. Historial y datos intactos.
+Este cierre sólo añade/actualiza documentación y evidencia en docs; el alias
+sigue apuntando al merge de código probado, sin necesitar otro despliegue.
+
+Completado: revisión guiada y cotejo de fuente preparada en producción.
+Parcial: evaluación del catálogo DENUE y cobertura pública Express.
+Pendiente P1: ingestión reproducible con metadatos/atribución, corroboración
+de formato de tienda/acceso y discrepancias, búsqueda por ciudad/calle/número
+y fallback sin sobrescribir coordenadas guardadas.
+Pendiente normativa: reglamento/actos posteriores, horarios/permisos, sentidos
+y geometrías verificadas. Se mantienen 15 municipios parciales, cero con
+validación legal automática completa. Google no recibe HGV ni fija trazado
+exacto. ORS autenticado alojado y Android físico siguen pendientes.
+Sin cambios en Gestión u otros proyectos, gastos, claves, permisos o cron.
+La automatización existente permanece habilitada; el programa general sigue abierto.

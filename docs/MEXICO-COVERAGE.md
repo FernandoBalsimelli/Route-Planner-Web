@@ -899,3 +899,32 @@ Siguen 15 municipios con referencia parcial y cero con validación legal
 automática completa; no se extiende cobertura a otros municipios por incorporar
 un decreto estatal. Detalles de pruebas, publicaciones y rollback en el último
 ciclo de ENGINEERING-STATUS.md. El programa completo sigue abierto.
+
+## Corroboración de manifiestos y evaluación comercial · 23-11-2026
+
+Web PR #45/b85ab83 conserva el texto preparado junto al punto elegido y guía
+la revisión entre entregas pendientes. Mantiene pedidos repetidos, exclusiones,
+orden e importación explícita. El cotejo visual y una coordenada confirmada no
+acreditan identidad comercial actual, entrada de carga o permiso municipal.
+Pruebas: 219 Web, 41 navegador y 12 Auth locales, con ORS sintético; flujo
+público real con coordenadas comprobado por separado. Android físico pendiente.
+
+Se recuperó DENUE 05/2026 de Chihuahua mediante su descarga pública oficial,
+sin ejecutar EXE o eludir reCAPTCHA. CSV de 142295 filas; ocho nombres contienen
+aurrer y uno Express. La clasificación publicada de esa coincidencia es
+Farmacias sin minisúper y requiere corroboración. Metadatos, términos,
+correcciones, hashes y ocho observaciones quedan versionados en
+[DENUE-SOURCE-EVALUATION.md](DENUE-SOURCE-EVALUATION.md).
+**No se incorpora un índice comercial runtime ni se completa cobertura de Express.**
+
+API runtime c136592 sin cambios; main bf714ca sólo actualiza el reporte técnico.
+Producción/proxy sirven checkedAt 2026-11-24T00:11:23.638Z,
+stale=false/overdue=false al consultar: siete grupos/26 documentos.
+CDMX y Juárez no disponibles; Puebla conserva cambio técnico. No se convierte
+disponibilidad, fecha o huella en actualización jurídica automática.
+
+Siguen 15 municipios con referencias parciales y cero con validación legal
+automática completa. No se añaden normas, horarios, excepciones, permisos,
+sentidos o geometrías en este ciclo. Google no recibe restricciones HGV ni
+garantiza conservar el trazado. Publicación, rollback y continuación en el
+último ciclo de ENGINEERING-STATUS.md; el programa general continúa.
