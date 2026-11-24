@@ -5,7 +5,7 @@ import { MAX_INTERMEDIATE_STOPS } from '@/lib/route-limits';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import LocationInput from './LocationInput';
 import { manifestCandidates } from '@/lib/manifest';
-import { nearbyManifestLocations, repeatedManifestLines } from '@/lib/manifest-review';
+import { manifestPointConfirmed, nextManifestReviewId, nearbyManifestLocations, repeatedManifestLines } from '@/lib/manifest-review';
 import { manifestMapPoint, type ManifestMapSearch, type ManifestMapSelection } from '@/lib/manifest-map';
 import type { Coordinates, LocationSelection } from '@/lib/locations';
 type Candidate = { id: string; sourceValue: string; value: string; selected: LocationSelection | null; enabled: boolean };
@@ -30,11 +30,12 @@ export default function ManifestImport({ apiUrl, reference, remaining, hasDestin
   const mapCallback = useRef(onMapSearch); mapCallback.current = onMapSearch;
   const activeCandidate = candidates.find(row => row.id === activeId);
   function clearMap() { mapRequest.current = null; mapCallback.current?.(null); }
-  function confirmCandidate(id: string, point: LocationSelection, fromMap = false) {
-    setCandidates(rows => rows.map(row => row.id === id ? { ...row, value: point.label, selected: point } : row));
-    const next = candidates.find(row => row.id !== id && row.enabled && !row.selected);
-    setActiveId(next?.id || id);
-    if (fromMap && !next) setReviewRequest({ id, finish: true });
+  function confirmCandidate(id: string, point: LocationSelection) {
+    const updated = candidates.map(row => row.id === id ? { ...row, value: point.label, selected: point } : row);
+    setCandidates(updated);
+    const next = nextManifestReviewId(updated, id);
+    setActiveId(next || id);
+    setReviewRequest({ id: next || id, finish: !next });
     clearMap();
   }
   useEffect(() => {
@@ -44,7 +45,7 @@ export default function ManifestImport({ apiUrl, reference, remaining, hasDestin
   useEffect(() => {
     if (!mapSelection) return;
     const point = manifestMapPoint(mapRequest.current, mapSelection, candidates, activeId, open && active);
-    if (point) confirmCandidate(activeId, point, true);
+    if (point) confirmCandidate(activeId, point);
   }, [mapSelection]);
   useEffect(() => {
     if (open && active) candidateNodes.current.get(activeId)?.querySelector<HTMLInputElement>('input[role="combobox"]')?.focus({ preventScroll: true });
@@ -58,7 +59,9 @@ export default function ManifestImport({ apiUrl, reference, remaining, hasDestin
     target?.scrollIntoView?.({ block: 'center', behavior: 'instant' });
   }, [reviewRequest]);
   const selected = candidates.filter(candidate => candidate.enabled);
-  const points = selected.flatMap(candidate => candidate.selected && candidate.selected.label === candidate.value ? [candidate.selected] : []);
+  const points = selected.flatMap(candidate => manifestPointConfirmed(candidate) && candidate.selected ? [candidate.selected] : []);
+  const pendingId = nextManifestReviewId(candidates);
+  const pendingPosition = candidates.findIndex(row => row.id === pendingId) + 1;
   const capacity = remaining + (useLast ? 1 : 0);
   const repeatedLines = useMemo(() => repeatedManifestLines(candidates.map(row => row.sourceValue)), [candidates]);
   const nearbyPairs = useMemo(() => nearbyManifestLocations(candidates), [candidates]);
@@ -105,8 +108,16 @@ export default function ManifestImport({ apiUrl, reference, remaining, hasDestin
       <button type="button" disabled={busy || !text.trim()} onClick={prepare}>Preparar direcciones para revisar</button>
       {message && <p role="status">{message}</p>}
       {!!candidates.length && <><p className="hint">Las direcciones confirmadas se añaden al recorrido; el documento no se guarda. Verifica calle, colonia y acceso de descarga, especialmente si hay varias sucursales con el mismo nombre.</p>
+        <div className="manifest-review-progress" role="region" aria-label="Avance de revisión del manifiesto">
+          <p role="status"><strong>{points.length} de {selected.length} confirmadas</strong> · {selected.length - points.length} pendientes{candidates.length > selected.length ? ` · ${candidates.length - selected.length} excluidas` : ''}</p>
+          <progress aria-label="Entregas corroboradas del manifiesto" max={Math.max(1, selected.length)} value={points.length}/>
+          {pendingId ? <button type="button" className="map-open-button" onClick={() => { setActiveId(pendingId); setReviewRequest({ id: pendingId }); }}>Revisar entrega {pendingPosition} pendiente</button> : <p>{selected.length ? 'Revisión completa. Comprueba el orden y pulsa Añadir para incorporarlas.' : 'Incluye al menos una entrega para revisar.'}</p>}
+        </div>
         {repeatedLines.length > 0 && <div className="manifest-review-notice" role="status" aria-label="Texto repetido en el manifiesto"><strong>Hay direcciones escritas más de una vez</strong><p>Conservamos cada entrega y su orden. Pueden ser pedidos distintos; excluye sólo las filas que no correspondan.</p><ul>{repeatedLines.slice(0, 5).map(group => <li key={group[0]}>Entregas {group.length > 8 ? `${group.slice(0, 8).join(', ')} y ${group.length - 8} más` : group.join(', ')}: mismo texto.</li>)}</ul>{repeatedLines.length > 5 && <p>Hay {repeatedLines.length - 5} grupos adicionales de texto repetido.</p>}</div>}
-        {candidates.map((candidate, index) => <div className="manifest-candidate" key={candidate.id} ref={node => { if (node) candidateNodes.current.set(candidate.id, node); else candidateNodes.current.delete(candidate.id); }}><label className="manifest-include"><input type="checkbox" checked={candidate.enabled} onChange={event => setCandidates(rows => rows.map(row => row.id === candidate.id ? { ...row, enabled: event.target.checked } : row))}/> Incluir entrega {index + 1}</label><p>{candidate.value} {candidate.selected && <strong>✓ Confirmada</strong>}</p>{candidate.enabled && <button type="button" className="map-open-button" aria-expanded={activeId === candidate.id} onClick={() => setActiveId(candidate.id)}>{candidate.selected ? 'Revisar punto confirmado' : 'Revisar ubicación'}</button>}{candidate.enabled && activeId === candidate.id && <LocationInput key={`${candidate.id}-${reference?.lat}-${reference?.lng}`} title={`Entrega ${index + 1}`} color="number" apiUrl={apiUrl} value={candidate.value} selected={candidate.selected} mapReference={reference} placeholder="Sucursal, dirección y ciudad" onChange={value => setCandidates(rows => rows.map(row => row.id === candidate.id ? { ...row, value, selected: null } : row))} onSuggestions={onMapSearch ? locations => {
+        {candidates.map((candidate, index) => <div className="manifest-candidate" key={candidate.id} ref={node => { if (node) candidateNodes.current.set(candidate.id, node); else candidateNodes.current.delete(candidate.id); }}><label className="manifest-include"><input type="checkbox" checked={candidate.enabled} onChange={event => setCandidates(rows => rows.map(row => row.id === candidate.id ? { ...row, enabled: event.target.checked } : row))}/> Incluir entrega {index + 1}</label>
+          <dl className="manifest-comparison"><div><dt>Texto preparado del manifiesto</dt><dd>{candidate.sourceValue}</dd></div><div><dt>{manifestPointConfirmed(candidate) ? 'Punto confirmado' : 'Ubicación por corroborar'}</dt><dd>{candidate.value}</dd></div></dl>
+          <p>{!candidate.enabled ? 'Excluida del recorrido' : manifestPointConfirmed(candidate) ? <strong>✓ Confirmada</strong> : 'Pendiente de confirmación'}</p>
+          {candidate.enabled && <button type="button" className="map-open-button" aria-expanded={activeId === candidate.id} onClick={() => { setActiveId(candidate.id); setReviewRequest({ id: candidate.id }); }}>{manifestPointConfirmed(candidate) ? 'Revisar punto confirmado' : 'Revisar ubicación'}</button>}{candidate.enabled && activeId === candidate.id && <LocationInput key={`${candidate.id}-${reference?.lat}-${reference?.lng}`} title={`Entrega ${index + 1}`} color="number" apiUrl={apiUrl} value={candidate.value} selected={candidate.selected} mapReference={reference} placeholder="Sucursal, dirección y ciudad" onChange={value => setCandidates(rows => rows.map(row => row.id === candidate.id ? { ...row, value, selected: null } : row))} onSuggestions={onMapSearch ? locations => {
           if (!open || !active || candidate.id !== activeId || !candidate.enabled) return;
           if (!locations.length) { clearMap(); return; }
           const search = { requestId: crypto.randomUUID(), candidateId: candidate.id, value: candidate.value, title: `Entrega ${index + 1} del manifiesto`, points: locations };

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { manifestCandidates } from '../lib/manifest.ts';
-import { nearbyManifestLocations, repeatedManifestLines } from '../lib/manifest-review.ts';
+import { manifestPointConfirmed, nextManifestReviewId, nearbyManifestLocations, repeatedManifestLines } from '../lib/manifest-review.ts';
 
 test('manifest preserves repeated orders, their positions and more than eight deliveries', () => {
   const address='Bodega Aurrera Express, Calle Cedro 312, Chihuahua';
@@ -29,4 +29,30 @@ test('review keeps the ten-meter threshold precise and handles the antimeridian'
   assert.equal(nearbyManifestLocations([base,row('inside',metersToLatitude(9.999),0)]).length,1);
   assert.equal(nearbyManifestLocations([base,row('outside',metersToLatitude(10.001),0)]).length,0);
   assert.equal(nearbyManifestLocations([row('west',0,-179.99999),row('east',0,179.99999)]).length,1);
+});
+
+test('guided review advances after the current row, skips exclusions and wraps to earlier unfinished orders', () => {
+  const rows=Array.from({length:49},(_,i)=>({...row('Repeated Express',28.63,-106.07,{selected:null}),id:String(i+1)}));
+  rows[1].enabled=false;
+  rows[20].selected={label:rows[20].value,lat:28.63,lng:-106.07};
+  assert.equal(nextManifestReviewId(rows),'1');
+  assert.equal(nextManifestReviewId(rows,'1'),'3');
+  assert.equal(nextManifestReviewId(rows,'20'),'22');
+  assert.equal(nextManifestReviewId(rows,'49'),'1');
+  assert.equal(nextManifestReviewId(rows,'unknown'),'1');
+  assert.equal(rows.length,49,'review never removes repeated deliveries');
+  for(const item of rows)item.selected={label:item.value,lat:28.63,lng:-106.07};
+  assert.equal(nextManifestReviewId(rows),null);
+  rows[0].value='Edited address';assert.equal(nextManifestReviewId(rows,'49'),'1');
+  assert.equal(nextManifestReviewId([]),null);
+  assert.equal(nextManifestReviewId(rows.map(item=>({...item,enabled:false}))),null);
+});
+
+test('guided review treats stale and out-of-range coordinates as unfinished, including coordinates equal to zero', () => {
+  for(const invalid of [null,{label:'old',lat:0,lng:0},{label:'point',lat:NaN,lng:0},{label:'point',lat:91,lng:0},{label:'point',lat:0,lng:181}]){
+    const candidate={id:'pending',value:'point',enabled:true,selected:invalid};
+    assert.equal(manifestPointConfirmed(candidate),false);
+    assert.equal(nextManifestReviewId([candidate]),'pending');
+  }
+  assert.equal(manifestPointConfirmed(row('point',0,0)),true);
 });
