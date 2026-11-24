@@ -43,6 +43,53 @@ async function paste(text) {
 afterEach(async () => { await act(async () => root?.unmount()); container?.remove(); globalThis.fetch = savedFetch; });
 after(() => dom.window.close());
 
+const candidate = {label:'Sucursal propuesta',lat:28.635300123,lng:-106.088900456};
+async function candidateHarness(fetcher, geolocation=success) {
+  const state={published:[],confirmed:null};
+  globalThis.fetch=fetcher;
+  Object.defineProperty(navigator,'geolocation',{configurable:true,value:geolocation});
+  function CandidateHarness(){
+    const [value,setValue]=useState('Sucursal escrita'),[selected,setSelected]=useState(null);
+    return React.createElement(LocationInput,{title:'Origen',color:'green',value,selected,apiUrl:'/api',placeholder:'',allowCurrentLocation:true,
+      onChange:next=>{setValue(next);setSelected(null);},onConfirm:point=>{state.confirmed=point;setSelected(point);},onSuggestions:points=>state.published.push(points)});
+  }
+  container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  await act(async()=>root.render(React.createElement(CandidateHarness)));
+  state.input=container.querySelector('[role="combobox"]');
+  await act(async()=>state.input.focus());
+  return state;
+}
+const settleCandidates=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,350)));
+const escapeCandidate=state=>act(async()=>state.input.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true})));
+
+test('Escape withdraws visible map candidates, preserves the draft and allows an explicit new search on focus',async()=>{
+  let calls=0;const state=await candidateHarness(async()=>{calls++;return Response.json({suggestions:[candidate]});});
+  await settleCandidates();assert.deepEqual(state.published.at(-1),[candidate]);
+  await escapeCandidate(state);assert.deepEqual(state.published.at(-1),[]);assert.equal(container.querySelector('[role="option"]'),null);assert.equal(state.input.value,'Sucursal escrita');assert.equal(state.confirmed,null);
+  await settleCandidates();assert.equal(calls,1);
+  await act(async()=>{state.input.blur();state.input.focus();});await settleCandidates();assert.equal(calls,2);assert.deepEqual(state.published.at(-1),[candidate]);
+  await act(async()=>container.querySelector('[role="option"]').click());assert.equal(state.confirmed,null);
+  await act(async()=>button('Confirmar punto').click());assert.deepEqual(state.confirmed,candidate);assert.deepEqual(state.published.at(-1),[]);
+});
+
+test('Escape before debounce cancels the request without changing or confirming the location',async()=>{
+  let calls=0;const state=await candidateHarness(async()=>{calls++;return Response.json({suggestions:[candidate]});});
+  await escapeCandidate(state);await settleCandidates();assert.equal(calls,0);assert.deepEqual(state.published.at(-1),[]);assert.equal(state.confirmed,null);assert.equal(state.input.value,'Sucursal escrita');
+});
+
+test('Escape aborts an in-flight search and ignores a transport that still returns its old candidate',async()=>{
+  let release,signal;const state=await candidateHarness((url,options)=>{signal=options.signal;return new Promise(resolve=>{release=resolve;});});
+  await settleCandidates();assert.ok(release);assert.equal(state.input.getAttribute('aria-busy'),'true');
+  await escapeCandidate(state);assert.equal(signal.aborted,true);assert.equal(state.input.getAttribute('aria-busy'),'false');
+  await act(async()=>release(Response.json({suggestions:[candidate]})));assert.deepEqual(state.published.at(-1),[]);assert.equal(container.querySelector('[role="option"]'),null);assert.equal(state.input.value,'Sucursal escrita');assert.equal(state.confirmed,null);
+});
+
+test('starting GPS withdraws old candidates even when permission fails and the address stays unchanged',async()=>{
+  let calls=0;const state=await candidateHarness(async()=>{calls++;return Response.json({suggestions:[candidate]});},{getCurrentPosition(ok,fail){fail({code:1});}});
+  await settleCandidates();assert.deepEqual(state.published.at(-1),[candidate]);
+  await act(async()=>{state.input.blur();button('Usar mi ubicación').click();});assert.deepEqual(state.published.at(-1),[]);assert.equal(container.querySelector('[role="option"]'),null);assert.match(container.textContent,/No se permitió el acceso/);assert.equal(state.input.value,'Sucursal escrita');assert.equal(state.confirmed,null);await settleCandidates();assert.equal(calls,1);
+});
+
 test('GPS click confirms the precise point, resolved address and accuracy', async () => {
   await render(success);
   assert.equal(reverseCalls.length, 0);

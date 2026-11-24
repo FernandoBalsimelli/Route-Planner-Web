@@ -80,6 +80,49 @@ test('opening saved locations clears prior public map candidates without changin
  }
 });
 
+test('Escape removes dismissed map candidates and Enter searches again without confirming a delivery on mobile and desktop',async()=>{
+ for(const width of [390,1280]){
+  const {context,page}=await setup(()=>{},{width,height:844});let calls=0;
+  try{
+   await page.route('**/api/route-planner/v1/locations/suggest?**',route=>{calls++;return route.fulfill({json:{ok:true,suggestions:[{label:'Sucursal sintética por corroborar',lat:28.635300123,lng:-106.088900456}]}});});
+   await page.goto(base);const input=page.getByRole('combobox',{name:'Destino',exact:true}),field=page.locator('.location-field').filter({has:input});
+   await input.fill('Sucursal de prueba');await page.locator('.rp-map-pin-search').waitFor();await input.press('ArrowDown');await input.press('Escape');
+   await page.locator('.rp-map-pin-search').waitFor({state:'detached'});assert.equal(await field.getByRole('option').count(),0);assert.equal(await field.locator('.location-confirmed').count(),0);assert.equal(await input.inputValue(),'Sucursal de prueba');assert.equal(await input.getAttribute('aria-activedescendant'),null);
+   await page.waitForTimeout(400);assert.equal(calls,1,'dismissing must not immediately restart the search');
+   await input.press('Enter');await page.locator('.rp-map-pin-search').waitFor();assert.equal(calls,2);assert.equal(await field.locator('.location-confirmed').count(),0);
+   await field.getByRole('option').click();assert.equal(await field.locator('.location-confirmed').count(),0);await field.getByRole('button',{name:'Confirmar punto',exact:true}).click();await page.locator('.rp-map-pin-search').waitFor({state:'detached'});
+   assert.equal(await input.inputValue(),'Sucursal sintética por corroborar');assert.equal(await field.locator('.location-confirmed').count(),1);await input.press('Escape');assert.equal(await field.locator('.location-confirmed').count(),1,'Escape must preserve a confirmed point');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  }finally{await context.close();}
+ }
+});
+
+test('opening the map withdraws public candidates but retains their location as the review seed on mobile and desktop',async()=>{
+ for(const width of [390,1280]){
+  const {context,page}=await setup(()=>{},{width,height:844});const reversed=[];
+  try{
+   await page.route('**/api/route-planner/v1/locations/**',route=>{
+    const url=new URL(route.request().url());if(url.pathname.endsWith('/reverse')){reversed.push({lat:Number(url.searchParams.get('lat')),lng:Number(url.searchParams.get('lng'))});return route.fulfill({json:{ok:true,location:{label:'Acceso revisado en el mapa'}}});}
+    return route.fulfill({json:{ok:true,suggestions:[{label:'Propuesta cercana',lat:28.635300123,lng:-106.088900456}]}});
+   });
+   await page.goto(base);const input=page.getByRole('combobox',{name:'Destino',exact:true}),field=page.locator('.location-field').filter({has:input});await input.fill('Dirección por revisar');await page.locator('.rp-map-pin-search').waitFor();
+   await field.getByRole('button',{name:'Elegir destino en el mapa',exact:true}).click();await page.getByRole('region',{name:'Mapa para destino',exact:true}).waitFor();await page.locator('.rp-map-pin-search').waitFor({state:'detached'});assert.equal(await input.inputValue(),'Dirección por revisar');assert.equal(await field.locator('.location-confirmed').count(),0);
+   await page.getByRole('button',{name:'Elegir el centro del mapa',exact:true}).click();await page.getByText('Comprueba la dirección y confirma el punto.',{exact:true}).waitFor();assert.equal(reversed.length,1);assert.ok(Math.abs(reversed[0].lat-28.635300123)<.00001);assert.ok(Math.abs(reversed[0].lng+106.088900456)<.00001);assert.equal(await field.locator('.location-confirmed').count(),0);
+   await page.getByRole('button',{name:'Confirmar punto del mapa',exact:true}).click();assert.equal(await field.locator('.location-confirmed').count(),1);assert.equal(await page.locator('.rp-map-pin-search').count(),0);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  }finally{await context.close();}
+ }
+});
+
+test('GPS permission failure clears prior candidates while preserving the written origin on mobile and desktop',async()=>{
+ for(const width of [390,1280]){
+  const {context,page}=await setup(()=>Object.defineProperty(navigator,'geolocation',{configurable:true,value:{getCurrentPosition(ok,fail){fail({code:1});}}}),{width,height:844});let calls=0;
+  try{
+   await page.route('**/api/route-planner/v1/locations/suggest?**',route=>{calls++;return route.fulfill({json:{ok:true,suggestions:[{label:'Origen anterior propuesto',lat:28.635300123,lng:-106.088900456}]}});});
+   await page.goto(base);const input=page.getByRole('combobox',{name:'Origen',exact:true}),field=page.locator('.location-field').filter({has:input});await input.fill('Origen escrito');await page.locator('.rp-map-pin-search').waitFor();
+   await page.getByRole('button',{name:'Usar mi ubicación actual',exact:true}).click();await page.getByText(/No se permitió el acceso/).waitFor();await page.locator('.rp-map-pin-search').waitFor({state:'detached'});assert.equal(await field.getByRole('option').count(),0);assert.equal(await input.inputValue(),'Origen escrito');assert.equal(await field.locator('.location-confirmed').count(),0);await page.waitForTimeout(400);assert.equal(calls,1);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  }finally{await context.close();}
+ }
+});
+
 test('Maps search links paste as unconfirmed coordinates while short links and viewports preserve the draft',async()=>{
  for(const viewport of [{width:390,height:844},{width:1365,height:900}]){
   const {context,page}=await setup(()=>{},viewport);const queries=[];let external=0;
