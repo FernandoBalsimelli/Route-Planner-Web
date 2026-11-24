@@ -5,7 +5,7 @@ import { MAX_INTERMEDIATE_STOPS } from '@/lib/route-limits';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import LocationInput from './LocationInput';
 import { manifestCandidates } from '@/lib/manifest';
-import { manifestPointConfirmed, nextManifestReviewId, nearbyManifestLocations, repeatedManifestLines } from '@/lib/manifest-review';
+import { manifestPointConfirmed, manifestReuseChoices, nextManifestReviewId, nearbyManifestLocations, repeatedManifestLines } from '@/lib/manifest-review';
 import { manifestMapPoint, type ManifestMapSearch, type ManifestMapSelection } from '@/lib/manifest-map';
 import type { Coordinates, LocationSelection } from '@/lib/locations';
 type Candidate = { id: string; sourceValue: string; value: string; selected: LocationSelection | null; enabled: boolean };
@@ -15,6 +15,7 @@ export default function ManifestImport({ apiUrl, reference, remaining, hasDestin
   const [text, setText] = useState('');
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [activeId, setActiveId] = useState('');
+  const [independentReviewId, setIndependentReviewId] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [useLast, setUseLast] = useState(!hasDestination);
@@ -30,11 +31,16 @@ export default function ManifestImport({ apiUrl, reference, remaining, hasDestin
   const mapCallback = useRef(onMapSearch); mapCallback.current = onMapSearch;
   const activeCandidate = candidates.find(row => row.id === activeId);
   function clearMap() { mapRequest.current = null; mapCallback.current?.(null); }
+  function reviewTarget(id: string) {
+    const row = candidateNodes.current.get(id);
+    return row?.querySelector<HTMLElement>('input[role="combobox"]') || row?.querySelector<HTMLElement>('button[data-manifest-reuse]');
+  }
   function confirmCandidate(id: string, point: LocationSelection) {
     const updated = candidates.map(row => row.id === id ? { ...row, value: point.label, selected: point } : row);
     setCandidates(updated);
     const next = nextManifestReviewId(updated, id);
     setActiveId(next || id);
+    setIndependentReviewId('');
     setReviewRequest({ id: next || id, finish: !next });
     clearMap();
   }
@@ -48,12 +54,12 @@ export default function ManifestImport({ apiUrl, reference, remaining, hasDestin
     if (point) confirmCandidate(activeId, point);
   }, [mapSelection]);
   useEffect(() => {
-    if (open && active) candidateNodes.current.get(activeId)?.querySelector<HTMLInputElement>('input[role="combobox"]')?.focus({ preventScroll: true });
+    if (open && active) reviewTarget(activeId)?.focus({ preventScroll: true });
   }, [open, active, activeId]);
   useEffect(() => () => scan.current?.abort(), []);
   useEffect(() => {
     if (!reviewRequest) return;
-    const input = candidateNodes.current.get(reviewRequest.id)?.querySelector<HTMLInputElement>('input[role="combobox"]');
+    const input = reviewTarget(reviewRequest.id);
     const target = reviewRequest.finish && importButton.current && !importButton.current.disabled ? importButton.current : input;
     target?.focus({ preventScroll: true });
     target?.scrollIntoView?.({ block: 'center', behavior: 'instant' });
@@ -62,6 +68,7 @@ export default function ManifestImport({ apiUrl, reference, remaining, hasDestin
   const points = selected.flatMap(candidate => manifestPointConfirmed(candidate) && candidate.selected ? [candidate.selected] : []);
   const pendingId = nextManifestReviewId(candidates);
   const pendingPosition = candidates.findIndex(row => row.id === pendingId) + 1;
+  const reuseChoices = manifestReuseChoices(candidates, activeId);
   const capacity = remaining + (useLast ? 1 : 0);
   const repeatedLines = useMemo(() => repeatedManifestLines(candidates.map(row => row.sourceValue)), [candidates]);
   const nearbyPairs = useMemo(() => nearbyManifestLocations(candidates), [candidates]);
@@ -117,7 +124,14 @@ export default function ManifestImport({ apiUrl, reference, remaining, hasDestin
         {candidates.map((candidate, index) => <div className="manifest-candidate" key={candidate.id} ref={node => { if (node) candidateNodes.current.set(candidate.id, node); else candidateNodes.current.delete(candidate.id); }}><label className="manifest-include"><input type="checkbox" checked={candidate.enabled} onChange={event => setCandidates(rows => rows.map(row => row.id === candidate.id ? { ...row, enabled: event.target.checked } : row))}/> Incluir entrega {index + 1}</label>
           <dl className="manifest-comparison"><div><dt>Texto preparado del manifiesto</dt><dd>{candidate.sourceValue}</dd></div><div><dt>{manifestPointConfirmed(candidate) ? 'Punto confirmado' : 'Ubicación por corroborar'}</dt><dd>{candidate.value}</dd></div></dl>
           <p>{!candidate.enabled ? 'Excluida del recorrido' : manifestPointConfirmed(candidate) ? <strong>✓ Confirmada</strong> : 'Pendiente de confirmación'}</p>
-          {candidate.enabled && <button type="button" className="map-open-button" aria-expanded={activeId === candidate.id} onClick={() => { setActiveId(candidate.id); setReviewRequest({ id: candidate.id }); }}>{manifestPointConfirmed(candidate) ? 'Revisar punto confirmado' : 'Revisar ubicación'}</button>}{candidate.enabled && activeId === candidate.id && <LocationInput key={`${candidate.id}-${reference?.lat}-${reference?.lng}`} title={`Entrega ${index + 1}`} color="number" apiUrl={apiUrl} value={candidate.value} selected={candidate.selected} mapReference={reference} placeholder="Sucursal, dirección y ciudad" onChange={value => setCandidates(rows => rows.map(row => row.id === candidate.id ? { ...row, value, selected: null } : row))} onSuggestions={onMapSearch ? locations => {
+          {candidate.enabled && <button type="button" className="map-open-button" aria-expanded={activeId === candidate.id} onClick={() => { setActiveId(candidate.id); setReviewRequest({ id: candidate.id }); }}>{manifestPointConfirmed(candidate) ? 'Revisar punto confirmado' : 'Revisar ubicación'}</button>}
+          {candidate.enabled && activeId === candidate.id && reuseChoices.length > 0 && <div className="manifest-reuse" role="region" aria-label={`Puntos anteriores para entrega ${index + 1}`}>
+            <strong>Este texto ya fue corroborado antes</strong><p>Comprueba que sea la misma sucursal y acceso. Confirmar aquí conserva ambas entregas y su orden; no añade nada al recorrido todavía.</p>
+            {reuseChoices.length > 1 && <p>Hay puntos distintos para el mismo texto. Elige el correcto o busca otro.</p>}
+            {reuseChoices.map(choice => <div key={choice.position}><p><b>Entrega {choice.position}:</b> {choice.point.label}<small>{choice.point.lat}, {choice.point.lng}</small></p><button type="button" className="map-open-button" data-manifest-reuse onClick={() => confirmCandidate(candidate.id, { ...choice.point })}>Confirmar punto de entrega {choice.position}</button></div>)}
+            {independentReviewId !== candidate.id && <button type="button" className="text-button" onClick={() => { setIndependentReviewId(candidate.id); setReviewRequest({ id: candidate.id }); }}>Buscar o ajustar otro punto</button>}
+          </div>}
+          {candidate.enabled && activeId === candidate.id && (!reuseChoices.length || independentReviewId === candidate.id) && <LocationInput key={`${candidate.id}-${reference?.lat}-${reference?.lng}`} title={`Entrega ${index + 1}`} color="number" apiUrl={apiUrl} value={candidate.value} selected={candidate.selected} mapReference={reference} placeholder="Sucursal, dirección y ciudad" onChange={value => setCandidates(rows => rows.map(row => row.id === candidate.id ? { ...row, value, selected: null } : row))} onSuggestions={onMapSearch ? locations => {
           if (!open || !active || candidate.id !== activeId || !candidate.enabled) return;
           if (!locations.length) { clearMap(); return; }
           const search = { requestId: crypto.randomUUID(), candidateId: candidate.id, value: candidate.value, title: `Entrega ${index + 1} del manifiesto`, points: locations };
