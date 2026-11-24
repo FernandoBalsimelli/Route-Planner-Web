@@ -11,7 +11,7 @@ type Municipality={id:string;name:string;state:string;coverage:string;routingEnf
 type Road={road:string;segment:string;page:number;annex:number};
 type TimeRule=Road&{days:number[];start:string;end:string;maximumAxlesExempt:number|null;interpretation:string;interpretationNote:string};
 type ProvisionEvidence={jurisdiction:string;scope:string;consultedAt:string;consolidatedThrough?:string;approvedAt?:string};
-type Rule=VehicleReferenceRule&{documentReview?:unknown;id:string;title:string;description:string;citation:string;kind?:string;activity?:'loading'|'parking'|'circulation';evidence?:ProvisionEvidence;actEvidence?:ProvisionEvidence;sourceUrl?:string;page?:number;window?:{start:string;end:string;timezone:string;days:number[]|null;effect:string};vehicleConfigurations?:string[]};
+type Rule=VehicleReferenceRule&{documentReview?:unknown;id:string;title:string;description:string;citation:string;kind?:string;activity?:'loading'|'parking'|'circulation';evidence?:ProvisionEvidence;actEvidence?:ProvisionEvidence;publishedAt?:string;effectiveFrom?:string;sourceUrl?:string;page?:number;window?:{start:string;end:string;timezone:string;days:number[]|null;effect:string};vehicleConfigurations?:string[]};
 type Reference={scope?:string;rules?:Rule[];parkingCorridorReference?:ParkingCorridorReference;relatedLinks?:Array<{title:string;url:string}>;name:string;status:string;routingEnforced:boolean;source:{id?:string;url:string;checkedAt:string;pages?:number[];legalReview?:string;documentTypeLabel?:string;jurisdictionLabel?:string;publishedAt?:string;consolidatedThrough?:string}|null;trunkSegments:Road[];timeRules:TimeRule[];notices:string[]};
 const documentDate=(value:string)=>value.split('-').reverse().join('/');
 export default function MunicipalCoverage({ requestedMunicipality, vehicle }: { requestedMunicipality?: { id: string; request: number }; vehicle?: ReviewVehicle }){
@@ -70,7 +70,9 @@ export default function MunicipalCoverage({ requestedMunicipality, vehicle }: { 
       <div><dt>Ámbito específico</dt><dd>{evidence.scope}</dd></div>
       <div><dt>Consulta de esta disposición</dt><dd>{documentDate(evidence.consultedAt)}</dd></div>
       {evidence.consolidatedThrough&&<div><dt>Consolidación indicada en el documento</dt><dd>{documentDate(evidence.consolidatedThrough)} · vigencia posterior pendiente de comprobar</dd></div>}
-      {evidence.approvedAt&&<div><dt>Fecha del acto citado</dt><dd>{documentDate(evidence.approvedAt)} · publicación y vigencia posterior por comprobar</dd></div>}
+      {evidence.approvedAt&&<div><dt>Fecha del acto citado</dt><dd>{documentDate(evidence.approvedAt)} · {rule.publishedAt?'vigencia posterior por comprobar':'publicación y vigencia posterior por comprobar'}</dd></div>}
+      {rule.publishedAt&&<div><dt>Publicación del acto citado</dt><dd>{documentDate(rule.publishedAt)}</dd></div>}
+      {rule.effectiveFrom&&<div><dt>Entrada en vigor indicada por el acto</dt><dd>{documentDate(rule.effectiveFrom)} · no acredita vigencia actual</dd></div>}
      </dl>}
      {rule.kind!=='planning_proposal'&&<><VehicleReferenceComparison rule={rule} vehicle={vehicle}/>{rule.window&&<p className="hint">{rule.window.start}–{rule.window.end} · {rule.window.timezone} · {rule.window.days?'días según fuente':'días y excepciones por comprobar'}</p>}{rule.vehicleConfigurations&&<p className="hint">Configuraciones: {rule.vehicleConfigurations.join(', ')}</p>}</>}
      <p className="hint">{rule.citation} · {rule.kind==='planning_proposal'?'no se aplica al cálculo':'aplicación automática pendiente'}</p>

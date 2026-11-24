@@ -83,3 +83,16 @@ test('dated acts show approval separately from consolidation and inclusive match
  assert.match(card.textContent,/hasta 3.5 t · coincide sólo este dato/);assert.match(card.textContent,/08:00–20:59 · America\/Mexico_City · días y excepciones por comprobar/);
  assert.match(container.textContent,/Coincidir con un dato no autoriza la circulación/);assert.equal(card.querySelector('a').href,'https://official.gob.mx/act.pdf#page=70');
 });
+
+test('a selected historical act separates signature, publication and cited effect without claiming current validity or changing the guide',async()=>{
+ const source=reference('09015','Cuauhtémoc','cdmx-centro');
+ source.rules=[{id:'guide',title:'Circulación según folleto',citation:'Guía 2024 · página 2',description:'Referencia parcial del folleto.',page:2},{id:'act',title:'Circulación · aviso modificatorio de 2021',kind:'historical_amendment',activity:'circulation',description:'Límites estrictos del acto histórico; igualdad por resolver.',citation:'Gaceta 747, artículo 4-II',sourceUrl:'https://official.gob.mx/gaceta.pdf',page:6,publishedAt:'2021-12-15',effectiveFrom:'2021-12-15',actEvidence:{jurisdiction:'Ciudad de México · SEMOVI',scope:'Sólo Perímetro A',consultedAt:'2026-11-24',approvedAt:'2021-12-08'}}];
+ globalThis.fetch=async url=>url.includes('?')?catalog():url.endsWith('/source-status')?Response.json({sources:[],intervalHours:6,stale:false}):Response.json(source);
+ await render({id:'09015',request:1});
+ const cards=container.querySelectorAll('.municipal-time-rules article'),dates=[...cards[1].querySelectorAll('dl div')].map(row=>[row.querySelector('dt').textContent,row.querySelector('dd').textContent]);
+ assert.ok(dates.some(([label,value])=>label==='Fecha del acto citado'&&value==='08/12/2021 · vigencia posterior por comprobar'));
+ assert.ok(dates.some(([label,value])=>label==='Publicación del acto citado'&&value==='15/12/2021'));
+ assert.ok(dates.some(([label,value])=>label==='Entrada en vigor indicada por el acto'&&value==='15/12/2021 · no acredita vigencia actual'));
+ assert.doesNotMatch(cards[1].textContent,/publicación y vigencia posterior por comprobar|Consolidación indicada/);assert.match(cards[1].textContent,/Sólo Perímetro A/);assert.equal(cards[1].querySelector('a').href,'https://official.gob.mx/gaceta.pdf#page=6');assert.equal(cards[1].querySelector('.vehicle-reference-comparison'),null);
+ assert.equal(cards[0].querySelector('dl'),null);assert.equal(cards[0].querySelector('a').href,'https://official.gob.mx/rules#page=2');assert.equal(cards[0].textContent.includes('15/12/2021'),false);
+});

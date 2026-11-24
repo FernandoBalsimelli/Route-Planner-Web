@@ -658,6 +658,27 @@ test('source report retry retains evidence, recovers explicitly and fits mobile 
  }
 });
 
+test('historical municipal acts show signature, publication and cited entry dates separately on mobile and desktop',async()=>{
+ for(const width of [360,1280]){
+  const {context,page}=await setup(()=>{},{width,height:850});
+  const reference={name:'Cuauhtémoc',status:'reference_only',routingEnforced:false,source:{id:'cdmx-centro',url:'https://official.gob.mx/guide.pdf',checkedAt:'2026-11-09T00:00:00Z'},notices:['Sólo Perímetro A; no aplica al trazado.'],trunkSegments:[],timeRules:[],rules:[{id:'guide',title:'Circulación según folleto',description:'Referencia parcial.',citation:'Guía 2024 · página 2',page:2},{id:'act',title:'Circulación · aviso modificatorio de 2021',kind:'historical_amendment',activity:'circulation',description:'Referencia histórica; igualdades por resolver.',citation:'Gaceta 747, artículo 4-II',page:6,sourceUrl:'https://official.gob.mx/gaceta.pdf',publishedAt:'2021-12-15',effectiveFrom:'2021-12-15',actEvidence:{jurisdiction:'Ciudad de México · SEMOVI',scope:'Sólo Perímetro A',consultedAt:'2026-11-24',approvedAt:'2021-12-08'}}]};
+  try{
+   await page.route('**/api/route-planner/**',route=>{
+    const path=new URL(route.request().url()).pathname;
+    if(path.endsWith('/09015'))return route.fulfill({json:reference});
+    if(path.endsWith('/source-status'))return route.fulfill({json:{intervalHours:6,stale:false,sources:[]}});
+    return route.fulfill({json:{states:[{id:'09',name:'Ciudad de México'}],municipalities:[{id:'09015',name:'Cuauhtémoc',coverage:'reference_only'}],totalMunicipalities:2478,municipalitiesWithPartialReference:15}});
+   });
+   await page.goto(base+'/#guia-camion');await page.getByRole('button',{name:'Consultar cobertura municipal',exact:true}).click();await page.getByLabel('Entidad federativa',{exact:true}).selectOption('09');await page.getByLabel('Municipio o demarcación',{exact:true}).selectOption('09015');
+   const card=page.getByRole('article',{name:'Referencia Circulación · aviso modificatorio de 2021',exact:true});await card.waitFor();
+   await card.getByText('08/12/2021 · vigencia posterior por comprobar',{exact:true}).waitFor();await card.getByText('15/12/2021 · no acredita vigencia actual',{exact:true}).waitFor();
+   const dates=await card.locator('dl div').evaluateAll(rows=>rows.map(row=>[row.querySelector('dt').textContent,row.querySelector('dd').textContent]));assert.ok(dates.some(([label,value])=>label==='Publicación del acto citado'&&value==='15/12/2021'));
+   assert.equal(await card.getByRole('link',{name:'Consultar página 6 ↗',exact:true}).getAttribute('href'),'https://official.gob.mx/gaceta.pdf#page=6');assert.doesNotMatch(await card.innerText(),/publicación y vigencia posterior por comprobar/);
+   const guide=page.getByRole('article',{name:'Referencia Circulación según folleto',exact:true});assert.doesNotMatch(await guide.innerText(),/15\/12\/2021|Publicación del acto citado/);assert.equal(await guide.getByRole('link').getAttribute('href'),'https://official.gob.mx/guide.pdf#page=2');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+  }finally{await context.close();}
+ }
+});
+
 test('mobile truck operating profile derives axles, allows unidentified units and fits a narrow screen', async () => {
   const { context, page } = await setup(() => {}, { width: 360, height: 800 });
   try {
