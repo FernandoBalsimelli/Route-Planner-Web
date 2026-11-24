@@ -118,3 +118,6 @@
 .rp-map-pin-focused{outline:3px solid var(--primary);outline-offset:4px}
 @media(max-width:460px){.saved-trace-points li{grid-template-columns:minmax(0,1fr)}.saved-trace-points button{justify-self:start}}
 .manifest-reuse{margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:12px;line-height:1.6}.manifest-reuse p{margin:8px 0;overflow-wrap:anywhere}.manifest-reuse small{display:block;color:var(--muted)}.manifest-reuse>div{padding:8px 0;border-bottom:1px solid var(--line)}.manifest-reuse button{min-height:44px;width:100%;text-align:left}.manifest-reuse>.text-button{margin-top:8px}
+
+/* Native startup gate: preserve the existing field layout without browser fieldset chrome. */
+fieldset.location-field{border:0;padding:0;margin-inline:0;min-inline-size:0}
