@@ -62,6 +62,13 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
 
   function closeMap() { setMapOpen(false); mapButton.current?.focus(); }
 
+  function openLocationBook() {
+    cancelLocation();
+    setMapOpen(false);
+    if (!bookOpen) book?.searchFavorites(selected?.label === value ? '' : value.trim());
+    setBookOpen(current => !current);
+  }
+
   useEffect(() => () => { geoRequest.current++; reverseController.current?.abort(); }, []);
 
   function cancelLocation() {
@@ -211,7 +218,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       />
     </label>
     {pasteNotice && <p className="location-search-status" role="status">{pasteNotice}</p>}
-    <LocationBookTools title={title} value={value} selected={selected} open={bookOpen} onToggle={() => { cancelLocation(); setMapOpen(false); setBookOpen(current => !current); }} onPick={point => { cancelLocation(); setMapOpen(false); setBookOpen(false); setPending(null); onChange(point.label); onConfirm(point); book?.remember(point); }}/>
+    <LocationBookTools title={title} value={value} selected={selected} open={bookOpen} onToggle={openLocationBook} onPick={point => { cancelLocation(); setMapOpen(false); setBookOpen(false); setPending(null); onChange(point.label); onConfirm(point); book?.remember(point); }}/>
     {mapReference && !selected && <label className="nearby-toggle"><input type="checkbox" checked={preferNearby} onChange={event => setPreferNearby(event.target.checked)}/> Priorizar lugares cerca del origen <small>Para otra ciudad: escribe «lugar, ciudad».</small></label>}
     <button type="button" ref={mapButton} className="map-open-button" aria-label={`Elegir ${title.toLowerCase()} en el mapa`} aria-expanded={mapOpen} onClick={() => {
       if (mapOpen) { closeMap(); return; }
@@ -230,6 +237,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       {geoStatus && <p className="location-search-status" role="status" aria-live="polite">{geoStatus}</p>}
     </div>}
     {loading && <p className="location-search-status">Buscando direcciones y lugares…</p>}
+    {book?.signedIn && !bookOpen && !mapOpen && !selected && !pending && !loading && value.trim().length >= 2 && (searchError || searchNotice) && <div className="saved-search-recovery"><button type="button" className="map-open-button" onClick={openLocationBook}>Buscar en mis favoritos</button><p className="hint">Usa la búsqueda que ya escribiste para encontrar una sucursal guardada en tu cuenta. Revisa que corresponda a esta entrega.</p></div>}
     {onSuggestions && visibleSuggestions.length > 0 && !pending && <a className="suggestions-map-link" href="#mapa-planificacion" onClick={() => suggestionsCallback.current?.(visibleSuggestions)}>Ver estas coincidencias en el mapa ↑</a>}
     {!loading && searchNotice && !selected && !pending && <p className="location-search-status" role="status">{searchNotice}</p>}
     {!loading && outsideNearby && suggestions.length > 0 && !selected && !pending && <button type="button" className="text-button" aria-expanded={showDistant} onClick={() => {
