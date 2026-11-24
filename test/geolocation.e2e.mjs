@@ -910,3 +910,53 @@ test('loading references expose selected article counterparts without replacing 
   }finally{await context.close();}
  }
 });
+
+test('guided manifest review keeps source text, visits every pending delivery and returns focus for explicit import', {timeout:120000}, async()=>{
+ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
+  const {context,page}=await setup(()=>{},viewport);page.setDefaultTimeout(15000);
+  try{
+   await page.route('**/api/route-planner/**',route=>{
+    const q=new URL(route.request().url()).searchParams.get('q')||'';
+    return route.fulfill({json:{ok:true,suggestions:[{label:`Acceso corroborado: ${q}`,lat:28.63+(Number(q.match(/Sucursal (\d+)/)?.[1])||12)/1000,lng:-106.07}]}});
+   });
+   await page.goto(base);await page.getByRole('button',{name:'Escanear o pegar manifiesto'}).click();
+   const lines=Array.from({length:12},(_,i)=>`Sucursal ${i===11?1:i+1}, Calle Cedro ${i===11?1:i+1}, Chihuahua`);
+   await page.getByRole('textbox',{name:'Texto del manifiesto'}).fill(lines.join('\n'));
+   await page.getByRole('button',{name:'Preparar direcciones para revisar'}).click();
+   await page.getByRole('checkbox',{name:'Incluir entrega 2',exact:true}).uncheck();
+   const progress=page.getByRole('region',{name:'Avance de revisión del manifiesto',exact:true});
+   await progress.getByText('0 de 11 confirmadas',{exact:true}).waitFor();
+   assert.equal(await page.locator('.manifest-candidate').count(),12);
+   await page.locator('.manifest-candidate').nth(8).getByRole('button',{name:'Revisar ubicación',exact:true}).click();
+   const order=[8,9,10,11,0,2,3,4,5,6,7];
+   for(let step=0;step<order.length;step++){
+    const i=order[step],candidate=page.locator('.manifest-candidate').nth(i);
+    const input=page.getByRole('combobox',{name:`Entrega ${i+1}`,exact:true});
+    await input.waitFor();
+    await page.waitForFunction(title=>{const input=document.querySelector(`input[aria-label="${title}"]`);if(!input||input!==document.activeElement)return false;const r=input.getBoundingClientRect();return r.top>=0&&r.bottom<window.innerHeight-65;},`Entrega ${i+1}`);
+    assert.equal(await candidate.locator('.manifest-comparison dd').first().textContent(),lines[i]);
+    assert.ok(await page.getByRole('button',{name:`Añadir ${step} entregas confirmadas`,exact:true}).isDisabled());
+    await candidate.getByRole('option').click();await candidate.getByRole('button',{name:'Confirmar punto',exact:true}).click();
+    await progress.getByText(`${step+1} de 11 confirmadas`,{exact:true}).waitFor();
+    assert.equal(await candidate.locator('.manifest-comparison dd').first().textContent(),lines[i],'corroboration preserves the manifest identity');
+   }
+   const add=page.getByRole('button',{name:'Añadir 11 entregas confirmadas',exact:true});
+   await page.waitForFunction(()=>document.activeElement===document.querySelector('.manifest-body .primary-button'));
+   assert.ok(await add.isEnabled());assert.equal(await page.getByRole('combobox',{name:'PARADA 1',exact:true}).count(),0,'review never imports without operator action');
+   await page.locator('.manifest-candidate').nth(8).getByRole('button',{name:'Revisar punto confirmado',exact:true}).click();
+   await page.getByRole('combobox',{name:'Entrega 9',exact:true}).fill('Sucursal 9, Acceso de carga corregido');
+   await progress.getByText('10 de 11 confirmadas',{exact:true}).waitFor();
+   assert.ok(await page.getByRole('button',{name:'Añadir 10 entregas confirmadas',exact:true}).isDisabled());
+   await progress.getByRole('button',{name:'Revisar entrega 9 pendiente',exact:true}).click();
+   const ninth=page.locator('.manifest-candidate').nth(8);
+   assert.equal(await ninth.locator('.manifest-comparison dd').first().textContent(),lines[8]);
+   await ninth.getByRole('option').click();await ninth.getByRole('button',{name:'Confirmar punto',exact:true}).click();
+   await add.click();
+   assert.equal(await page.getByRole('combobox',{name:/^PARADA /}).count(),10);
+   assert.equal(await page.getByRole('combobox',{name:'PARADA 1',exact:true}).inputValue(),`Acceso corroborado: ${lines[0]}`);
+   assert.equal(await page.getByRole('combobox',{name:'PARADA 2',exact:true}).inputValue(),`Acceso corroborado: ${lines[2]}`);
+   assert.equal(await page.getByRole('combobox',{name:'Destino',exact:true}).inputValue(),`Acceso corroborado: ${lines[11]}`,'the repeated final delivery is preserved');
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+  }finally{await context.close();}
+ }
+});

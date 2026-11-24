@@ -6,6 +6,21 @@ export type ManifestReviewCandidate = {
   enabled: boolean;
 };
 
+export function manifestPointConfirmed(row: ManifestReviewCandidate): boolean {
+  const point = row.selected;
+  return Boolean(point && point.label === row.value &&
+    Number.isFinite(point.lat) && Math.abs(point.lat) <= 90 &&
+    Number.isFinite(point.lng) && Math.abs(point.lng) <= 180);
+}
+
+/** Advance in document order, then return to earlier unfinished deliveries. */
+export function nextManifestReviewId(rows: Array<ManifestReviewCandidate & { id: string }>, afterId?: string): string | null {
+  const start = rows.findIndex(row => row.id === afterId) + 1;
+  const pending = [...rows.slice(start), ...rows.slice(0, start)]
+    .find(row => row.enabled && !manifestPointConfirmed(row));
+  return pending?.id ?? null;
+}
+
 /** Positions refer to the original manifest, including excluded rows. */
 export function repeatedManifestLines(values: string[]): number[][] {
   const groups = new Map<string, number[]>();
