@@ -21,6 +21,22 @@ export function nextManifestReviewId(rows: Array<ManifestReviewCandidate & { id:
   return pending?.id ?? null;
 }
 
+export type ManifestReuseChoice = { position: number; point: LocationSelection };
+/** Equal source text is only a proposal: every repeated delivery needs a choice. */
+export function manifestReuseChoices(rows: Array<ManifestReviewCandidate & { id: string; sourceValue: string }>, id: string): ManifestReuseChoice[] {
+  const index = rows.findIndex(row => row.id === id);
+  const target = rows[index];
+  const normalize = (value: string) => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('es');
+  if (!target || !target.enabled || manifestPointConfirmed(target) || !normalize(target.sourceValue) || normalize(target.value) !== normalize(target.sourceValue)) return [];
+  const choices: ManifestReuseChoice[] = [];
+  rows.slice(0, index).forEach((row, previousIndex) => {
+    if (!row.enabled || !manifestPointConfirmed(row) || !row.selected || normalize(row.sourceValue) !== normalize(target.sourceValue)) return;
+    const point = row.selected;
+    if (!choices.some(choice => choice.point.lat === point.lat && choice.point.lng === point.lng && choice.point.label === point.label)) choices.push({ position: previousIndex + 1, point });
+  });
+  return choices;
+}
+
 /** Positions refer to the original manifest, including excluded rows. */
 export function repeatedManifestLines(values: string[]): number[][] {
   const groups = new Map<string, number[]>();

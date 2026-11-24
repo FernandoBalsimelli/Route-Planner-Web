@@ -305,8 +305,8 @@ test('mobile manifest preserves repeated deliveries and makes coincident points 
     await page.getByLabel('Texto repetido en el manifiesto').getByText('Entregas 1, 2: mismo texto.',{exact:true}).waitFor();
     for(let i=0;i<2;i++){
       const row=page.locator('.manifest-candidate').nth(i);
-      await row.getByRole('option').click();
-      await row.getByRole('button',{name:'Confirmar punto',exact:true}).click();
+      if(i===1) await row.getByRole('button',{name:'Confirmar punto de entrega 1',exact:true}).click();
+      else { await row.getByRole('option').click(); await row.getByRole('button',{name:'Confirmar punto',exact:true}).click(); }
     }
     const notice=page.getByLabel('Puntos cercanos entre entregas');
     await notice.getByText(/Entregas 1 y 2/).waitFor();
@@ -957,6 +957,30 @@ test('guided manifest review keeps source text, visits every pending delivery an
    assert.equal(await page.getByRole('combobox',{name:'PARADA 2',exact:true}).inputValue(),`Acceso corroborado: ${lines[2]}`);
    assert.equal(await page.getByRole('combobox',{name:'Destino',exact:true}).inputValue(),`Acceso corroborado: ${lines[11]}`,'the repeated final delivery is preserved');
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+  }finally{await context.close();}
+ }
+});
+
+test('repeated manifest orders explicitly reuse earlier accesses without new lookups or losing deliveries', {timeout:120000},async()=>{
+ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
+  const {context,page}=await setup(()=>{},viewport);page.setDefaultTimeout(15000);
+  const a={label:'Acceso A corroborado',lat:28.630000123,lng:-106.070000456},b={label:'Acceso B corroborado',lat:28.630010123,lng:-106.070010456};let lookups=0;
+  try{
+   await page.route('**/api/route-planner/**',route=>{const u=new URL(route.request().url());if(u.pathname.endsWith('/locations/suggest')){lookups++;return route.fulfill({json:{ok:true,suggestions:[lookups===1?a:b]}});}return route.fulfill({json:{ok:true,suggestions:[]}});});
+   await page.goto(base);await page.getByRole('button',{name:'Escanear o pegar manifiesto'}).click();const source='Bodega Aurrera Express, Calle Cedro 123, Chihuahua';
+   await page.getByRole('textbox',{name:'Texto del manifiesto'}).fill(Array(12).fill(source).join('\n'));
+   await page.getByRole('button',{name:'Preparar direcciones para revisar'}).click();await page.getByRole('option').click();await page.getByRole('button',{name:'Confirmar punto',exact:true}).click();
+   const second=page.getByRole('region',{name:'Puntos anteriores para entrega 2',exact:true});await second.getByRole('button',{name:'Confirmar punto de entrega 1',exact:true}).waitFor();assert.equal(lookups,1);assert.equal(await page.getByRole('combobox',{name:'Entrega 2',exact:true}).count(),0);
+   await page.waitForFunction(()=>{const n=document.activeElement;return n?.hasAttribute('data-manifest-reuse')&&n.getBoundingClientRect().bottom<innerHeight-65;});
+   assert.ok(await page.getByRole('button',{name:'Añadir 1 entregas confirmadas',exact:true}).isDisabled());
+   await second.getByRole('button',{name:'Buscar o ajustar otro punto',exact:true}).click();await page.getByRole('combobox',{name:'Entrega 2',exact:true}).waitFor();await page.getByRole('option').click();await page.getByRole('button',{name:'Confirmar punto',exact:true}).click();assert.equal(lookups,2);
+   const third=page.getByRole('region',{name:'Puntos anteriores para entrega 3',exact:true});await third.getByRole('button',{name:'Confirmar punto de entrega 2',exact:true}).waitFor();assert.equal(await third.getByRole('button',{name:/Confirmar punto de entrega/}).count(),2);await third.getByText(/Hay puntos distintos/).waitFor();
+   await page.getByRole('checkbox',{name:'Incluir entrega 2',exact:true}).uncheck();assert.equal(await third.getByRole('button',{name:'Confirmar punto de entrega 2',exact:true}).count(),0);
+   await page.getByRole('checkbox',{name:'Incluir entrega 2',exact:true}).check();await third.getByRole('button',{name:'Confirmar punto de entrega 2',exact:true}).click();
+   for(let i=4;i<=12;i++)await page.getByRole('region',{name:`Puntos anteriores para entrega ${i}`,exact:true}).getByRole('button',{name:'Confirmar punto de entrega 1',exact:true}).click();
+   assert.equal(lookups,2,'repeated deliveries do not re-query the providers');assert.equal(await page.locator('.manifest-candidate').count(),12);assert.ok((await page.locator('.manifest-comparison dd:first-of-type').allTextContents()).includes(source));
+   assert.equal(await page.getByRole('combobox',{name:/^PARADA /}).count(),0);const add=page.getByRole('button',{name:'Añadir 12 entregas confirmadas',exact:true});await page.waitForFunction(()=>document.activeElement===document.querySelector('.manifest-body .primary-button'));await add.click();
+   assert.equal(await page.getByRole('combobox',{name:/^PARADA /}).count(),11);assert.equal(await page.getByRole('combobox',{name:'PARADA 1',exact:true}).inputValue(),a.label);assert.equal(await page.getByRole('combobox',{name:'PARADA 2',exact:true}).inputValue(),b.label);assert.equal(await page.getByRole('combobox',{name:'PARADA 3',exact:true}).inputValue(),b.label);assert.equal(await page.getByRole('combobox',{name:'Destino',exact:true}).inputValue(),a.label);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   }finally{await context.close();}
  }
 });

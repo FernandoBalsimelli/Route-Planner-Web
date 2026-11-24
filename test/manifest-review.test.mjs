@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { manifestCandidates } from '../lib/manifest.ts';
-import { manifestPointConfirmed, nextManifestReviewId, nearbyManifestLocations, repeatedManifestLines } from '../lib/manifest-review.ts';
+import { manifestPointConfirmed, manifestReuseChoices, nextManifestReviewId, nearbyManifestLocations, repeatedManifestLines } from '../lib/manifest-review.ts';
 
 test('manifest preserves repeated orders, their positions and more than eight deliveries', () => {
   const address='Bodega Aurrera Express, Calle Cedro 312, Chihuahua';
@@ -55,4 +55,30 @@ test('guided review treats stale and out-of-range coordinates as unfinished, inc
     assert.equal(nextManifestReviewId([candidate]),'pending');
   }
   assert.equal(manifestPointConfirmed(row('point',0,0)),true);
+});
+
+const reuseRow=(id,sourceValue='Calle Uno 123',extra={})=>({id,sourceValue,...row(sourceValue,0,0,{selected:null}),...extra});
+test('reuse proposes only earlier included confirmations with the same prepared text and exact original coordinates',()=>{
+ const point={label:'Acceso corroborado',lat:28.630000123,lng:-106.070000456,plusCode:'75WMJWJH+22'};
+ const rows=[reuseRow('a','Calle Uno 123',{value:point.label,selected:point}),reuseRow('b',' calle   UNO 123 '),reuseRow('c','Calle Uno 123',{value:point.label,selected:point})];
+ assert.deepEqual(manifestReuseChoices(rows,'b'),[{position:1,point}]);
+ assert.equal(rows[1].selected,null,'a proposal never confirms a repeated order');
+ assert.equal(rows.length,3);
+ assert.deepEqual(manifestReuseChoices(rows,'a'),[],'later confirmations are not previous deliveries');
+ assert.deepEqual(manifestReuseChoices(rows,'missing'),[]);
+});
+test('reuse excludes removed, stale or invalid source confirmations and an edited target',()=>{
+ const confirmed=reuseRow('a','Calle Uno 123',{selected:{label:'Calle Uno 123',lat:0,lng:0}}),target=reuseRow('b');
+ for(const patch of [{enabled:false},{value:'Edited source point'},{selected:{label:confirmed.value,lat:91,lng:0}},{selected:null}]) assert.deepEqual(manifestReuseChoices([{...confirmed,...patch},target],'b'),[]);
+ for(const patch of [{enabled:false},{value:'Calle Uno 125'},{selected:{label:target.value,lat:0,lng:0}}]) assert.deepEqual(manifestReuseChoices([confirmed,{...target,...patch}],'b'),[]);
+ assert.deepEqual(manifestReuseChoices([confirmed,reuseRow('b','Calle Uno 123, otra ciudad')],'b'),[]);
+ assert.deepEqual(manifestReuseChoices([reuseRow('a','Calle Peña 123',{selected:{label:'Calle Peña 123',lat:0,lng:0}}),reuseRow('b','Calle Pena 123')],'b'),[],'different spelling is not inferred to be the same address');
+});
+test('different confirmed accesses for identical source text remain explicit choices, including adjacent entrances',()=>{
+ const a={label:'Acceso A',lat:28.630000123,lng:-106.070000456},b={label:'Acceso B',lat:28.630000124,lng:-106.070000456};
+ const rows=[reuseRow('a','Tienda',{value:a.label,selected:a}),reuseRow('b','Tienda',{value:b.label,selected:b}),reuseRow('again','Tienda',{value:a.label,selected:a}),reuseRow('pending','Tienda')];
+ assert.deepEqual(manifestReuseChoices(rows,'pending'),[{position:1,point:a},{position:2,point:b}]);
+ assert.equal(rows.length,4,'grouping proposals never deduplicates deliveries');
+ rows[1].selected={...a,label:'Otra etiqueta'};rows[1].value='Otra etiqueta';
+ assert.equal(manifestReuseChoices(rows,'pending').length,2,'distinct labels are retained even at identical coordinates');
 });

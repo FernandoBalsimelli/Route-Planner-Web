@@ -91,8 +91,8 @@ test('manifest imports only explicitly confirmed points and searches one candida
   assert.deepEqual(imported, [{ label: 'Sucursal confirmada, Calle Uno 123', lat: 25.681, lng: -100.31 }]);
 });
 test('manifest retains separate repeated orders and flags coincident confirmations without dropping either', async () => {
-  let imported;
-  globalThis.fetch=async()=>Response.json({suggestions:[{label:'Sucursal confirmada',lat:25.681,lng:-100.31}]});
+  let imported; let lookups=0;
+  globalThis.fetch=async()=>{lookups++;return Response.json({suggestions:[{label:'Sucursal confirmada',lat:25.681,lng:-100.31}]});};
   await render(React.createElement(ManifestImport,{apiUrl:'/api',reference:null,remaining:48,hasDestination:true,onImport:points=>{imported=points;}}));
   await act(async()=>button('Escanear o pegar').click());
   const area=container.querySelector('textarea');
@@ -101,10 +101,17 @@ test('manifest retains separate repeated orders and flags coincident confirmatio
   assert.equal(container.querySelectorAll('.manifest-candidate').length,2);
   assert.match(container.querySelector('[aria-label="Texto repetido en el manifiesto"]').textContent,/Entregas 1, 2/);
   for(let i=0;i<2;i++){
-    await act(async()=>new Promise(resolve=>setTimeout(resolve,360)));
-    await act(async()=>container.querySelector('.location-suggestion').click());
-    await act(async()=>button('Confirmar punto').click());
+    if(i===1){
+      assert.equal(container.querySelector('.location-field'),null,'reuse does not start a second provider search');
+      assert.equal(button('Añadir 1 entregas').disabled,true);
+      await act(async()=>button('Confirmar punto de entrega 1').click());
+    }else{
+      await act(async()=>new Promise(resolve=>setTimeout(resolve,360)));
+      await act(async()=>container.querySelector('.location-suggestion').click());
+      await act(async()=>button('Confirmar punto').click());
+    }
   }
+  assert.equal(lookups,1);
   assert.match(container.querySelector('[aria-label="Puntos cercanos entre entregas"]').textContent,/Entregas 1 y 2/);
   await act(async()=>button('Revisar entrega 2').click());
   assert.equal(document.activeElement,container.querySelector('input[role="combobox"]'));
