@@ -1,6 +1,6 @@
 # Cobertura municipal mexicana y navegación
 
-Revisión: 2026-11-24. Exclusivamente Route Planner. El programa general sigue abierto.
+Revisión: 2026-11-25. Exclusivamente Route Planner. El programa general sigue abierto.
 
 ## Qué existe realmente
 
@@ -8,6 +8,7 @@ Revisión: 2026-11-24. Exclusivamente Route Planner. El programa general sigue a
 | --- | --- | --- |
 | Catálogo y límites INEGI | 32 entidades y 2,478 municipios/demarcaciones; límites oficiales de diciembre de 2025 simplificados y versionados | Identifica aproximadamente qué jurisdicciones toca la polilínea; no es una lista de calles permitidas |
 | Monterrey, código 19039 | 38 renglones de red troncal y 19 renglones de horarios extraídos de los anexos 1–3 del reglamento oficial | Referencia consultable con página y sentido; no exclusión geométrica |
+| Delicias, código 08021 | Tres fichas históricas de copia municipal de 2016, páginas 29/44; publicación estatal y vigencia pendientes | Referencia consultable; sin ventanas, permisos ni exclusiones ejecutables |
 | Otros municipios | Nuevas referencias parciales y estados pendientes; ver ciclo nacional más abajo | Ninguna validación legal añadida |
 | Motor ORS / OSM | Parámetros de dimensiones y peso existentes | Aplica los datos disponibles del proveedor; cobertura incompleta |
 | Navegación interna | GPS e indicaciones sobre la polilínea del cálculo, sin sustituirla | Conserva ese trazado; no acredita legalidad |
@@ -1191,3 +1192,33 @@ Conserva evidencia anterior sin aprobar normas. API/proxy reciben el reporte nue
 Siguen15 municipios parciales y cero completos; sin nuevas geometrías/horarios.
 Fuente histórica de Delicias localizada, aún sin incorporar en este cierre.
 Detalles, producción y rollback en ENGINEERING-STATUS.
+
+
+## Delicias: copia histórica y seguimiento técnico · 25-11-2026
+
+API PR36 incorpora08021 como referencia histórica, con tres fichas seleccionadas,
+fuente primaria municipal, páginas29/44, jurisdicción/ámbito y huella cotejados.
+copyPublishedAt conserva la fecha de la copia; no hay publishedAt/effectiveFrom
+originales inferidos. El transitorio remite a publicación estatal aún no verificada.
+Sin ventanas operativas, límites, geometrías o permisos ejecutables. Son16 municipios
+parciales y cero con validación legal completa, no cobertura nacional terminada.
+
+Revisión y fuente primaria:
+https://github.com/FernandoBalsimelli/Route-Planner-API/blob/main/docs/DELICIAS-HISTORICAL-REFERENCE-20261125.md
+
+Se monitorean PDF e índice histórico municipal; no se acredita consolidación actual.
+Checker local08:11:38.608Z:8 grupos/29 documentos,27 correctos. El reporte posterior
+independiente08:18:34.632Z, preservado en mainc2b2f09, tiene20 correctos y nueve
+fallos: cuatro de red CDMX/cinco403 Juárez. Mantiene las evidencias anteriores.
+API/proxy ya reciben el posterior, stale=false/overdue=false; eso indica fecha
+técnica, no éxito de cada descarga ni vigencia jurídica.
+
+Código d24ad09 y checkpoint posteriorc2b2f09 publicados; alias final
+dpl_27SXS2YBBMS6SbuFniohtztkjZ1x READY/production, SHA exacto. CI97 API y auditoría
+cero; build/97 también sobre main posterior. Web5902f99 conserva código y publicación;
+guía pública muestra16 parciales, Delicias histórico, tres fichas y fechas/ámbitos
+correctos. API/proxy, coordenadas, Plus Codes, búsqueda natural, validate0/2/48,
+rechazo49 y CORS comprobados. No Android físico ni ORS real alojado autenticado.
+Pendientes publicación estatal, reformas y acuerdos actuales, zonas/carriles/sentidos,
+horarios/permisos y geometrías. Google no recibe restricciones HGV ni fija trazado.
+Detalles de pruebas, fuentes, límites y rollback en ENGINEERING-STATUS.

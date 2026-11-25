@@ -2,29 +2,37 @@
 
 Fecha de revisión: 2026-11-25 (Chihuahua). Alcance: exclusivamente Route Planner.
 
-API72ee076fd1616c8e3f766ead8aad892692f5c88b, PR35,
-dpl_CEbDjoGRvN5FJcsD5EXA2aSXxdjk READY/production; alias y SHA exactos.
-Web5902f99ba27f6b1fd3702adaca292694f9702488 conserva
-dpl_Aye1LCSoowDCykqNybAk5kX82n6M READY. Sólo nueva documentación Web.
+API c2b2f0921a199f3233743ad7ae595116d486b137 en producción
+dpl_27SXS2YBBMS6SbuFniohtztkjZ1x READY; alias y SHA exactos.
+Código de Delicias/búsqueda aprobado en PR36/d24ad09; el avance independiente
+c2b2f09 sólo actualiza disponibilidad de fuentes y se preservó/verificó.
+Web 5902f99ba27f6b1fd3702adaca292694f9702488 conserva
+dpl_Aye1LCSoowDCykqNybAk5kX82n6M READY, sin código nuevo.
 
-Se corrige «Bodega Aurrera Express en Chihuahua»: reconocía «en» para retirar
-el foco, pero no para corroborar localidad. Ahora recibe la misma protección
-que la forma con coma; candidatos sin corroborar ocultos hasta revisión explícita.
-No se amplía el catálogo de sucursales ni se verifica cualquier dirección libre.
-Navegador público comprobado antes/después: cinco resultados de otras entidades
-pasaron a aviso explícito, sin selección con Enter, propuesta o confirmación.
+R28 corrige la frase «Bodega Aurrera Express en Chihuahua»: recibe la protección
+de localidad no corroborada, sin nuevas consultas. Navegador público antes/después
+verificado: cinco negocios de otras entidades pasan a aviso y revisión explícita.
+No se amplía el índice Express ni se valida automáticamente toda dirección libre.
 
-Local: build/96 pruebas API/auditoría cero; Web build/TypeScript/243 pruebas.
-CI API45573205760 aprobada,96 pruebas. Los53 navegador/13 Auth de R27 no se
-presentan como nuevas ejecuciones. Sondas públicas de API/proxy, coordenadas,
-Plus Codes, validate0/2/48, rechazo49, plan sin sesión y CORS comprobadas.
-Android físico y ORS real autenticado alojado siguen pendientes.
+R29 añade Delicias08021 como referencia histórica: tres fichas con jurisdicción,
+ámbito, páginas y huella. La Gaceta15-12-2016 es copia municipal, sin fecha estatal
+ni entrada en vigor inferidas. No hay ventanas, pesos, permisos o geometrías
+ejecutables. Guía pública comprobada, sin etiqueta «Publicación original» incorrecta.
+Catálogo:16 municipios con referencia parcial y cero con validación legal completa.
 
-Checker2026-11-25T08:02:57.670Z: siete grupos/27 documentos,25 descargas y
-dosHTTP_503, Consejería CDMX/OJP Puebla. API/proxy recibieron ese reporte nuevo.
-Las descargas no acreditan vigencia. Quedan15 municipios parciales y cero con
-validación legal automática completa. Google no recibe HGV ni fija trazado.
-Sin gastos, migraciones o escrituras alojadas. El programa continúa.
+Build/97 pruebas API y auditoría cero locales/CI; también build/97 locales sobre
+el checkpoint automático posterior. Web build/TypeScript/243 locales aprobados
+en R28;53 navegador/13 Auth de R27 no se presentan como nuevas ejecuciones.
+Sondas reales API/proxy, Delicias, búsqueda, coordenadas/Plus Codes, validate0/2/48,
+rechazo49, plan sin sesión y CORS comprobadas. No Android físico ni ORS alojado
+real autenticado; esos ensayos siguen pendientes.
+
+Monitoreo ampliado a8 grupos/29 documentos. Checker local08:11:38.608Z obtuvo27
+descargas; reporte posterior independiente08:18:34.632Z obtiene20 y registra
+cuatro fallos de red CDMX/cinco403 Juárez. API/proxy sirven el posterior, conservando
+evidencia anterior. Fecha fresca no equivale a descarga correcta o vigencia.
+Sin cambios de cuotas, migraciones, datos de cuenta o Gestión. Google recibe
+puntos, no HGV ni trazado fijo. El programa continúa.
 
 ## Recursos verificados
 
@@ -6242,3 +6250,119 @@ Parciales: direcciones libres, índice Express y normativa nacional. Próximo:
 revisar la copia histórica oficial de Delicias hallada y su cadena de publicación,
 sin aplicarla al motor por tener un PDF. Google no recibe HGV ni fija trazado.
 El programa general y la continuación existente permanecen activos.
+
+
+## Ciclo: referencia histórica de Delicias y monitoreo ampliado · 25-11-2026
+
+### Base y evidencia
+
+API main/runtime72ee076fd1616c8e3f766ead8aad892692f5c88b /
+dpl_CEbDjoGRvN5FJcsD5EXA2aSXxdjk; Web main4e970a5234e9427df8486241897f7c1f11ebdc8f,
+runtime5902f99ba27f6b1fd3702adaca292694f9702488 /
+dpl_Aye1LCSoowDCykqNybAk5kX82n6M. Se preservan avances R28 y el estado de producción.
+
+Delicias08021 estaba sin referencia. Se encontró y descargó una copia en la
+Gaceta municipal de15-12-2016, hospedada por el propio municipio:
+https://municipiodelicias.com/images/transparencia/gacetaMunicipal/Gaceta%20Municipal%202016/Gaceta-Municipal-de-Delicias-Diciembre.pdf
+1,567,327 bytes/52 páginas; SHA-256
+31da346d9f92756cbf2aaea759f30915530d5cfcc15cbe1d927e9bf4c58efdea.
+Texto e imagen de páginas29/44 cotejados. El transitorio remite a publicación
+estatal: la fecha de la copia municipal no demuestra esa publicación o vigencia.
+
+Tres fichas consultables separan maniobras de carga/descarga, condiciones de
+vía/carril/capacidad/abanderamiento y publicación estatal pendiente. No hay
+ventanas ejecutables, umbrales de toneladas/dimensiones, permisos o geometrías.
+timeRules/trunkSegments vacíos; legalValidityVerified=false, routingEnforced=false,
+geometry=null. La franja histórica no autoriza una entrega actual. Se conserva
+America/Chihuahua como referencia horaria de consulta, sin aplicación operativa.
+
+Se corrigió el candidato antes de publicarlo: copyPublishedAt identifica
+15-12-2016; publishedAt/effectiveFrom/consolidatedThrough no se inventan.
+Así la Web no rotula la copia como «Publicación original». Cada ficha incluye
+jurisdicción, ámbito específico, consulta, página y huella. reviewedAt técnico
+tiene fecha/hora real; consultedAt documental conserva el día.
+No se usó un agregador de terceros como norma ni se trató como revisado un informe
+de sindicatura cuyo tamaño60,731,955 bytes impidió abrirlo en la herramienta web.
+
+### Archivos, pruebas y publicación
+
+API: data/mx/national-references.json, data/mx/source-status.json,
+test/municipal-regulations.test.js, test/source-monitor.test.js y
+docs/DELICIAS-HISTORICAL-REFERENCE-20261125.md.
+Se añade PDF e índice histórico oficial al seguimiento existente, sin cambiar
+frecuencia, límites o cuotas. El índice no acredita consolidación actual.
+Catálogo:16 municipios con referencia parcial; cero con validación legal completa.
+
+Las pruebas existentes fijaban15; se actualizaron nueve aserciones a16,
+conservando comprobaciones de no aplicación al motor, y se añadió una regresión
+de evidencia/vigencia/ausencia de geometrías, ventanas y límites ejecutables.
+Local final: build/97 pruebas y auditoría producción cero.
+PR[#36](https://github.com/FernandoBalsimelli/Route-Planner-API/pull/36), candidato
+final5f26830102e162e2c7ac63efd49d103a7567c614; inicial6348263 supersedido.
+CI[45574889152](https://github.com/FernandoBalsimelli/Route-Planner-API/actions/runs/45574889152)
+build/97 pruebas/auditoría cero; logs job139070252222 leídos.
+Cinco archivos remotos y merge d24ad09358ff04198dc4d294cd4d32a0b233f261
+cotejados byte a byte. Primera publicación
+dpl_2FgWcsH6hKYc9pRW9UfNUyaUxuMU READY/production.
+
+Web no tiene cambios de código; conserva build/TypeScript/243 pruebas locales
+R28 y su deployment5902f99. No se presenta la CI53 navegador/13 Auth de R27
+como nueva ejecución ni como validación del Android físico o cálculo ORS alojado.
+
+### Comprobación pública y reporte posterior independiente
+
+La guía pública mostró16 parciales, estado inicial sin entidad preseleccionada,
+listas alfabéticas, selección Chihuahua/Delicias, tres fichas con jurisdicción,
+ámbitos y fecha25/11/2026. Se verificó copia histórica sin etiqueta «Publicación
+original», sin entrada en vigor inferida, con avisos de vigencia/geometrías pendientes
+y enlaces de página29/44. Cero desbordamiento horizontal. Captura JPEG real
+1348x926 inspeccionada. No se modificaron cuentas, rutas, favoritos o vehículos.
+
+Sondas completas terminadas2026-11-25T08:21:22.819084Z: Delicias API/proxy200,
+tres reglas históricas, cero timeRules/tramos y sin aplicación al motor.
+Catálogo16 parciales/0 completos. Búsqueda natural conserva el aviso200 y cinco
+candidatos sin corroborar. Health, coordenadas de nueve decimales y Plus Codes
+completo/compuesto200 como casos independientes. Validate0/2/48→200,49→400;
+plan sin sesión401AUTH_REQUIRED. Son validación de entradas y protección de cuenta,
+no cálculo ORS real de dos/múltiples destinos autenticado. CORS autorizado204,
+ajeno404 sin permiso; HTML inicial bloqueado/ayuda noscript comprobado.
+
+Checker local08:11:38.608Z:8 grupos/29 documentos,27 descargados y dos503.
+Posteriormente main avanzó independientemente a
+c2b2f0921a199f3233743ad7ae595116d486b137, únicamente source-status.json,
+checkedAt08:18:34.632Z. Se preserva sin sobrescribirlo.
+Reporte posterior:20/29 correctos, cuatro NETWORK_OR_TIMEOUT en CDMX y cinco403
+en Juárez; Puebla disponible. No se atribuye una causa de red ni bot-bloqueo no
+demostrada ni se intenta eludir respuestas. La última evidencia correcta se conserva.
+API/proxy recibieron esa copia posterior a08:19:54.149Z, stale=false/overdue=false.
+La fecha técnica fresca no significa descargas correctas de todas las fuentes.
+
+Se verificó diff de un solo archivo frente a d24ad09; build y97 pruebas locales
+pasaron también sobre c2b2f09. No se afirma una nueva CI para el commit automático
+[skip ci]. Publicación final c2b2f0921a199f3233743ad7ae595116d486b137 /
+dpl_27SXS2YBBMS6SbuFniohtztkjZ1x READY/production, build Vercel4s y alias
+https://route-planner-api.vercel.app/ al SHA exacto. El código de referencias y
+búsqueda es el mismo aprobado en CI; sólo cambia el checkpoint de disponibilidad.
+Comprobación final tras el nuevo deployment: health, Delicias y fuentes API/proxy200.
+El reporte conserva08:18:34.632Z, stale=false/overdue=false; recuperación correcta
+observada08:24:27.586Z. No se presenta ese acceso como nueva descarga documental.
+Consultas Vercel error/fatal de30min, agrupadas por requestPath, sin grupos en ambos
+proyectos después de las publicaciones. Observación acotada, no monitoreo permanente.
+
+### Recuperación y siguientes prioridades
+
+Rollback del checkpoint: d24ad09358ff04198dc4d294cd4d32a0b233f261 /
+dpl_2FgWcsH6hKYc9pRW9UfNUyaUxuMU. Para retirar la referencia nueva conservando
+la corrección natural:72ee076fd1616c8e3f766ead8aad892692f5c88b /
+dpl_CEbDjoGRvN5FJcsD5EXA2aSXxdjk. Web sigue5902f99.
+No se ejecutó rollback ni se borraron datos. Ramas/PR y documentos conservados;
+cierre Web sólo documental. Sin gastos, migraciones, secretos o cambios en Gestión.
+
+Completado: referencia histórica consultable, trazabilidad y seguimiento de dos
+URLs de Delicias; comprobaciones indicadas arriba. Parciales: vigencia, geometrías,
+catálogo Express y cobertura nacional. Próximo: localizar publicación estatal,
+reformas y acuerdos actuales de Delicias; corroborar zona, carriles/sentidos,
+horarios y permisos antes de cualquier exclusión. Ampliar ubicaciones comerciales
+con licencia compatible y accesos corroborados. Google recibe puntos, no HGV ni
+trazado fijo. Android físico y ORS real autenticado alojado pendientes.
+El programa general y su continuación existente permanecen activos.
