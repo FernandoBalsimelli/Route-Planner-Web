@@ -1149,3 +1149,33 @@ ni transmiten HGV/permisos a Google. Catálogo Express con licencia e identidad
 corroboradas, coincidencia de ciudad explícita y actos/geometrías municipales
 actuales siguen pendientes. Android físico y ORS real alojado autenticado no
 se comprobaron. Estado, publicación, logs y rollback en ENGINEERING-STATUS.
+
+
+## Localidad explícita en sucursales · 24-11-2026
+
+La recuperación manual R26 se complementa con API #34 / Web #54.
+Para nombre Aurrera/Express/Mi Bodega, localidad (coma o punto y coma),
+la localidad separada prevalece sobre nombres de ciudad en el negocio o el estado
+dentro de label. Se coteja el campo locality normalizado del proveedor.
+Si no hay coincidencia o falta esa metadata, LOCALITY_NOT_VERIFIED mantiene
+los candidatos ocultos en lista/mapa hasta revisión explícita. No se deduce
+inexistencia de la sucursal ni se incorpora un nuevo índice comercial.
+Reconocimiento acotado: direcciones numeradas, estado/país y otras sintaxis
+requieren trabajo adicional; no es una comprobación geográfica oficial.
+No cambia cuotas ni añade consultas de geocodificación.
+
+API2f11d29 / dpl_Gw28VpE28EC1rMmCLBRMuxhZA7UT y
+Web5902f99 / dpl_Aye1LCSoowDCykqNybAk5kX82n6M READY/production, alias/SHA exactos.
+CI: build y94 API; build/TypeScript,243 Web,53 navegador,13 Auth locales;
+auditorías producción cero. GET reales API/proxy devuelven el aviso nuevo para
+la consulta pública Chihuahua/CDMX. Coordenadas precisas y Plus Codes200.
+No se repiten los POST/OPTIONS de validación/CORS de R26 en este ciclo.
+El entorno local y navegador dejaron de estar disponibles después de R26;
+las nuevas pruebas funcionales de interfaz se ejecutan en CI con proveedores
+controlados, sin Android físico ni ORS real autenticado alojado.
+
+Sin nueva descarga documental o revisión jurídica: se conserva el reporte
+03:00:50.241Z de R26, con 25/27 descargas y dos503. Continúan 15 municipios
+parciales y cero con validación legal automática completa. Sin nuevos permisos,
+horarios, excepciones, sentidos, dimensiones o geometrías aplicadas al motor.
+Google no recibe HGV/permisos ni fija trazado. Estado y rollback en ingeniería.

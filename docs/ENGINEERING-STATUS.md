@@ -2,31 +2,32 @@
 
 Fecha de revisión: 2026-11-24 (Chihuahua). Alcance: exclusivamente Route Planner.
 
-Estado vigente: Web 6fc3505aafa3b13f37ee69654a932e63085b19b4, PR #53,
-en producción dpl_DXHQuCabmoYwCnp2Y88Jbde6QkzB READY; alias y SHA exactos.
-Búsqueda manual en Maps disponible ante fallo/ausencia/lejanía y plegada con
-sugerencias normales; conserva el texto/ciudad y exige volver para corroborar.
-Sin consultas Google automáticas, SDK, clave o importación de resultados.
+Estado vigente: Web 5902f99ba27f6b1fd3702adaca292694f9702488, PR #54,
+dpl_Aye1LCSoowDCykqNybAk5kX82n6M READY/production; alias y SHA exactos.
+API 2f11d29a46e20b157b1e88d28599cb46e40b30d7, PR #34,
+dpl_Gw28VpE28EC1rMmCLBRMuxhZA7UT READY/production; alias y SHA exactos.
 
-Se confirmó públicamente que «Bodega Aurrera Express, Chihuahua» puede devolver
-ocho sucursales CDMX sin aviso. La nueva alternativa manual permite recuperar ese
-caso; siguen pendientes validar localidad explícita y completar el índice Express.
-Coordenadas de nueve decimales, propuesta real y confirmación explícita verificadas.
-No se confirma un acceso de camión por seleccionar una sucursal.
+La consulta «Bodega Aurrera Express, Chihuahua» sigue recibiendo ocho negocios
+CDMX del proveedor, pero ahora API/proxy devuelven LOCALITY_NOT_VERIFIED.
+Para búsquedas Aurrera con localidad separada se prioriza ese calificador usando
+locality del proveedor, sin deducir ciudad de label/estado/nombre comercial.
+Si no se corrobora, Web oculta lista/mapa hasta revisión explícita; Enter no elige
+puntos ocultos. Se conserva la recuperación manual Maps con texto/ciudad literal.
+Es un reconocimiento acotado, no catálogo Express ampliado ni validación geográfica
+oficial de cualquier dirección. Identidad/acceso siguen requiriendo corroboración.
 
-Verificación: build/TypeScript, 242 pruebas Web, 52 casos de navegador y
-13 integraciones Auth/REST/Postgres locales; build y 91 pruebas API.
-Auditorías producción cero. Casos a 390/1280 px incluyen recuperación, ciudad,
-precisión y objetivos táctiles de 44 px. Android físico y cálculo ORS real
-autenticado alojado siguen sin comprobar; CI usa proveedores/ORS controlados.
+CI R27 aprobada: build y 94 pruebas API; build/TypeScript, 243 Web,
+53 navegador y 13 Auth/REST/Postgres locales; auditorías producción cero.
+El entorno local dejó de estar disponible después de R26; se continuó por
+GitHub/CI y se cotejaron los archivos remotos. GET reales de producción comprobaron
+aviso, health, coordenadas/Plus Codes y HTML inicial. La comprobación manual del
+aviso nuevo queda pendiente sin navegador. Android físico y ORS real autenticado
+alojado no comprobados; proveedores/ORS de CI controlados.
 
-API 5cbd12d37c9408918fe40e93dbc39af01100c3a3 sólo actualiza source-status.json;
-se preservó main independiente 9271a13. Deployment
-dpl_3v3QRXxpnL9HUm9sj8kAGvEa45aV READY, alias exacto.
-Checker 2026-11-25T03:00:50.241Z (24-11 21:00 Chihuahua): siete grupos,
-27 documentos, 25 descargas correctas y dos HTTP_503, Consejería CDMX/OJP Puebla.
-API/proxy recibieron realmente el reporte nuevo; stale=false/overdue=false.
-Una descarga no acredita vigencia jurídica ni amplía cobertura por sí misma.
+Se conserva el reporte R26: checker 2026-11-25T03:00:50.241Z
+(24-11 21:00 Chihuahua), siete grupos/27 documentos, 25 descargas y dos HTTP_503,
+Consejería CDMX/OJP Puebla. Recuperar el reporte no ejecuta otro checker ni
+aprueba vigencia. No cambian reglas/horarios/permisos/geometrías en R27.
 
 Se conservan GPS, Plus Codes, vehículos, favoritos, OCR/manifiestos, rutas guardadas,
 48 intermedias y enlaces Google consecutivos. Quedan 15 municipios parciales y cero
@@ -6038,4 +6039,137 @@ orientan Google; no fijan trazado ni transmiten HGV/permisos.
 Android físico y cálculo ORS real autenticado alojado no se comprobaron.
 Sin gastos, datos eliminados, secretos expuestos o escrituras Supabase.
 El programa general continúa y la continuación existente permanece habilitada.
+
+
+
+## Ciclo: no presentar otra ciudad como coincidencia local · 24-11-2026
+
+### Base, causa y alcance
+
+Continuación inmediata tras R26 publicado. Main Web
+9728ee1b01ec4e99b78f8658bcfa7e77ec3caa58; runtime
+6fc3505aafa3b13f37ee69654a932e63085b19b4 / dpl_DXHQuCabmoYwCnp2Y88Jbde6QkzB.
+Main/runtime API 5cbd12d37c9408918fe40e93dbc39af01100c3a3 /
+dpl_3v3QRXxpnL9HUm9sj8kAGvEa45aV. Contrastados antes de modificar.
+ENGINEERING-STATUS y MEXICO-COVERAGE conservan el cierre R26.
+
+La sonda pública y el navegador R26 reprodujeron «Bodega Aurrera Express,
+Chihuahua» →ocho sucursales CDMX sin aviso. El ranking buscaba nombres de localidad
+en cualquier parte de la consulta; si ninguno coincidía conservaba las otras
+ciudades. También una ciudad en el nombre comercial podía competir con el
+calificador separado. Se corrige ese ranking y se marca la falta de coincidencia;
+no se afirma haber incorporado las sucursales omitidas por los proveedores.
+
+Reconocimiento acotado a nombre Aurrera/Express/Mi Bodega seguido de coma o
+punto y coma y una localidad no numérica. El primer calificador tiene prioridad;
+se comparan nombres normalizados del campo locality, sin deducir ciudad de label
+o del estado. Admite tildes, Ciudad [de] y CDMX. Si hay una coincidencia, se
+prioriza sólo esa localidad; si quedan candidatos sin corroborarla, warning
+LOCALITY_NOT_VERIFIED. Metadata ausente tampoco corrobora.
+Estados, país, calles numeradas y otras formas quedan fuera de este reconocimiento;
+no es un parser nacional ni validación geográfica oficial. No consulta servicios
+adicionales, cambia cuotas o altera caché; no garantiza identidad/acceso del negocio.
+
+### Archivos y comportamiento Web
+
+API: lib/nearby.js, index.js y test/nearby.test.js.
+Web: components/LocationInput.tsx, test/location-search-recovery.test.mjs y
+test/geolocation.e2e.mjs.
+
+Con LOCALITY_NOT_VERIFIED, lista y marcadores quedan ocultos hasta pulsar
+«Ver coincidencias sin localidad corroborada». Se pueden ocultar otra vez.
+Enter no selecciona un resultado oculto; el selector tampoco toma ese punto como
+centro inicial. Se muestra un aviso específico y la recuperación manual Maps.
+Editar/cancelar reinicia el estado; elegir y confirmar siguen siendo explícitos.
+Se conserva NO_NEARBY_MATCHES y compatibilidad con la API anterior.
+Sin cambios de vehículos, GPS, manifiestos, rutas guardadas, orden, límites,
+enlaces Google consecutivos, HGV o reglas municipales.
+
+### Pruebas y disponibilidad del entorno
+
+El entorno de ejecución dejó de estar disponible al intentar el siguiente
+parche local; el error fue exec-server transport closed al leer el primer archivo.
+No se aplicó ni publicó ese intento local. Se continuó con GitHub y CI, creando
+ramas de recuperación y cotejando los seis archivos remotos con el contenido
+preparado. No se atribuye el cierre del entorno al usuario.
+No se pudieron repetir build/TypeScript/pruebas locales ni la comprobación manual
+de interfaz de R27. La comprobación pública de navegador descrita en R26 sigue
+perteneciendo a R26; no se presenta como ensayo del nuevo aviso.
+
+API PR [#34](https://github.com/FernandoBalsimelli/Route-Planner-API/pull/34),
+candidato f542dcd02669fba49c426b6f18c2458e2aae7354. CI
+[45540741268](https://github.com/FernandoBalsimelli/Route-Planner-API/actions/runs/45540741268)
+aprobada: build, 94 pruebas y auditoría producción cero; logs job 138958350203.
+Tres regresiones nuevas prueban calificador/locality ausente, estado/nombre
+comercial, alias, filtrado correcto y caché sin consulta adicional.
+
+Web PR [#54](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/54),
+candidato b7972802c56ce2d841bfad82978d7d23ee2f349c. CI
+[45540791318](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/45540791318)
+aprobada: build/TypeScript, 243 pruebas, 53 navegador y 13 Auth/REST/Postgres
+locales reales, auditoría producción cero. Logs jobs 138958513097/138958512875.
+La regresión nueva de componente y la de navegador a 390/1280 px prueban mensaje,
+lista/mapa ocultos, Enter sin selección, revelación/ocultación, edición, texto
+literal y confirmación explícita. Proveedores de búsqueda/GPS controlados.
+La integración Auth fija API 772a6b2ba6bc56f79c3ac3adfbbfe149e9679e07;
+ORS/geometrías sintéticos. No es una sesión del propietario ni cálculo ORS real.
+Web merge 5902f99ba27f6b1fd3702adaca292694f9702488; deployment
+dpl_Aye1LCSoowDCykqNybAk5kX82n6M READY/production, build Vercel 24 s.
+Alias https://route-planner-web-sand.vercel.app/ al SHA exacto.
+Se publicó primero la Web compatible y después se activó la API.
+
+API merge 2f11d29a46e20b157b1e88d28599cb46e40b30d7; deployment
+dpl_Gw28VpE28EC1rMmCLBRMuxhZA7UT READY/production, build Vercel 4 s.
+Alias https://route-planner-api.vercel.app/ al SHA exacto.
+Los tres archivos de cada merge se cotejaron exactamente con los candidatos
+aprobados, usando GitHub al no haber entorno local. Sin otros archivos de código.
+Sondas reales sobre los alias publicados, contrastadas hasta
+2026-11-25T03:44:15Z mediante la integración Vercel: API y proxy Web health→200.
+«Bodega Aurrera Express, Chihuahua» sigue devolviendo ocho candidatos CDMX,
+pero ahora ambos endpoints responden LOCALITY_NOT_VERIFIED. Se conserva la
+evidencia de la omisión del proveedor; no se inventa una nueva sucursal local.
+
+Coordenadas 28.635300123,-106.088900456 →200, mismas nueve cifras y etiqueta
+SN Avenida Mirador, Chihuahua /75WMJWP6+4C. Plus Codes completo75XMRW22+22 y
+compuestoRW22+22 Chihuahua →200 como ejemplos independientes, no el mismo punto.
+HTML inicial Web200 con ambos fieldsets de ubicación bloqueados y ayuda noscript.
+La revelación del aviso/mapa/teclado se comprobó funcionalmente en CI; no se pudo
+repetir manualmente contra producción por la indisponibilidad del navegador.
+Validaciones reales de 0/2/48 intermedias y49→400, plan sin sesión401 y CORS se
+ejecutaron en R26. No se repitieron esos POST/OPTIONS en R27: la herramienta
+disponible permite GET. El motor de rutas no cambia; no se presenta aquello como
+cálculo ORS real autenticado ni como nuevas sondas realizadas en R27.
+
+Fuente-status200 conserva checkedAt03:00:50.241Z, stale=false/overdue=false.
+Recuperación del reporte03:43:22.783Z/éxito03:43:22.858Z recibió esa misma fecha.
+No es un nuevo checker documental ni una aprobación normativa.
+Consultas finales Vercel error/fatal en ventanas de 30 min, agrupadas por
+requestPath, sin grupos en ambos proyectos. Alcance acotado; no monitoreo continuo
+ni garantía de ausencia futura de errores.
+
+### Fuentes, recuperación y siguientes prioridades
+
+Este ciclo no vuelve a ejecutar el checker ni modifica el reporte. Conserva
+5cbd12d y la evidencia R26 de 2026-11-25T03:00:50.241Z: 25/27 descargas, dos503.
+No se presenta una lectura posterior como nueva descarga documental o revisión
+jurídica. Permanecen 15 municipios parciales y cero completos automáticamente;
+no nuevas geometrías, horarios, sentidos, excepciones o permisos.
+
+Rollback Web: 6fc3505aafa3b13f37ee69654a932e63085b19b4 /
+dpl_DXHQuCabmoYwCnp2Y88Jbde6QkzB. API: 5cbd12d37c9408918fe40e93dbc39af01100c3a3 /
+dpl_3v3QRXxpnL9HUm9sj8kAGvEa45aV. Sin rollback ejecutado.
+Ramas codex/explicit-retail-locality-20261124 en ambos repositorios y PR Web #54 /
+API #34 conservan los candidatos. Cierre documental separado del alias probado.
+
+Completado: reconocimiento acotado y revisión explícita del caso de localidad
+no corroborada, con pruebas concretas arriba. Parcial: reconocimiento de localidades
+en direcciones libres, catálogo Express y normativa nacional. Próximo: comprobar
+manualmente el aviso nuevo al recuperar navegador, mejorar interpretación de
+otras formas de localidad sin inventar precisión y obtener catálogo de sucursales
+compatible con licencia/identidad/acceso. Siguen pendientes actos municipales
+actuales, configuración vehicular, horarios/zona horaria, permisos, excepciones,
+sentidos y geometrías verificadas. Google no recibe HGV ni fija trazado.
+Android físico y ORS real autenticado alojado no comprobados. Sin gastos,
+escrituras Supabase, secretos expuestos o operaciones sobre Gestión.
+El programa general y su continuación existente permanecen activos.
 

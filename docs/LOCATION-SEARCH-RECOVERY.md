@@ -125,3 +125,28 @@ nuevos de navegador a 390/1280 px; conteos finales, CI, despliegue y comprobaci�
 pública en ENGINEERING-STATUS. Proveedores/GPS de CI controlados; no se ejecutó
 una búsqueda dentro de Google ni navegación Android física por verificar la URL.
 Referencia primaria consultada: https://developers.google.com/maps/documentation/urls/get-started
+
+
+## Coincidencias sin localidad corroborada · 24-11-2026
+
+Para búsquedas Aurrera/Express/Mi Bodega con localidad separada por coma o punto
+y coma, la API prioriza ese calificador usando su metadata locality. Si los
+candidatos no lo corroboran (también cuando falta ese dato), devuelve
+LOCALITY_NOT_VERIFIED. Un nombre de ciudad en label o en el negocio no basta.
+Normalización de tildes, Ciudad [de] y CDMX; otras formas y direcciones numeradas,
+estado/país quedan fuera de este reconocimiento acotado. No acredita identidad
+actual, entrada de descarga, precisión de la cartografía o permiso de camión.
+
+Web muestra el motivo y la búsqueda manual en Maps, y oculta lista/marcadores.
+«Ver coincidencias sin localidad corroborada» permite revisarlas y volver a
+ocultarlas; Enter no elige resultados ocultos ni el selector usa su punto como
+centro inicial. Editar/cancelar limpia el estado. Elegir y confirmar permanecen
+explícitos. Se mantienen NO_NEARBY_MATCHES y compatibilidad con una API anterior.
+
+Pruebas nuevas: comparación estricta con locality y localidad ausente, ciudad en
+nombre comercial/estado, alias, selección correcta, caché sin consultas adicionales;
+componente y navegador a 390/1280 px para revelación/ocultación, teclado, mapa,
+texto literal y confirmación. Ver conteos, CI, despliegue y comprobaciones HTTP
+reales en ENGINEERING-STATUS. Sin entorno local/navegador manual en esta segunda
+etapa; no se presenta el ensayo público de R26 como comprobación manual del aviso
+nuevo, ni los proveedores controlados como navegación Android o cálculo ORS real.
