@@ -643,3 +643,31 @@ test('real local restore rejects a calculation with a changed delivery access an
   }finally{await context.close();}
  }
 });
+
+test('current real local API gates a natural city mismatch before precise confirmation and authenticated truck planning',{timeout:120000},async()=>{
+ for(const width of [390,1280]){
+  const context=await browser.newContext({viewport:{width,height:844},isMobile:width<768,hasTouch:width<768});
+  await context.route('https://tile.openstreetmap.org/**',r=>r.abort());
+  const page=await context.newPage();
+  try{
+   await page.goto(base);await createAccount(page,'current-locality-'+width);
+   await page.getByRole('button',{name:'Camión',exact:true}).click();
+   const origin={lat:28.632995123,lng:-106.069100456},destination={lat:28.635300123,lng:-106.088900456};
+   await point(page,'Origen',`${origin.lat},${origin.lng}`);
+   const input=page.getByRole('combobox',{name:'Destino',exact:true}),field=page.locator('.location-field').filter({has:input});
+   const query='Bodega Aurrera Express en Chihuahua';
+   const search=page.waitForResponse(r=>new URL(r.url()).pathname.endsWith('/v1/locations/suggest')&&new URL(r.url()).searchParams.get('q')===query);
+   await input.fill(query);const response=await search,payload=await response.json();
+   assert.equal(response.status(),200);assert.equal(payload.warning,'LOCALITY_NOT_VERIFIED');assert.equal(payload.suggestions[0].locality,'Ciudad de México');
+   await field.getByText(/No pudimos corroborar la localidad escrita/).waitFor();assert.equal(await field.getByRole('option').count(),0);assert.equal(await page.locator('.rp-map-pin-search').count(),0);
+   await input.press('Enter');assert.equal(await field.locator('.location-confirm-card').count(),0);assert.equal(await field.locator('.location-confirmed').count(),0);assert.ok(await page.getByRole('button',{name:'Calcular ruta',exact:true}).isDisabled());
+   const recovery=field.getByRole('region',{name:'Otra forma de ubicar destino',exact:true});assert.equal(new URL(await recovery.getByRole('link').getAttribute('href')).searchParams.get('query'),query);
+   await field.getByRole('button',{name:'Ver coincidencias sin localidad corroborada (1)',exact:true}).click();await field.getByRole('option').waitFor();await page.locator('.rp-map-pin-search').waitFor();
+   await field.getByRole('button',{name:'Ocultar coincidencias sin localidad corroborada',exact:true}).click();assert.equal(await field.getByRole('option').count(),0);assert.equal(await page.locator('.rp-map-pin-search').count(),0);
+   await point(page,'Destino',`${destination.lat},${destination.lng}`);
+   const plan=page.waitForResponse(r=>r.url().endsWith('/v1/routes/plan'));await page.getByRole('button',{name:'Calcular ruta',exact:true}).click();const planned=await plan,body=await planned.json();assert.equal(planned.status(),200);
+   assert.deepEqual(body.route.waypoints.map(p=>({lat:p.lat,lng:p.lng})),[origin,destination]);assert.equal(body.route.regulatoryCoverage.status,'not_verified');assert.equal(body.route.regulatoryCoverage.municipalGeometryEnforced,false);await page.locator('.metrics').waitFor();
+   const link=new URL(await page.getByRole('link',{name:/Abrir puntos en Google Maps/}).getAttribute('href'));assert.equal(link.searchParams.get('destination'),`${destination.lat}, ${destination.lng}`);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  }finally{await context.close();}
+ }
+});
