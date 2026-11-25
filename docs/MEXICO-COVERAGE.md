@@ -1179,3 +1179,15 @@ Sin nueva descarga documental o revisión jurídica: se conserva el reporte
 parciales y cero con validación legal automática completa. Sin nuevos permisos,
 horarios, excepciones, sentidos, dimensiones o geometrías aplicadas al motor.
 Google no recibe HGV/permisos ni fija trazado. Estado y rollback en ingeniería.
+
+
+## Búsqueda natural y evidencia renovada · 25-11-2026
+
+API #35/72ee076 extiende la corroboración acotada a «Aurrera en localidad».
+No añade negocios ni valida accesos HGV. Navegador público y sondas verificaron
+el aviso; build/96 pruebas API y Web build/TypeScript/243 pruebas aprobados.
+Checker real08:02:57.670Z:25 de27 descargas; Consejería CDMX y OJP Puebla503.
+Conserva evidencia anterior sin aprobar normas. API/proxy reciben el reporte nuevo.
+Siguen15 municipios parciales y cero completos; sin nuevas geometrías/horarios.
+Fuente histórica de Delicias localizada, aún sin incorporar en este cierre.
+Detalles, producción y rollback en ENGINEERING-STATUS.

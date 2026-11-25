@@ -150,3 +150,16 @@ texto literal y confirmación. Ver conteos, CI, despliegue y comprobaciones HTTP
 reales en ENGINEERING-STATUS. Sin entorno local/navegador manual en esta segunda
 etapa; no se presenta el ensayo público de R26 como comprobación manual del aviso
 nuevo, ni los proveedores controlados como navegación Android o cálculo ORS real.
+
+
+## Forma natural «en localidad» · 25-11-2026
+
+API #35 interpreta también nombre Aurrera/Express/Mi Bodega en localidad, usando
+el calificador antes de una entidad separada al final. Mantiene el texto enviado
+al proveedor y al enlace Maps; no añade búsquedas ni cuotas. Estado/país y texto
+numerado conservan sus exclusiones. La localidad del proveedor debe coincidir;
+si falta o no coincide se mantiene LOCALITY_NOT_VERIFIED y revisión explícita.
+No cubre toda dirección libre ni acredita identidad, acceso o permiso HGV.
+La variante natural reprodujo cinco coincidencias de otras entidades sin aviso;
+tras publicar, navegador y API/proxy comprobaron aviso y candidatos ocultos.
+Resultados concretos, CI, límites y rollback en ENGINEERING-STATUS.
