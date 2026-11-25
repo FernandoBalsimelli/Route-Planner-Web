@@ -1135,3 +1135,19 @@ test('normal suggestions retain a collapsed manual escape when a provider may ig
   }finally{await context.close();}
  }
 });
+
+test('unverified explicit localities need disclosure before list, map or keyboard selection on mobile and desktop',async()=>{
+ for(const width of [390,1280]){
+  const {context,page}=await setup(()=>{},{width,height:844});let calls=0;
+  try{
+   await page.route('**/api/route-planner/v1/locations/suggest?**',route=>{calls++;return route.fulfill({json:{ok:true,warning:'LOCALITY_NOT_VERIFIED',suggestions:[{label:'Bodega Aurrera Express, Ciudad de México',locality:'Ciudad de México',kind:'venue',lat:19.43,lng:-99.13}]}});});
+   await page.goto(base);const input=page.getByRole('combobox',{name:'Destino',exact:true}),field=page.locator('.location-field').filter({has:input}),query='Bodega Aurrera Express, Chihuahua';await input.fill(query);await field.getByText(/No pudimos corroborar la localidad escrita/).waitFor();
+   assert.equal(await field.getByRole('option').count(),0);assert.equal(await page.locator('.rp-map-pin-search').count(),0);assert.equal(await field.locator('.location-confirmed').count(),0);
+   await input.press('ArrowDown');await input.press('Enter');assert.equal(await field.locator('.location-confirm-card').count(),0);
+   const recovery=field.getByRole('region',{name:'Otra forma de ubicar destino',exact:true});await recovery.waitFor();assert.equal(new URL(await recovery.getByRole('link').getAttribute('href')).searchParams.get('query'),query);
+   await field.getByRole('button',{name:'Ver coincidencias sin localidad corroborada (1)',exact:true}).click();await field.getByRole('option').waitFor();await page.locator('.rp-map-pin-search').waitFor();assert.equal(calls,1);
+   await field.getByRole('button',{name:'Ocultar coincidencias sin localidad corroborada',exact:true}).click();assert.equal(await field.getByRole('option').count(),0);assert.equal(await page.locator('.rp-map-pin-search').count(),0);
+   await field.getByRole('button',{name:'Ver coincidencias sin localidad corroborada (1)',exact:true}).click();await field.getByRole('option').click();await field.getByText('¿Es este el punto correcto?',{exact:true}).waitFor();assert.equal(await field.locator('.location-confirmed').count(),0);assert.equal(await input.inputValue(),query);assert.equal(calls,1);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  }finally{await context.close();}
+ }
+});

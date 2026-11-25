@@ -16,9 +16,9 @@ const link=()=>{const node=container.querySelector('.location-search-recovery a'
 const button=text=>[...container.querySelectorAll('button')].find(node=>node.textContent.includes(text));
 const settle=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,350)));
 async function fill(value){const input=container.querySelector('[role="combobox"]');await act(async()=>{Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,value);input.dispatchEvent(new window.Event('input',{bubbles:true}));});}
-async function render(response,initial='Bodega Aurrerá Express 50% (A), Chihuahua'){
+async function render(response,initial='Bodega Aurrerá Express 50% (A), Chihuahua',onSuggestions){
  picked=null;calls=[];globalThis.fetch=async url=>{calls.push(url);return response(url);};
- function Harness(){const [value,setValue]=useState(initial),[selected,setSelected]=useState(null);return React.createElement(LocationInput,{title:'Destino',color:'orange',value,selected,placeholder:'',apiUrl:'/api',mapReference:{lat:28.63,lng:-106.08},onChange:next=>{setValue(next);setSelected(null);},onConfirm:next=>{picked=next;setSelected(next);}});}
+ function Harness(){const [value,setValue]=useState(initial),[selected,setSelected]=useState(null);return React.createElement(LocationInput,{title:'Destino',color:'orange',value,selected,placeholder:'',apiUrl:'/api',mapReference:{lat:28.63,lng:-106.08},onChange:next=>{setValue(next);setSelected(null);},onConfirm:next=>{picked=next;setSelected(next);},onSuggestions});}
  container=document.createElement('div');document.body.append(container);root=createRoot(container);await act(async()=>root.render(React.createElement(Harness)));
 }
 afterEach(async()=>{await act(async()=>root?.unmount());root=null;container?.remove();globalThis.fetch=oldFetch;});after(()=>dom.window.close());
@@ -45,4 +45,16 @@ test('normal suggestions offer collapsed manual recovery without assuming the ci
  await render(()=>Response.json({ok:true,suggestions:[{...point,label:'Express, Ciudad de México'}]}));await settle();assert.ok(container.querySelector('[role="option"]'));assert.equal(link(),null);assert.ok(container.querySelector('details'));
  await act(async()=>container.querySelector('summary').click());assert.ok(link());assert.equal(new URL(link().href).searchParams.get('query'),'Bodega Aurrerá Express 50% (A), Chihuahua');assert.equal(picked,null);assert.equal(calls.length,1);
  await fill('B');await settle();assert.equal(link(),null);assert.equal(container.querySelector('details'),null);assert.equal(calls.length,1);
+});
+
+test('unverified locality is hidden from list, keyboard and map until explicitly reviewed, and editing resets the gate',async()=>{
+ const updates=[];let unverified=true;
+ await render(()=>Response.json({ok:true,suggestions:[{...point,label:'Bodega Aurrera Express, Ciudad de México'}],...(unverified?{warning:'LOCALITY_NOT_VERIFIED'}:{})}),'Bodega Aurrera Express, Chihuahua',value=>updates.push(value));
+ await act(async()=>container.querySelector('[role="combobox"]').focus());await settle();
+ assert.match(container.textContent,/No pudimos corroborar la localidad escrita/);assert.equal(container.querySelector('[role="option"]'),null);assert.ok(link());assert.ok(updates.every(value=>value.length===0));assert.equal(picked,null);
+ await act(async()=>container.querySelector('[role="combobox"]').dispatchEvent(new window.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true})));assert.equal(container.querySelector('.location-confirm-card'),null);
+ await act(async()=>button('Ver coincidencias sin localidad corroborada').click());assert.ok(container.querySelector('[role="option"]'));assert.equal(updates.at(-1).length,1);
+ await act(async()=>button('Ocultar coincidencias sin localidad corroborada').click());assert.equal(container.querySelector('[role="option"]'),null);assert.deepEqual(updates.at(-1),[]);
+ unverified=false;await fill('Bodega Aurrera Express, Delicias');await settle();assert.ok(container.querySelector('[role="option"]'));assert.equal(button('Ver coincidencias sin localidad corroborada'),undefined);assert.doesNotMatch(container.textContent,/No pudimos corroborar/);
+ await act(async()=>container.querySelector('[role="option"]').click());assert.equal(picked,null);assert.ok(container.querySelector('.location-confirm-card'));
 });
