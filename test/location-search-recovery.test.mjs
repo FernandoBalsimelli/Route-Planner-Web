@@ -12,7 +12,7 @@ const {default:LocationInput}=await import('../components/LocationInput.tsx');
 const oldFetch=globalThis.fetch;
 const point={label:'Acceso propuesto para revisar',lat:28.635300123,lng:-106.088900456};
 let root,container,picked,calls;
-const link=()=>container.querySelector('.location-search-recovery a');
+const link=()=>{const node=container.querySelector('.location-search-recovery a'),details=node?.closest('details');return details&&!details.open?null:node;};
 const button=text=>[...container.querySelectorAll('button')].find(node=>node.textContent.includes(text));
 const settle=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,350)));
 async function fill(value){const input=container.querySelector('[role="combobox"]');await act(async()=>{Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,value);input.dispatchEvent(new window.Event('input',{bubbles:true}));});}
@@ -41,6 +41,8 @@ test('empty and distant searches offer recovery without exposing a far candidate
  let far=false;await render(()=>Response.json({ok:true,suggestions:far?[{...point,label:'Express en otra ciudad',distanceMeters:655570}]:[],...(far?{warning:'NO_NEARBY_MATCHES'}:{})}));await settle();assert.ok(link());assert.equal(picked,null);
  far=true;await fill('Bodega Aurrera Express');await settle();assert.ok(link());assert.equal(container.querySelector('[role="option"]'),null);assert.ok(button('Ver coincidencias lejanas'));assert.equal(picked,null);assert.equal(calls.length,2);
 });
-test('normal suggestions and short drafts do not show the unavailable-location recovery',async()=>{
- await render(()=>Response.json({ok:true,suggestions:[point]}));await settle();assert.ok(container.querySelector('[role="option"]'));assert.equal(link(),null);await fill('B');await settle();assert.equal(link(),null);assert.equal(calls.length,1);
+test('normal suggestions offer collapsed manual recovery without assuming the city matches, while short drafts hide it',async()=>{
+ await render(()=>Response.json({ok:true,suggestions:[{...point,label:'Express, Ciudad de México'}]}));await settle();assert.ok(container.querySelector('[role="option"]'));assert.equal(link(),null);assert.ok(container.querySelector('details'));
+ await act(async()=>container.querySelector('summary').click());assert.ok(link());assert.equal(new URL(link().href).searchParams.get('query'),'Bodega Aurrerá Express 50% (A), Chihuahua');assert.equal(picked,null);assert.equal(calls.length,1);
+ await fill('B');await settle();assert.equal(link(),null);assert.equal(container.querySelector('details'),null);assert.equal(calls.length,1);
 });

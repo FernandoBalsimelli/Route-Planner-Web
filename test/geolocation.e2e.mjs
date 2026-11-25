@@ -1116,9 +1116,22 @@ test('failed, empty and distant searches offer a click-only Maps recovery and ac
    const url=new URL(await link.getAttribute('href'));assert.equal(url.origin,'https://www.google.com');assert.equal(url.pathname,'/maps/search/');assert.deepEqual([...url.searchParams.keys()],['api','query']);assert.equal(url.searchParams.get('query'),query);assert.equal(await link.getAttribute('target'),'_blank');assert.match(await link.getAttribute('rel'),/noopener/);assert.match(await link.getAttribute('rel'),/noreferrer/);assert.equal(externalCalls,0);assert.equal(searches.length,1);
    await input.fill('Sin coincidencias Express');await field.getByText(/Sin coincidencias\. Añade calle/).waitFor();await recovery.waitFor();assert.equal(await field.getByRole('option').count(),0);assert.equal(new URL(await link.getAttribute('href')).searchParams.get('query'),'Sin coincidencias Express');
    await input.fill('Lejana Express');await recovery.waitFor();await field.getByRole('button',{name:'Ver coincidencias lejanas (1)',exact:true}).waitFor();assert.equal(await field.getByRole('option').count(),0);assert.equal(await page.locator('.rp-map-pin-search').count(),0);assert.equal(await field.locator('.location-confirmed').count(),0);
-   await input.fill('28.635300123,-106.088900456');await field.getByRole('option').waitFor();assert.equal(await recovery.count(),0);assert.equal(await input.inputValue(),'28.635300123,-106.088900456');assert.equal(await field.locator('.location-confirmed').count(),0);
+   await input.fill('28.635300123,-106.088900456');await field.getByRole('option').waitFor();assert.equal(await recovery.isVisible(),false);assert.equal(await input.inputValue(),'28.635300123,-106.088900456');assert.equal(await field.locator('.location-confirmed').count(),0);
    await field.getByRole('option').click();assert.equal(await field.locator('.location-confirmed').count(),0);await field.getByRole('button',{name:'Confirmar punto',exact:true}).click();assert.equal(await field.locator('.location-confirmed').count(),1);assert.equal(await input.inputValue(),returned.label);
    const navigation=new URL(await page.getByRole('link',{name:/Abrir puntos en Google Maps/}).getAttribute('href'));assert.equal(navigation.searchParams.get('destination'),'28.635300123, -106.088900456');assert.equal(externalCalls,0);assert.equal(searches.length,4);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  }finally{await context.close();}
+ }
+});
+
+
+test('normal suggestions retain a collapsed manual escape when a provider may ignore the requested city',async()=>{
+ for(const width of [390,1280]){
+  const {context,page}=await setup(()=>{},{width,height:844});let calls=0;
+  try{
+   await page.route('**/api/route-planner/v1/locations/suggest?**',route=>{calls++;return route.fulfill({json:{ok:true,suggestions:[{label:'Bodega Aurrera Express, Ciudad de México',lat:19.43,lng:-99.13,kind:'venue'}]}});});
+   await page.goto(base);const input=page.getByRole('combobox',{name:'Destino',exact:true}),field=page.locator('.location-field').filter({has:input}),query='Bodega Aurrera Express, Chihuahua';await input.fill(query);await field.getByRole('option').waitFor();
+   const recovery=field.getByRole('region',{name:'Otra forma de ubicar destino',exact:true});assert.equal(await recovery.isVisible(),false);await field.locator('summary').click();await recovery.waitFor();const link=recovery.getByRole('link',{name:'Buscar esta ubicación en Google Maps ↗',exact:true});assert.equal(new URL(await link.getAttribute('href')).searchParams.get('query'),query);assert.equal(await input.inputValue(),query);assert.equal(await field.locator('.location-confirmed').count(),0);assert.equal(calls,1);
+   await field.getByRole('option').click();assert.equal(await field.getByRole('region',{name:'Otra forma de ubicar destino',exact:true}).count(),0);assert.equal(await field.locator('.location-confirmed').count(),0);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   }finally{await context.close();}
  }
 });
