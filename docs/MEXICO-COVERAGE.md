@@ -1114,3 +1114,38 @@ identidad/acceso corroborados y licencia compatible, así como actos actuales,
 horarios, permisos, excepciones, sentidos y geometrías. Google no recibe HGV
 ni fija trazado ORS; no se declara una ruta segura o legal por estos cambios.
 Detalles de pruebas públicas, publicación, límites y rollback en ENGINEERING-STATUS.
+
+
+## Recuperación manual de sucursales y reporte renovado · 24-11-2026
+
+Web #53 permite buscar en Maps el texto escrito y volver con coordenadas o Plus
+Code para corroborar y confirmar. La alternativa queda plegada con resultados
+normales y visible ante fallo/ausencia/lejanía; no importa resultados automáticamente.
+Sonda pública 2026-11-25T03:07:55Z: «Bodega Aurrera Express, Chihuahua» devolvió
+ocho sucursales CDMX sin aviso. Se conserva esa limitación: el nuevo enlace no
+valida la localidad del proveedor ni amplía el catálogo Express. Su query conserva
+la ciudad literal, sin añadir foco geográfico que la URL no garantiza.
+La selección/confirmación del punto y del acceso sigue siendo explícita.
+
+Checker real 2026-11-25T03:00:50.241Z (24-11 21:00 Chihuahua): siete grupos,
+27 documentos, 25 descargados y dos HTTP_503 (Consejería CDMX portal_old y OJP
+Puebla lineamientos2396). Juárez descargó frente al 403 de la observación anterior.
+Sin atribuir causas no observadas ni alterar protecciones para evitar respuestas.
+Conserva hashes/historial/última descarga correcta, sin aprobación jurídica nueva.
+API 5cbd12d37c9408918fe40e93dbc39af01100c3a3 / dpl_3v3QRXxpnL9HUm9sj8kAGvEa45aV
+READY; únicamente source-status.json. API/proxy recibieron el reporte nuevo
+a las 03:09:28Z, stale=false/overdue=false. Build y 91 pruebas API, auditoría cero.
+
+Web 6fc3505aafa3b13f37ee69654a932e63085b19b4 / dpl_DXHQuCabmoYwCnp2Y88Jbde6QkzB
+READY/production, alias y SHA exactos; build/TypeScript, 242 pruebas Web, 52 de
+navegador y 13 Auth locales aprobados, auditoría cero. Búsqueda/ayuda y retorno
+con coordenadas precisas corroborados públicamente sin confirmar/guardar datos.
+Coordenadas/Plus Codes y validate de 0/2/48 intermedias comprobados; 49 rechazadas.
+No se presentan validaciones como cálculo ORS real.
+No cambian reglas, configuración vehicular, permisos, horarios, sentidos,
+excepciones, geometrías, cron o cuotas. Se mantienen 15 municipios parciales y
+cero con validación legal automática completa. Los puntos guía no fijan trazado
+ni transmiten HGV/permisos a Google. Catálogo Express con licencia e identidad
+corroboradas, coincidencia de ciudad explícita y actos/geometrías municipales
+actuales siguen pendientes. Android físico y ORS real alojado autenticado no
+se comprobaron. Estado, publicación, logs y rollback en ENGINEERING-STATUS.

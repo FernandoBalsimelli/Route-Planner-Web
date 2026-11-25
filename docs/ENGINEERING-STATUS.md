@@ -2,35 +2,36 @@
 
 Fecha de revisión: 2026-11-24 (Chihuahua). Alcance: exclusivamente Route Planner.
 
-Estado vigente: Web 297d486c0255f3aec0b8085d0289dbd41985eba4, PR #52,
-en producción dpl_AM9V3bGk71aLSUYLV7tChj1acBuJ READY; alias y SHA exactos.
-Se verificaron HTML inicial, entrada pública, sugerencias y corroboración explícita.
+Estado vigente: Web 6fc3505aafa3b13f37ee69654a932e63085b19b4, PR #53,
+en producción dpl_DXHQuCabmoYwCnp2Y88Jbde6QkzB READY; alias y SHA exactos.
+Búsqueda manual en Maps disponible ante fallo/ausencia/lejanía y plegada con
+sugerencias normales; conserva el texto/ciudad y exige volver para corroborar.
+Sin consultas Google automáticas, SDK, clave o importación de resultados.
 
-El caso pendiente de entrada inicial quedó reproducido con teclado real y scripts
-retenidos: el HTML aceptaba coordenadas que se perdían al conectar React.
-Los controles de ubicación ahora esperan a sus manejadores con aviso breve y
-ayuda sin JavaScript. Los campos creados dentro de una app ya cargada están
-listos inmediatamente; se conserva el enfoque de revisión del manifiesto.
-No se espera al mapa, cuenta o proveedor para habilitar la escritura.
+Se confirmó públicamente que «Bodega Aurrera Express, Chihuahua» puede devolver
+ocho sucursales CDMX sin aviso. La nueva alternativa manual permite recuperar ese
+caso; siguen pendientes validar localidad explícita y completar el índice Express.
+Coordenadas de nueve decimales, propuesta real y confirmación explícita verificadas.
+No se confirma un acceso de camión por seleccionar una sucursal.
 
-Verificación final: build/TypeScript, 237 pruebas Web, 50 casos de navegador
-y 13 integraciones Auth/REST/Postgres locales reales; build y 91 pruebas API.
-Auditorías de producción sin vulnerabilidades. Los casos nuevos incluyen scripts
-lentos a 390/1280 px y JavaScript desactivado. No son Android físico ni cálculo
-ORS real autenticado alojado; las limitaciones se conservan en el informe.
+Verificación: build/TypeScript, 242 pruebas Web, 52 casos de navegador y
+13 integraciones Auth/REST/Postgres locales; build y 91 pruebas API.
+Auditorías producción cero. Casos a 390/1280 px incluyen recuperación, ciudad,
+precisión y objetivos táctiles de 44 px. Android físico y cálculo ORS real
+autenticado alojado siguen sin comprobar; CI usa proveedores/ORS controlados.
 
-API dd2705fde35a70297651f291e927591af8614559 sólo actualiza source-status.json.
-Deployment dpl_EZFEUMmFpqweaSgdEucFuYRTyALC READY y alias exacto.
-Checker real 24-11-2026T22:02:18.392Z: siete grupos, 27 documentos,
-25 descargas correctas y dos HTTP_503 (Consejería CDMX/OJP Puebla).
-Se conserva la evidencia más reciente aunque una lectura remota sea anterior.
-No se aprueban automáticamente normas ni se amplía la cobertura por descargar.
+API 5cbd12d37c9408918fe40e93dbc39af01100c3a3 sólo actualiza source-status.json;
+se preservó main independiente 9271a13. Deployment
+dpl_3v3QRXxpnL9HUm9sj8kAGvEa45aV READY, alias exacto.
+Checker 2026-11-25T03:00:50.241Z (24-11 21:00 Chihuahua): siete grupos,
+27 documentos, 25 descargas correctas y dos HTTP_503, Consejería CDMX/OJP Puebla.
+API/proxy recibieron realmente el reporte nuevo; stale=false/overdue=false.
+Una descarga no acredita vigencia jurídica ni amplía cobertura por sí misma.
 
 Se conservan GPS, Plus Codes, vehículos, favoritos, OCR/manifiestos, rutas guardadas,
-48 intermedias y Google en tramos consecutivos. Catálogo público Express y normativa
-nacional siguen parciales: 15 municipios parciales, cero completos automáticamente.
-Google no recibe HGV ni fija trazado. Sin gastos, migraciones o escrituras alojadas.
-El programa general continúa.
+48 intermedias y enlaces Google consecutivos. Quedan 15 municipios parciales y cero
+con validación legal automática completa. Google no recibe HGV ni fija trazado.
+Sin gastos, migraciones o escrituras alojadas. El programa general continúa.
 
 ## Recursos verificados
 
@@ -5890,3 +5891,151 @@ parciales y cero con validación legal completa. Google no recibe HGV ni fija tr
 Android físico y ORS real alojado autenticado siguen sin comprobar en este ciclo.
 No se presenta Auth local con ORS sintético como cálculo real del propietario.
 El programa continúa y su continuación existente permanece habilitada.
+
+
+## Ciclo: recuperar una sucursal mediante búsqueda manual en Maps · 24-11-2026
+
+### Base y problema comprobados
+
+Antes de modificar se leyeron ENGINEERING-STATUS y MEXICO-COVERAGE desde main
+Web 9d2dd36d5fac76351b9913cec46de8c41b06fab7. Runtime Web
+297d486c0255f3aec0b8085d0289dbd41985eba4 / dpl_AM9V3bGk71aLSUYLV7tChj1acBuJ
+READY/production. Main API ya avanzó independientemente a
+9271a13a7645d161563607722f7ad8c1e23cb74d, sólo reporte frente al runtime
+dd2705fde35a70297651f291e927591af8614559 / dpl_EZFEUMmFpqweaSgdEucFuYRTyALC.
+Se preservó ese avance y se trabajó en worktrees aislados. Supabase autorizado
+ACTIVE_HEALTHY; únicamente consulta de estado. Sin operaciones sobre Gestión.
+
+Sonda pública 2026-11-25T03:07:55.005286Z: consulta literal
+«Bodega Aurrera Express, Chihuahua», sin referencia de origen, HTTP200 y ocho
+sucursales de Ciudad de México, sin warning. No demuestra inexistencia de Express
+en Chihuahua. Diagnóstico de código: prioritizeLocations prioriza resultados
+cuyo campo locality está nombrado en la consulta; si no hay ninguno, conserva los
+demás. Con foco nulo tampoco se genera NO_NEARBY_MATCHES. El proveedor puede
+omitir sucursales y no se verifica por ese fallback que respete una ciudad explícita.
+La recuperación manual implementada aquí no corrige esa cobertura/validación.
+
+### Implementación y archivos
+
+Seis archivos: lib/location-review.ts, components/LocationSearchRecovery.tsx,
+components/LocationInput.tsx, app/globals.css, test/location-search-recovery.test.mjs
+y test/geolocation.e2e.mjs.
+
+Cada buscador ofrece una búsqueda manual en Google Maps con el texto literal
+escrito, incluyendo ciudad. Aparece desplegada ante fallo/lista vacía/lejanía;
+con sugerencias normales queda plegada en «¿No es la sucursal? Buscar por otra vía».
+Esto permite recuperarse también de HTTP200 con resultados de otra ciudad.
+No se añade origen, foco ni otro sesgo geográfico que Maps URLs no garantiza.
+El enlace sólo navega al pulsarlo; no consulta Google, carga SDK, requiere clave,
+importa lugares o confirma puntos automáticamente. Longitud 2–180, controles y
+URLs rechazados; query codificada, destino fijo Maps, noopener/noreferrer.
+Resumen y enlace mantienen objetivo táctil de al menos 44 px.
+
+La indicación es comprobar nombre/ciudad en Maps y volver con coordenadas o
+Plus Code completo/con ciudad; sigue siendo necesaria corroboración y confirmación
+explícita del punto/acceso de entrega. Mientras carga o está abierto mapa/favoritos,
+hay propuesta pendiente o punto seleccionado, la ayuda se retira.
+Se conserva el detalle específico del error y el botón de reintento. Editar sigue
+cancelando solicitudes obsoletas. No se alteran GPS, vehículos, OCR, rutas guardadas,
+orden, máximo real de 48 intermedias ni enlaces Google consecutivos.
+Referencia técnica primaria consultada: https://developers.google.com/maps/documentation/urls/get-started
+No existe garantía documentada de foco espacial en esta búsqueda ni transferencia HGV.
+
+### Verificación y publicación Web
+
+Local final: build, TypeScript y 242 pruebas aprobados; auditoría producción cero.
+Cinco pruebas nuevas de helper/componente cubren URL literal/ciudad/PlusCodes,
+entrada inválida, 503 con código específico, cero resultados, lejanía, respuesta
+normal de otra ciudad y retorno con coordenadas antes de confirmación.
+Los dos casos de navegador nuevos recorren estas recuperaciones a 390/1280 px:
+GPS simulado, proveedores controlados, precisión de nueve decimales, destinos
+Google, ausencia de peticiones Google automáticas y controles de 44 px.
+No equivalen a importar resultados de Google, navegar en su app o Android físico.
+
+PR [#53](https://github.com/FernandoBalsimelli/Route-Planner-Web/pull/53),
+candidato final c1831aaed6610f08b4ddfd7576cdfa500508de61. CI
+[45538543315](https://github.com/FernandoBalsimelli/Route-Planner-Web/actions/runs/45538543315)
+aprobada: build/TypeScript, 242 pruebas Web, 52 de navegador y 13 integraciones
+Auth/REST/Postgres locales reales, auditoría cero. Logs leídos de jobs
+138951192300 y 138951191968. La integración fija API
+772a6b2ba6bc56f79c3ac3adfbbfe149e9679e07, proveedores/ORS/geometrías controlados.
+No se confunde con una sesión alojada del propietario o navegación real.
+Candidatos previos 1daeba84c4eeb8c253aca620d1ffb858b968b516 /
+279faca08a0e2473efc4d7973b3e36c3db6ba242 supersedidos; nunca producción.
+Merge 6fc3505aafa3b13f37ee69654a932e63085b19b4. Deployment
+dpl_DXHQuCabmoYwCnp2Y88Jbde6QkzB READY/production, build Vercel 25 s.
+Alias https://route-planner-web-sand.vercel.app/ contrastado al SHA exacto.
+Los seis archivos probados coinciden byte a byte con el merge; worktree propio
+alineado sin tocar directorios previos.
+Comprobación pública del nuevo alias: «Bodega Aurrera Express, Chihuahua»
+volvió a mostrar ocho sucursales CDMX. Se abrió el desplegable de recuperación;
+el enlace conserva api=1 y query literal, _blank/noopener/noreferrer.
+Resumen y enlace medidos en 44 px, sin desbordamiento horizontal a 1363 CSS px.
+Se pegó 28.635300123,-106.088900456, se obtuvo la sugerencia real
+SN Avenida Mirador, Chihuahua, México / 75WMJWP6+4C y se abrió su corroboración.
+Borrador y enlaces de mapa/Street View conservaron nueve decimales, un punto
+pendiente y cero confirmados; ayuda de recuperación retirada y controles de
+ubicación habilitados. No se pulsó Confirmar punto ni se guardaron rutas/favoritos,
+borraron datos o abrieron enlaces Google. Captura JPEG real de la ayuda publicada,
+sin edición, inspeccionada y legible. No se acredita resultado interno de Google,
+GPS físico ni navegación Android por esta comprobación.
+
+### Renovación real del reporte municipal y publicación API
+
+El checker existente terminó antes de las pruebas. CheckedAt
+2026-11-25T03:00:50.241Z (24-11, 21:00 Chihuahua): siete grupos, 27 documentos,
+25 descargas correctas y dos HTTP_503, Consejería CDMX portal_old/OJP Puebla
+lineamientos2396. Juárez volvió a descargar correctamente frente al 403 de la
+observación previa de las 22:40 UTC. No se atribuye una causa no probada ni se
+cambian agente, proxy o protecciones para saltar respuestas.
+Se conservan hashes, historial y última evidencia correcta. Descargar no aprueba
+una norma ni garantiza vigencia. No hay nuevas reglas, permisos, geometrías,
+cron, cuotas o migraciones.
+
+API build y 91 pruebas aprobados; auditoría cero. Commit
+5cbd12d37c9408918fe40e93dbc39af01100c3a3, únicamente data/mx/source-status.json.
+Reporte local/remoto byte a byte y diff de un solo archivo comprobados.
+Deployment dpl_3v3QRXxpnL9HUm9sj8kAGvEa45aV READY/production, build Vercel 4 s,
+alias https://route-planner-api.vercel.app/ al SHA exacto.
+API/proxy recibieron efectivamente ese reporte nuevo: intento de recuperación
+2026-11-25T03:09:28.184Z, éxito 03:09:28.271Z,
+receivedCheckedAt 03:00:50.241Z, stale=false/overdue=false.
+Consultar el reporte no vuelve a descargar los 27 documentos.
+
+Sondas públicas posteriores al despliegue, terminadas
+2026-11-25T03:23:48.383065Z: health API/proxy →200; ambos sirven checkedAt
+03:00:50.241Z, stale=false/overdue=false y la recuperación nueva indicada arriba.
+Coordenadas de nueve decimales conservadas. Plus Codes 75XMRW22+22 y
+RW22+22 Chihuahua →200 como casos independientes, no el mismo punto.
+Validate de 0/2/48 intermedias →200; 49 →400. Plan sin sesión →401 AUTH_REQUIRED.
+Son validación de entradas y protección de cuenta, no cálculos ORS reales de
+dos/múltiples destinos. CORS autorizado OPTIONS204/Allow-Origin correcto;
+origen ajeno404 sin permiso. HTML inicial200 con ambos controles nativamente
+bloqueados y ayuda noscript, seguido de habilitación real comprobada en navegador.
+Ventanas de 30 minutos Vercel error/fatal agrupadas por requestPath no
+devolvieron grupos en ambos proyectos, incluidas consultas posteriores a las
+publicaciones. Es una observación acotada, no monitoreo permanente ni garantía
+de ausencia futura de errores.
+
+### Recuperación, estado y próxima prioridad
+
+Rollback Web: 297d486c0255f3aec0b8085d0289dbd41985eba4 /
+dpl_AM9V3bGk71aLSUYLV7tChj1acBuJ. Rollback API:
+dd2705fde35a70297651f291e927591af8614559 / dpl_EZFEUMmFpqweaSgdEucFuYRTyALC;
+main intermedio 9271a13 preservado en la historia. No rollback ejecutado.
+PR #53 y rama codex/external-location-recovery-20261124 conservan los candidatos.
+Cierre documental separado, sin sustituir el alias del código probado.
+
+Completado: recuperación manual mediante Maps y regreso para corroboración;
+reporte real de fuentes renovado y publicado. Parcial: catálogo público Express
+y normativa mexicana. Pendiente inmediato: validar localidad explícita cuando
+el proveedor sólo devuelve otra ciudad, sin presentar esa respuesta como local;
+después, fuente compatible de sucursales con identidad/acceso y licencia.
+Persisten 15 municipios parciales y cero completos automáticamente. Faltan actos
+actuales de implementación, configuración de vehículo, horarios/zona horaria,
+permisos, excepciones, sentidos y geometrías verificadas. Los puntos guía
+orientan Google; no fijan trazado ni transmiten HGV/permisos.
+Android físico y cálculo ORS real autenticado alojado no se comprobaron.
+Sin gastos, datos eliminados, secretos expuestos o escrituras Supabase.
+El programa general continúa y la continuación existente permanece habilitada.
+

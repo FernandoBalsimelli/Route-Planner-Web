@@ -95,3 +95,33 @@ Se añadieron pruebas de servidor/hidratación, scripts iniciales lentos a
 commit, producción, alias, logs y rollback constan en ENGINEERING-STATUS.
 Esto no es navegación Android física ni cálculo ORS autenticado en producción.
 Referencia técnica: https://react.dev/reference/react/useSyncExternalStore
+
+
+## Búsqueda manual en Maps y retorno para corroborar · 24-11-2026
+
+El buscador ahora ofrece «Buscar esta ubicación en Google Maps» cuando falla,
+no encuentra puntos o sólo hay coincidencias lejanas. Con resultados normales
+la alternativa se puede abrir desde «¿No es la sucursal? Buscar por otra vía».
+Es necesaria también cuando un HTTP200 omite sucursales o devuelve otra ciudad:
+se observó públicamente esa respuesta para Express en Chihuahua. No se presenta
+la ayuda como una corrección del índice ni de la validación geográfica del proveedor.
+
+La URL usa Maps Search, api=1 y query codificada con el texto literal y ciudad;
+no añade coordenadas de referencia ni promete sesgo espacial no documentado.
+No hay consulta Google previa al clic, SDK, clave, importación automática o coste
+añadido. Rechaza borradores menores de dos caracteres, mayores de 180, controles
+y texto con URL. El dominio es fijo; nueva pestaña con noopener/noreferrer.
+La ayuda se retira mientras carga, en favoritos/mapa o tras proponer/elegir punto.
+El resumen y el enlace conservan áreas táctiles de al menos 44 px.
+
+El operador comprueba nombre/ciudad en Maps y vuelve a pegar coordenadas o
+Plus Code completo/con ciudad. Elegir sugerencia y confirmar siguen siendo pasos
+explícitos; también debe corroborar el acceso de entrega. El enlace no transmite
+restricciones HGV, no acredita acceso de camión y no fija una ruta de Google.
+Los fallos del proveedor conservan código y mensaje propios más su reintento.
+
+Build, TypeScript, cinco regresiones nuevas de helper/componente y dos casos
+nuevos de navegador a 390/1280 px; conteos finales, CI, despliegue y comprobación
+pública en ENGINEERING-STATUS. Proveedores/GPS de CI controlados; no se ejecutó
+una búsqueda dentro de Google ni navegación Android física por verificar la URL.
+Referencia primaria consultada: https://developers.google.com/maps/documentation/urls/get-started
