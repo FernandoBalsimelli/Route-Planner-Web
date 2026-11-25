@@ -6,6 +6,7 @@ import { locateDevice } from '@/lib/geolocation';
 import { addressNumberNotice, businessLocationNotice, resolvePointLabel, type Coordinates, type LocationSelection } from '@/lib/locations';
 import LocationBookTools from './LocationBookTools';
 import LocationReviewLinks from './LocationReviewLinks';
+import LocationSearchRecovery from './LocationSearchRecovery';
 import { useLocationBook } from './LocationBookProvider';
 import { validLocation } from '@/lib/location-book';
 import { fetchLocationSuggestions, LocationSearchError } from '@/lib/location-search';
@@ -310,6 +311,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       </button>)}
     </div>}
     {searchError && <div className="location-search-error" role="alert" data-error-code={searchErrorCode}><p>{searchError} Puedes continuar escribiendo una dirección completa.</p><button type="button" className="text-button" aria-label={`Reintentar búsqueda de ${title.toLowerCase()}`} onClick={() => { cancelLocation(); setMapOpen(false); setBookOpen(false); setSearchPaused(false); inputRef.current?.focus(); setSearchAttempt(attempt => attempt + 1); }}>Reintentar búsqueda</button></div>}
+    {!bookOpen && !mapOpen && !selected && !pending && !loading && (searchError || searchNotice) && <LocationSearchRecovery title={title} value={value}/>}
     {pending && <div className="location-confirm-card">
       <div><strong>¿Es este el punto correcto?</strong><p>{pending.label}</p><small>{locationKind(pending.kind) && `${locationKind(pending.kind)} · `}{pending.plusCode || `${pending.lat.toFixed(6)}, ${pending.lng.toFixed(6)}`}</small></div>
       {businessLocationNotice(pending) && <p className="address-number-notice" role="status">{businessLocationNotice(pending)}</p>}

@@ -1090,3 +1090,35 @@ test('repeated manifest orders explicitly reuse earlier accesses without new loo
   }finally{await context.close();}
  }
 });
+
+
+test('failed, empty and distant searches offer a click-only Maps recovery and accept precise returned coordinates on mobile and desktop',async()=>{
+ for(const width of [390,1280]){
+  const {context,page}=await setup(success,{width,height:844});let externalCalls=0;const searches=[];
+  const returned={label:'Acceso de prueba corroborado',lat:28.635300123,lng:-106.088900456};
+  try{
+   await context.route('https://www.google.com/**',route=>{externalCalls++;return route.abort();});
+   await page.route('**/api/route-planner/**',route=>{
+    const url=new URL(route.request().url());
+    if(url.pathname.endsWith('/reverse'))return route.fulfill({json:{ok:true,location:{label:'Origen de prueba en Chihuahua'}}});
+    if(!url.pathname.endsWith('/suggest'))return route.fulfill({json:{ok:true}});
+    const query=url.searchParams.get('q');searches.push(query);
+    if(query.startsWith('28.6353'))return route.fulfill({json:{ok:true,suggestions:[returned]}});
+    if(query.includes('Sin coincidencias'))return route.fulfill({json:{ok:true,suggestions:[]}});
+    if(query.includes('Lejana'))return route.fulfill({json:{ok:true,warning:'NO_NEARBY_MATCHES',suggestions:[{label:'Express en otra ciudad',lat:25.721274,lng:-100.325989,distanceMeters:655570}]}});
+    return route.fulfill({status:503,json:{ok:false,code:'PHOTON_UNAVAILABLE',message:'Proveedor alterno no disponible.'}});
+   });
+   await page.goto(base);await page.getByRole('button',{name:'Usar mi ubicación actual',exact:true}).click();await page.getByText('Ubicación actual establecida como origen.',{exact:true}).waitFor();
+   const input=page.getByRole('combobox',{name:'Destino',exact:true}),field=page.locator('.location-field').filter({has:input});
+   const query='Bodega Aurrerá Express 50% (A), Chihuahua';await input.fill(query);
+   const recovery=field.getByRole('region',{name:'Otra forma de ubicar destino',exact:true}),link=recovery.getByRole('link',{name:'Buscar esta ubicación en Google Maps ↗',exact:true});
+   await recovery.waitFor();assert.match(await field.getByRole('alert').innerText(),/Proveedor alterno no disponible/);assert.equal(await field.getByRole('alert').getAttribute('data-error-code'),'PHOTON_UNAVAILABLE');assert.equal(await input.inputValue(),query);assert.equal(await field.locator('.location-confirmed').count(),0);
+   const url=new URL(await link.getAttribute('href'));assert.equal(url.origin,'https://www.google.com');assert.equal(url.pathname,'/maps/search/');assert.deepEqual([...url.searchParams.keys()],['api','query']);assert.equal(url.searchParams.get('query'),query);assert.equal(await link.getAttribute('target'),'_blank');assert.match(await link.getAttribute('rel'),/noopener/);assert.match(await link.getAttribute('rel'),/noreferrer/);assert.equal(externalCalls,0);assert.equal(searches.length,1);
+   await input.fill('Sin coincidencias Express');await field.getByText(/Sin coincidencias\. Añade calle/).waitFor();await recovery.waitFor();assert.equal(await field.getByRole('option').count(),0);assert.equal(new URL(await link.getAttribute('href')).searchParams.get('query'),'Sin coincidencias Express');
+   await input.fill('Lejana Express');await recovery.waitFor();await field.getByRole('button',{name:'Ver coincidencias lejanas (1)',exact:true}).waitFor();assert.equal(await field.getByRole('option').count(),0);assert.equal(await page.locator('.rp-map-pin-search').count(),0);assert.equal(await field.locator('.location-confirmed').count(),0);
+   await input.fill('28.635300123,-106.088900456');await field.getByRole('option').waitFor();assert.equal(await recovery.count(),0);assert.equal(await input.inputValue(),'28.635300123,-106.088900456');assert.equal(await field.locator('.location-confirmed').count(),0);
+   await field.getByRole('option').click();assert.equal(await field.locator('.location-confirmed').count(),0);await field.getByRole('button',{name:'Confirmar punto',exact:true}).click();assert.equal(await field.locator('.location-confirmed').count(),1);assert.equal(await input.inputValue(),returned.label);
+   const navigation=new URL(await page.getByRole('link',{name:/Abrir puntos en Google Maps/}).getAttribute('href'));assert.equal(navigation.searchParams.get('destination'),'28.635300123, -106.088900456');assert.equal(externalCalls,0);assert.equal(searches.length,4);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  }finally{await context.close();}
+ }
+});
