@@ -19,6 +19,11 @@ globalThis.fetch = async (input, init) => {
       const lat = Number(url.searchParams.get('point.lat')), lng = Number(url.searchParams.get('point.lon'));
       return Response.json({ features: [{ geometry: { coordinates: [lng, lat] }, properties: { label: `Acceso de prueba ${lat}, ${lng}`, layer: 'address' } }] });
     }
+    // Geocoding remains synthetic, while the proxy and current API execute their
+    // actual locality parsing, ranking, cache and warning contract.
+    if (url.pathname.includes('/pelias/v1/') && url.searchParams.get('text') === 'Bodega Aurrera Express en Chihuahua') {
+      return Response.json({features:[{geometry:{coordinates:[-99.13,19.43]},properties:{name:'Bodega Aurrera Express',label:'Bodega Aurrera Express, Ciudad de México',locality:'Ciudad de México',layer:'venue'}}]});
+    }
     if (url.pathname.includes('/directions/')) {
       const body = JSON.parse(init.body);
       appendFileSync(process.env.RP_ORS_CAPTURE_FILE, JSON.stringify({ path: url.pathname, body }) + '\n');
