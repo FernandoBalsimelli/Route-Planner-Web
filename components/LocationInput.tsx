@@ -48,9 +48,11 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
   const focused = useRef(false);
   const suggestionsCallback = useRef(onSuggestions); suggestionsCallback.current = onSuggestions;
   const [suggestions, setSuggestions] = useState<LocationSelection[]>([]);
-  const [outsideNearby, setOutsideNearby] = useState(false);
-  const [showDistant, setShowDistant] = useState(false);
-  const visibleSuggestions = outsideNearby && !showDistant ? [] : suggestions;
+  const [searchConstraint, setSearchConstraint] = useState<'distance' | 'locality' | null>(null);
+  const suggestionsNeedReview = searchConstraint !== null;
+  const reviewLabel = searchConstraint === 'locality' ? 'coincidencias sin localidad corroborada' : 'coincidencias lejanas';
+  const [showUnverified, setShowUnverified] = useState(false);
+  const visibleSuggestions = suggestionsNeedReview && !showUnverified ? [] : suggestions;
   const [pending, setPending] = useState<LocationSelection | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
@@ -82,7 +84,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
     setSearchPaused(true);
     setSuggestions([]); setPending(null); setActiveIndex(-1); setLoading(false);
     setSearchError(''); setSearchNotice('');
-    setOutsideNearby(false); setShowDistant(false);
+    setSearchConstraint(null); setShowUnverified(false);
     suggestionsCallback.current?.([]);
   }
 
@@ -164,8 +166,8 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
     setPending(null);
     setSearchError('');
     setSearchNotice('');
-    setOutsideNearby(false);
-    setShowDistant(false);
+    setSearchConstraint(null);
+    setShowUnverified(false);
     searchDismissed.current = false;
     const controller = new AbortController();
     searchController.current = controller;
@@ -180,10 +182,11 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
         if (controller.signal.aborted) return;
         const locations = Array.isArray(payload.suggestions) ? payload.suggestions.filter(validLocation) : [];
         const distant = payload.warning === 'NO_NEARBY_MATCHES';
+        const unverified = payload.warning === 'LOCALITY_NOT_VERIFIED';
         setSuggestions(locations);
-        setOutsideNearby(distant);
-        if (focused.current) suggestionsCallback.current?.(distant ? [] : locations);
-        setSearchNotice(distant ? 'No encontramos coincidencias a menos de 50 km del punto de referencia. Añade calle o ciudad, pega coordenadas o un Plus Code, o elige el acceso en el mapa cerca del origen.' : !locations.length ? 'Sin coincidencias. Añade calle, colonia o ciudad, o elige el punto en el mapa.' : '');
+        setSearchConstraint(unverified ? 'locality' : distant ? 'distance' : null);
+        if (focused.current) suggestionsCallback.current?.(distant || unverified ? [] : locations);
+        setSearchNotice(unverified ? 'No pudimos corroborar la localidad escrita en estas coincidencias. Revisa ciudad y acceso, o busca en Google Maps y vuelve con coordenadas o un Plus Code.' : distant ? 'No encontramos coincidencias a menos de 50 km del punto de referencia. Añade calle o ciudad, pega coordenadas o un Plus Code, o elige el acceso en el mapa cerca del origen.' : !locations.length ? 'Sin coincidencias. Añade calle, colonia o ciudad, o elige el punto en el mapa.' : '');
       } catch (error) {
         if (controller.signal.aborted) return;
         setSuggestions([]);
@@ -258,7 +261,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
             event.preventDefault(); searchDismissed.current = false; setSearchPaused(false); setSearchAttempt(attempt => attempt + 1); return;
           }
           if (event.key === 'Enter' && pending) { event.preventDefault(); confirmPending(); return; }
-          if (event.key === 'Enter' && outsideNearby && !visibleSuggestions.length) { event.preventDefault(); return; }
+          if (event.key === 'Enter' && suggestionsNeedReview && !visibleSuggestions.length) { event.preventDefault(); return; }
           if (!visibleSuggestions.length || pending) return;
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setActiveIndex(index => index < 0 ? event.key === 'ArrowDown' ? 0 : visibleSuggestions.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + visibleSuggestions.length) % visibleSuggestions.length); }
           else if (event.key === 'Enter') { event.preventDefault(); setPending(visibleSuggestions[activeIndex >= 0 ? activeIndex : 0]); }
@@ -272,7 +275,7 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
       if (mapOpen) { closeMap(); return; }
       cancelLocation();
       setBookOpen(false);
-      setMapSeed(selected || pending || (!outsideNearby ? suggestions[0] : null) || mapReference || null);
+      setMapSeed(selected || pending || (!suggestionsNeedReview ? suggestions[0] : null) || mapReference || null);
       dismissSearch();
       setMapOpen(true);
     }}>⌖ {mapOpen ? 'Cerrar mapa' : 'Elegir en el mapa'}</button>
@@ -289,10 +292,10 @@ export default function LocationInput({ title, color, value, placeholder, apiUrl
     {book?.signedIn && !bookOpen && !mapOpen && !selected && !pending && !loading && value.trim().length >= 2 && (searchError || searchNotice) && <div className="saved-search-recovery"><button type="button" className="map-open-button" onClick={openLocationBook}>Buscar en mis favoritos</button><p className="hint">Usa la búsqueda que ya escribiste para encontrar una sucursal guardada en tu cuenta. Revisa que corresponda a esta entrega.</p></div>}
     {onSuggestions && visibleSuggestions.length > 0 && !pending && <a className="suggestions-map-link" href="#mapa-planificacion" onClick={() => suggestionsCallback.current?.(visibleSuggestions)}>Ver estas coincidencias en el mapa ↑</a>}
     {!loading && searchNotice && !selected && !pending && <p className="location-search-status" role="status">{searchNotice}</p>}
-    {!loading && outsideNearby && suggestions.length > 0 && !selected && !pending && <button type="button" className="text-button" aria-expanded={showDistant} onClick={() => {
-      setShowDistant(!showDistant); setActiveIndex(-1);
-      suggestionsCallback.current?.(showDistant ? [] : suggestions);
-    }}>{showDistant ? 'Ocultar coincidencias lejanas' : `Ver coincidencias lejanas (${suggestions.length})`}</button>}
+    {!loading && suggestionsNeedReview && suggestions.length > 0 && !selected && !pending && <button type="button" className="text-button" aria-expanded={showUnverified} onClick={() => {
+      setShowUnverified(!showUnverified); setActiveIndex(-1);
+      suggestionsCallback.current?.(showUnverified ? [] : suggestions);
+    }}>{showUnverified ? `Ocultar ${reviewLabel}` : `Ver ${reviewLabel} (${suggestions.length})`}</button>}
     {visibleSuggestions.length > 0 && !pending && <div className="location-suggestions" id={listId} role="listbox" aria-label={`Sugerencias para ${title}`}>
       {visibleSuggestions.map((suggestion, index) => <button
         type="button"
